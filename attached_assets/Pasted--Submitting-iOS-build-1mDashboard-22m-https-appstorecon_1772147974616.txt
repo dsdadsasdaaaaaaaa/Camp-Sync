@@ -1,0 +1,62 @@
+⌛️ Submitting iOS build...
+- [1mDashboard[22m:    https://appstoreconnect.apple.com/apps/6757722093/distribution
+- [1mApp[22m:          CampSync (com.superlevi4566.campsyncnfc)
+- [1mBuild number[22m: 7
+- [1mBinary path[22m:  ./ios/build/CampSync.ipa
+[32m-------------------[0m
+[32m--- Step: pilot ---[0m
+[32m-------------------[0m
+Creating authorization token for App Store Connect API
+[32mReady to upload new build to TestFlight (App: 6757722093)...[0m
+Going to upload updated app to App Store Connect
+[32mThis might take a few minutes. Please don't interrupt the script.[0m
+[33m[altool] Running altool at path '/Applications/Xcode.app/Contents/SharedFrameworks/ContentDeliveryServices.framework/Frameworks/AppStoreService.framework/Support/altool'...
+[0m
+[33m[altool] 
+[0m
+[33m[altool] 2026-02-26 15:18:15.537 [1m[31mERROR: [altool.600001454140] [ContentDelivery.Uploader.600001454140] 
+[0m
+[33m[altool] =======================================
+[0m
+[33m[altool] UPLOAD FAILED with 2 errors
+[0m
+[33m[altool] =======================================[0m
+[0m
+[33m[altool] 2026-02-26 15:18:15.540 [1m[31mERROR: [altool.600001454140] Error uploading '/var/folders/5_/4knlryn57n39p2c_jw8567z00000gn/T/141fc234-2f5a-4d75-ae3a-80d0c2126527.ipa'.[0m
+[0m
+[33m[altool] 2026-02-26 15:18:15.540 [1m[31mERROR: [altool.600001454140] Validation failed Invalid entitlement for core nfc framework. The sdk version '26.0' and min OS version '15.1' are not compatible for the entitlement 'com.apple.developer.nfc.readersession.formats' because 'TAG is missing in the entitlement'. (ID: dbb0e612-3fe6-44f9-8b57-17adff24237a) (409)
+[0m
+[33m[altool]  {
+[0m
+[33m[altool]     NSLocalizedDescription = "Validation failed";
+[0m
+[33m[altool]     NSLocalizedFailureReason = "Invalid entitlement for core nfc framework. The sdk version '26.0' and min OS version '15.1' are not compatible for the entitlement 'com.apple.developer.nfc.readersession.formats' because 'TAG is missing in the entitlement'. (ID: dbb0e612-3fe6-44f9-8b57-17adff24237a)";
+[0m
+[33m[altool]     NSUnderlyingError = "Error Domain=IrisAPI Code=-19241 \"Validation failed\" UserInfo={status=409, detail=Invalid entitlement for core nfc framework. The sdk version '26.0' and min OS version '15.1' are not compatible for the entitlement 'com.apple.developer.nfc.readersession.formats' because 'TAG is missing in the entitlement'., id=dbb0e612-3fe6-44f9-8b57-17adff24237a, code=STATE_ERROR.VALIDATION_ERROR, title=Validation failed, NSLocalizedFailureReason=Invalid entitlement for core nfc framework. The sdk version '26.0' and min OS version '15.1' are not compatible for the entitlement 'com.apple.developer.nfc.readersession.formats' because 'TAG is missing in the entitlement'., NSLocalizedDescription=Validation failed}";
+[0m
+[33m[altool]     "iris-code" = "STATE_ERROR.VALIDATION_ERROR";
+[0m
+[33m[altool] }[0m
+[0m
+[33m[altool] 2026-02-26 15:18:15.540 [1m[31mERROR: [altool.600001454140] Validation failed Invalid entitlement for core nfc framework. The sdk version '26.0' and min OS version '15.1' are not compatible for the entitlement 'com.apple.developer.nfc.readersession.formats' because 'NDEF is disallowed'. (ID: d17b71c1-96b9-4d0c-83f1-6cfa86a9211a) (409)
+[0m
+[33m[altool]  {
+[0m
+[33m[altool]     NSLocalizedDescription = "Validation failed";
+[0m
+[33m[altool]     NSLocalizedFailureReason = "Invalid entitlement for core nfc framework. The sdk version '26.0' and min OS version '15.1' are not compatible for the entitlement 'com.apple.developer.nfc.readersession.formats' because 'NDEF is disallowed'. (ID: d17b71c1-96b9-4d0c-83f1-6cfa86a9211a)";
+[0m
+[33m[altool]     NSUnderlyingError = "Error Domain=IrisAPI Code=-19241 \"Validation failed\" UserInfo={status=409, detail=Invalid entitlement for core nfc framework. The sdk version '26.0' and min OS version '15.1' are not compatible for the entitlement 'com.apple.developer.nfc.readersession.formats' because 'NDEF is disallowed'., id=d17b71c1-96b9-4d0c-83f1-6cfa86a9211a, code=STATE_ERROR.VALIDATION_ERROR, title=Validation failed, NSLocalizedFailureReason=Invalid entitlement for core nfc framework. The sdk version '26.0' and min OS version '15.1' are not compatible for the entitlement 'com.apple.developer.nfc.readersession.formats' because 'NDEF is disallowed'., NSLocalizedDescription=Validation failed}";
+[0m
+[33m[altool]     "iris-code" = "STATE_ERROR.VALIDATION_ERROR";
+[0m
+[33m[altool] }[0m
+[0m
+Application Loader output above ^
+[31mThe call to the altool completed with a non-zero exit status: 1. This indicates a failure.[0m
+[31mCould not download/upload from App Store Connect![0m
+[31m
+[!] Error uploading ipa file: 
+ [Application Loader Error Output]: The call to the altool completed with a non-zero exit status: 1. This indicates a failure.[0m
+[31mError: fastlane run pilot ipa:app-7361e09b-6575-422a-9c52-7c9eee526331.ipa apple_id:6757722093 skip_waiting_for_build_processing:true api_key_path:asc_api_key-8152d810-817e-47dc-8d0b-0444c4287275.json exited with non-zero code: 1[39m
+/bin/bash -eo pipefail /var/folders/5_/4knlryn57n39p2c_jw8567z00000gn/T/eas-build/2a08bcc5-7967-418e-a143-32db7eacb52c/steps/0fa1c92c-5e18-4bca-9b0c-b885642e3c2a/scripts/82ef16cb-1de9-403b-92ff-3452d13740fe.sh exited with non-zero code: 1
