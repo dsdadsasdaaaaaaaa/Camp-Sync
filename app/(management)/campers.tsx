@@ -33,90 +33,95 @@ function CamperCard({
   onDelete: () => void;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.camperCard,
-        { opacity: pressed ? 0.9 : 1 },
-      ]}
-      onPress={onPress}
-    >
-      <View style={styles.camperAvatar}>
-        <Text style={styles.camperInitial}>
-          {camper.firstName.charAt(0).toUpperCase()}
-        </Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <View style={styles.camperNameRow}>
-          <Text style={styles.camperName}>
-            {camper.firstName} {camper.lastName}
+    <View style={styles.camperCard}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.camperCardContent,
+          { opacity: pressed ? 0.85 : 1 },
+        ]}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${camper.firstName} ${camper.lastName}`}
+        testID={`camper-card-${camper.id}`}
+      >
+        <View style={styles.camperAvatar}>
+          <Text style={styles.camperInitial}>
+            {camper.firstName.charAt(0).toUpperCase()}
           </Text>
-          {hasPendingUpdate && (
-            <Ionicons name="warning" size={14} color={Colors.warning} />
-          )}
         </View>
-        <Text style={styles.camperCabin}>{camper.cabinGroup || "No cabin assigned"}</Text>
-        <View style={styles.camperTags}>
-          <View
-            style={[
-              styles.tag,
-              {
-                backgroundColor: isCheckedIn
-                  ? Colors.success + "20"
-                  : Colors.light.surfaceSecondary,
-              },
-            ]}
-          >
+        <View style={{ flex: 1 }}>
+          <View style={styles.camperNameRow}>
+            <Text style={styles.camperName}>
+              {camper.firstName} {camper.lastName}
+            </Text>
+            {hasPendingUpdate && (
+              <Ionicons name="warning" size={14} color={Colors.warning} />
+            )}
+          </View>
+          <Text style={styles.camperCabin}>{camper.cabinGroup || "No cabin assigned"}</Text>
+          <View style={styles.camperTags}>
             <View
               style={[
-                styles.tagDot,
+                styles.tag,
                 {
                   backgroundColor: isCheckedIn
-                    ? Colors.success
-                    : Colors.light.textMuted,
-                },
-              ]}
-            />
-            <Text
-              style={[
-                styles.tagText,
-                {
-                  color: isCheckedIn
-                    ? Colors.success
-                    : Colors.light.textSecondary,
+                    ? Colors.success + "20"
+                    : Colors.light.surfaceSecondary,
                 },
               ]}
             >
-              {isCheckedIn ? "Checked In" : "Not Present"}
-            </Text>
-          </View>
-          {camper.wristbandId && (
-            <View style={[styles.tag, { backgroundColor: Colors.primary + "15" }]}>
-              <Ionicons name="radio" size={10} color={Colors.primary} />
-              <Text style={[styles.tagText, { color: Colors.primary }]}>
-                {camper.wristbandId}
+              <View
+                style={[
+                  styles.tagDot,
+                  {
+                    backgroundColor: isCheckedIn
+                      ? Colors.success
+                      : Colors.light.textMuted,
+                  },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.tagText,
+                  {
+                    color: isCheckedIn
+                      ? Colors.success
+                      : Colors.light.textSecondary,
+                  },
+                ]}
+              >
+                {isCheckedIn ? "Checked In" : "Not Present"}
               </Text>
             </View>
-          )}
+            {camper.wristbandId && (
+              <View style={[styles.tag, { backgroundColor: Colors.primary + "15" }]}>
+                <Ionicons name="radio" size={10} color={Colors.primary} />
+                <Text style={[styles.tagText, { color: Colors.primary }]}>
+                  {camper.wristbandId}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
-      <View style={styles.camperActions}>
-        <Pressable
-          onPress={onDelete}
-          style={({ pressed }) => [
-            styles.deleteButton,
-            { opacity: pressed ? 0.7 : 1 },
-          ]}
-          hitSlop={8}
-        >
-          <Ionicons name="trash-outline" size={18} color={Colors.danger} />
-        </Pressable>
         <Ionicons
           name="chevron-forward"
           size={18}
           color={Colors.light.textMuted}
         />
-      </View>
-    </Pressable>
+      </Pressable>
+      <Pressable
+        onPress={onDelete}
+        style={({ pressed }) => [
+          styles.deleteButton,
+          { opacity: pressed ? 0.7 : 1 },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={`Delete ${camper.firstName} ${camper.lastName}`}
+        hitSlop={4}
+      >
+        <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -325,14 +330,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: Colors.light.surface,
     borderRadius: 16,
-    padding: 14,
-    gap: 12,
+    paddingRight: 6,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
     marginBottom: 8,
+  },
+  camperCardContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    gap: 12,
+    borderRadius: 16,
   },
   camperAvatar: {
     width: 48,
@@ -386,13 +398,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Outfit_600SemiBold",
   },
-  camperActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   deleteButton: {
-    padding: 6,
+    padding: 10,
+    borderRadius: 10,
   },
   empty: {
     alignItems: "center",

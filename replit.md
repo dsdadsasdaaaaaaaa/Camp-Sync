@@ -68,10 +68,22 @@ The app uses **Expo Router** with file-based routing. The route structure reflec
 
 ### Wristband/NFC System
 
-- Wristbands have encrypted payloads containing camper info, created via `encryptWristbandData` / `decryptWristbandData` in `lib/crypto.ts`
-- A simple XOR cipher with app secret key is used for encryption (not production-grade cryptography)
-- Wristband programming is simulated (no actual NFC hardware integration in current code)
+- Real Apple Core NFC integration via `react-native-nfc-manager` in `lib/nfc.native.ts` (Metro auto-selects `.native.ts` for native, `.ts` for web)
+- Web stub at `lib/nfc.ts` reports NFC as unsupported (no native module imports)
+- NFC tags store `CAMPSYNC:` prefix + XOR+Base64 encrypted `WristbandPayload` as NDEF text records
+- `NFCScanner` component (`components/NFCScanner.tsx`) handles read and write modes with native iOS NFC overlay, pulse animation, and success/error states
+- Wristband programming in camper detail uses real NFCScanner in write mode
 - The management portal tracks "pending wristband updates" when camper data changes after wristband programming
+- NFC permissions configured in `app.json`: iOS NFCReaderUsageDescription + NDEF entitlements, Android NFC permission
+
+### Camper Management
+
+- Camper list (`app/(management)/campers.tsx`) with search, add, and delete functionality
+- Camper card uses separated Pressables: main content for navigation, separate delete button (fixes web pointer event conflicts)
+- Camper detail profile (`app/(management)/camper/[id].tsx`) with Info/Medical/Status tabs, Edit button in header for inline editing
+- Stack navigator in `app/(management)/camper/_layout.tsx` handles [id] and new routes
+- Management can check in/out campers at any time from the Status tab (bypasses session restrictions)
+- Parent auth code generation from camper detail (single-use, linked to camper)
 
 ### Backend (Express.js)
 

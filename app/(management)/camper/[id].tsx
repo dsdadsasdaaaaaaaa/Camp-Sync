@@ -185,7 +185,7 @@ export default function CamperDetailScreen() {
           text: "Generate",
           onPress: async () => {
             try {
-              const code = await createAuthCode("parent", camper.id);
+              const code = await createAuthCode("parent", 1, camper.id);
               Alert.alert(
                 "Parent Auth Code",
                 `Share this code with ${camper.firstName}'s parent:\n\n${code}\n\nThey can use it to register in the app.`,
