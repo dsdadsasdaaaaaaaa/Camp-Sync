@@ -10,7 +10,7 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { getItem, setItem, KEYS } from "@/lib/storage";
 import { hashPassword, generateId } from "@/lib/crypto";
-import type { User, UserRole, AuthCode } from "@/types";
+import type { User, UserRole, AuthCode, Camper, MedicalInfo } from "@/types";
 
 interface AuthContextValue {
   user: User | null;
@@ -52,14 +52,64 @@ async function secureDelete(key: string): Promise<void> {
   return SecureStore.deleteItemAsync(key);
 }
 
+const DEMO_CAMPER_ID = "demo-camper-001";
+
 async function seedInitialData() {
   const users = await getItem<User[]>(KEYS.USERS);
   if (users && users.length > 0) return;
 
+  const existingCampers = await getItem<Camper[]>(KEYS.CAMPERS);
+  if (!existingCampers || existingCampers.length === 0) {
+    const now = new Date().toISOString();
+    const demoCamper: Camper = {
+      id: DEMO_CAMPER_ID,
+      firstName: "Alex",
+      lastName: "Johnson",
+      dateOfBirth: "06/15/2015",
+      cabinGroup: "Cabin 3 - Eagles",
+      medical: {
+        allergies: "Peanuts",
+        medications: "EpiPen (as needed)",
+        conditions: "Mild Asthma",
+        emergencyContact: "Sarah Johnson",
+        emergencyPhone: "(555) 234-5678",
+        doctorName: "Dr. Emily Chen",
+        doctorPhone: "(555) 789-0123",
+        insuranceProvider: "BlueCross BlueShield",
+        bloodType: "A+",
+        notes: "Carries inhaler at all times. Parent should be notified immediately for any allergic reaction.",
+      },
+      createdAt: now,
+      updatedAt: now,
+    };
+    await setItem(KEYS.CAMPERS, [demoCamper]);
+  }
+
   const codes = await getItem<AuthCode[]>(KEYS.AUTH_CODES);
-  if (!codes) {
-    const mgmtId = generateId();
+  if (!codes || codes.length === 0) {
     const initialCodes: AuthCode[] = [
+      {
+        code: "DEMO-ADMIN",
+        role: "management",
+        used: false,
+        createdAt: new Date().toISOString(),
+        createdBy: "system",
+      },
+      {
+        code: "DEMO-STAFF",
+        role: "staff",
+        used: false,
+        createdAt: new Date().toISOString(),
+        createdBy: "system",
+      },
+      {
+        code: "DEMO-PARENT",
+        role: "parent",
+        linkedCamperId: DEMO_CAMPER_ID,
+        used: false,
+        createdAt: new Date().toISOString(),
+        createdBy: "system",
+      },
       {
         code: "MGMT-MASTER-2024",
         role: "management",
@@ -111,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const users = await getItem<User[]>(KEYS.USERS);
-    if (!users) throw new Error("No accounts found");
+    if (!users || users.length === 0) throw new Error("No accounts found. Please register first.");
     const hash = await hashPassword(password);
     const found = users.find(
       (u) => u.email.toLowerCase() === email.toLowerCase() && u.passwordHash === hash
@@ -163,7 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (code.role === "parent" && code.linkedCamperId) {
       const campers = (await getItem<any[]>(KEYS.CAMPERS)) || [];
-      const updated = campers.map((c) =>
+      const updated = campers.map((c: any) =>
         c.id === code.linkedCamperId
           ? { ...c, parentAuthCode: code.code }
           : c

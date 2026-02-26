@@ -18,6 +18,12 @@ import * as Haptics from "expo-haptics";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 
+const DEMO_CODES = [
+  { code: "DEMO-ADMIN", role: "Management", color: Colors.primary },
+  { code: "DEMO-STAFF", role: "Staff", color: Colors.accent },
+  { code: "DEMO-PARENT", role: "Parent", color: "#8B5CF6" },
+];
+
 export default function RegisterScreen() {
   const { register } = useAuth();
   const insets = useSafeAreaInsets();
@@ -47,6 +53,7 @@ export default function RegisterScreen() {
     try {
       await register(name.trim(), email.trim(), password, authCode.trim());
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace("/");
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Registration Failed", err.message || "Something went wrong.");
@@ -65,6 +72,7 @@ export default function RegisterScreen() {
     keyboardType,
     autoCapitalize,
     rightElement,
+    testID,
   }: any) => (
     <View style={styles.inputGroup}>
       <Text style={styles.label}>{label}</Text>
@@ -85,6 +93,8 @@ export default function RegisterScreen() {
           keyboardType={keyboardType || "default"}
           autoCapitalize={autoCapitalize || "words"}
           autoCorrect={false}
+          testID={testID}
+          accessibilityLabel={label}
         />
         {rightElement}
       </View>
@@ -127,6 +137,7 @@ export default function RegisterScreen() {
             value={name}
             onChange={setName}
             placeholder="Jane Smith"
+            testID="register-name"
           />
           <Field
             label="Email Address"
@@ -136,6 +147,7 @@ export default function RegisterScreen() {
             placeholder="your@email.com"
             keyboardType="email-address"
             autoCapitalize="none"
+            testID="register-email"
           />
           <Field
             label="Password"
@@ -145,6 +157,7 @@ export default function RegisterScreen() {
             placeholder="Min. 6 characters"
             secure={!showPassword}
             autoCapitalize="none"
+            testID="register-password"
             rightElement={
               <Pressable
                 onPress={() => setShowPassword(!showPassword)}
@@ -166,6 +179,7 @@ export default function RegisterScreen() {
             placeholder="Re-enter password"
             secure={!showPassword}
             autoCapitalize="none"
+            testID="register-confirm-password"
           />
 
           <View style={styles.divider} />
@@ -184,13 +198,60 @@ export default function RegisterScreen() {
               />
               <TextInput
                 style={[styles.input, { flex: 1 }]}
-                placeholder="e.g. STAFF-001 or PARENT-XXXXXXXX"
+                placeholder="Enter your auth code"
                 placeholderTextColor={Colors.light.textMuted}
                 value={authCode}
                 onChangeText={setAuthCode}
                 autoCapitalize="characters"
                 autoCorrect={false}
+                testID="register-auth-code"
+                accessibilityLabel="Auth Code"
               />
+            </View>
+          </View>
+
+          <View style={styles.demoSection}>
+            <View style={styles.demoHeader}>
+              <Ionicons name="flask-outline" size={16} color={Colors.light.textMuted} />
+              <Text style={styles.demoTitle}>Demo Codes (tap to use)</Text>
+            </View>
+            <View style={styles.demoCodesRow}>
+              {DEMO_CODES.map((demo) => (
+                <Pressable
+                  key={demo.code}
+                  style={({ pressed }) => [
+                    styles.demoCodeChip,
+                    {
+                      borderColor: demo.color + "50",
+                      backgroundColor: demo.color + "10",
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                  testID={`demo-code-${demo.role.toLowerCase()}`}
+                  onPress={() => {
+                    setAuthCode(demo.code);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <Ionicons
+                    name={
+                      demo.role === "Management"
+                        ? "shield-checkmark"
+                        : demo.role === "Staff"
+                        ? "people"
+                        : "person"
+                    }
+                    size={13}
+                    color={demo.color}
+                  />
+                  <View>
+                    <Text style={[styles.demoCodeText, { color: demo.color }]}>
+                      {demo.code}
+                    </Text>
+                    <Text style={styles.demoRoleText}>{demo.role}</Text>
+                  </View>
+                </Pressable>
+              ))}
             </View>
           </View>
 
@@ -302,6 +363,48 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.light.border,
     marginVertical: 4,
+  },
+  demoSection: {
+    gap: 10,
+    backgroundColor: Colors.light.surfaceSecondary,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  demoHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  demoTitle: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.textMuted,
+  },
+  demoCodesRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  demoCodeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  demoCodeText: {
+    fontSize: 12,
+    fontFamily: "Outfit_700Bold",
+    letterSpacing: 0.5,
+  },
+  demoRoleText: {
+    fontSize: 10,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textMuted,
   },
   registerButton: {
     backgroundColor: Colors.primary,

@@ -50,7 +50,7 @@ interface DataContextValue {
 const DataContext = createContext<DataContextValue | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [campers, setCampers] = useState<Camper[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
@@ -77,12 +77,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
     (async () => {
       setIsLoading(true);
       await refresh();
       setIsLoading(false);
     })();
-  }, [refresh]);
+  }, [refresh, authLoading, user]);
 
   const addCamper = useCallback(
     async (data: Omit<Camper, "id" | "createdAt" | "updatedAt">) => {

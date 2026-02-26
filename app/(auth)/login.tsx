@@ -11,12 +11,15 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
+
+const logo = require("@/assets/images/campsync-logo.png");
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -35,6 +38,7 @@ export default function LoginScreen() {
     try {
       await login(email.trim(), password);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace("/");
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Login Failed", err.message || "Something went wrong.");
@@ -60,10 +64,11 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="wifi" size={36} color={Colors.accent} />
-          </View>
-          <Text style={styles.appName}>CampSync</Text>
+          <Image
+            source={logo}
+            style={styles.logo}
+            contentFit="contain"
+          />
           <Text style={styles.tagline}>Camp Management System</Text>
         </View>
 
@@ -89,6 +94,8 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 autoCorrect={false}
+                testID="login-email"
+                accessibilityLabel="Email Address"
               />
             </View>
           </View>
@@ -110,6 +117,8 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                testID="login-password"
+                accessibilityLabel="Password"
               />
               <Pressable
                 onPress={() => setShowPassword(!showPassword)}
@@ -162,20 +171,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  appName: {
-    fontSize: 32,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-    letterSpacing: -0.5,
+  logo: {
+    width: 140,
+    height: 140,
+    marginBottom: 4,
   },
   tagline: {
     fontSize: 14,
