@@ -20,6 +20,48 @@ import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 import type { MedicalInfo } from "@/types";
 
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value || "—"}</Text>
+    </View>
+  );
+}
+
+function EditField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  keyboardType,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  onChange: (text: string) => void;
+  placeholder?: string;
+  keyboardType?: any;
+  multiline?: boolean;
+}) {
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        style={[styles.fieldInput, multiline && styles.multilineInput]}
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={Colors.light.textMuted}
+        keyboardType={keyboardType || "default"}
+        multiline={multiline}
+        numberOfLines={multiline ? 3 : 1}
+        autoCapitalize={keyboardType === "phone-pad" ? "none" : "words"}
+      />
+    </View>
+  );
+}
+
 export default function ParentChildDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { campers, checkIns, pendingUpdates, updateCamper, getActiveCheckIn } = useData();
@@ -92,30 +134,6 @@ export default function ParentChildDetailScreen() {
       setIsSaving(false);
     }
   };
-
-  const EditField = ({ label, value, onChange, placeholder, keyboardType, multiline }: any) => (
-    <View style={styles.fieldGroup}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        style={[styles.fieldInput, multiline && styles.multilineInput]}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={Colors.light.textMuted}
-        keyboardType={keyboardType || "default"}
-        multiline={multiline}
-        numberOfLines={multiline ? 3 : 1}
-        autoCapitalize={keyboardType === "phone-pad" ? "none" : "words"}
-      />
-    </View>
-  );
-
-  const InfoRow = ({ label, value }: { label: string; value: string }) => (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value || "—"}</Text>
-    </View>
-  );
 
   return (
     <KeyboardAvoidingView

@@ -21,6 +21,44 @@ import type { MedicalInfo } from "@/types";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"];
 
+function InputField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  keyboardType,
+  multiline,
+  required,
+}: {
+  label: string;
+  value: string;
+  onChange: (text: string) => void;
+  placeholder?: string;
+  keyboardType?: any;
+  multiline?: boolean;
+  required?: boolean;
+}) {
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel}>
+        {label}
+        {required && <Text style={{ color: Colors.danger }}> *</Text>}
+      </Text>
+      <TextInput
+        style={[styles.fieldInput, multiline && styles.multilineInput]}
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={Colors.light.textMuted}
+        keyboardType={keyboardType || "default"}
+        multiline={multiline}
+        numberOfLines={multiline ? 3 : 1}
+        autoCapitalize={keyboardType === "email-address" ? "none" : "words"}
+      />
+    </View>
+  );
+}
+
 export default function NewCamperScreen() {
   const { addCamper } = useData();
   const insets = useSafeAreaInsets();
@@ -78,34 +116,6 @@ export default function NewCamperScreen() {
       setIsLoading(false);
     }
   };
-
-  const InputField = ({
-    label,
-    value,
-    onChange,
-    placeholder,
-    keyboardType,
-    multiline,
-    required,
-  }: any) => (
-    <View style={styles.fieldGroup}>
-      <Text style={styles.fieldLabel}>
-        {label}
-        {required && <Text style={{ color: Colors.danger }}> *</Text>}
-      </Text>
-      <TextInput
-        style={[styles.fieldInput, multiline && styles.multilineInput]}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={Colors.light.textMuted}
-        keyboardType={keyboardType || "default"}
-        multiline={multiline}
-        numberOfLines={multiline ? 3 : 1}
-        autoCapitalize={keyboardType === "email-address" ? "none" : "words"}
-      />
-    </View>
-  );
 
   return (
     <KeyboardAvoidingView

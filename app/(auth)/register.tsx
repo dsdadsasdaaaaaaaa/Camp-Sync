@@ -24,6 +24,58 @@ const DEMO_CODES = [
   { code: "DEMO-PARENT", role: "Parent", color: "#8B5CF6" },
 ];
 
+function Field({
+  label,
+  icon,
+  value,
+  onChange,
+  placeholder,
+  secure,
+  keyboardType,
+  autoCapitalize,
+  rightElement,
+  testID,
+}: {
+  label: string;
+  icon: any;
+  value: string;
+  onChange: (text: string) => void;
+  placeholder: string;
+  secure?: boolean;
+  keyboardType?: any;
+  autoCapitalize?: any;
+  rightElement?: React.ReactNode;
+  testID?: string;
+}) {
+  return (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.inputContainer}>
+        <Ionicons
+          name={icon}
+          size={18}
+          color={Colors.light.textMuted}
+          style={styles.inputIcon}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder={placeholder}
+          placeholderTextColor={Colors.light.textMuted}
+          value={value}
+          onChangeText={onChange}
+          secureTextEntry={secure}
+          keyboardType={keyboardType || "default"}
+          autoCapitalize={autoCapitalize || "words"}
+          autoCorrect={false}
+          testID={testID}
+          accessibilityLabel={label}
+        />
+        {rightElement}
+      </View>
+    </View>
+  );
+}
+
 export default function RegisterScreen() {
   const { register } = useAuth();
   const insets = useSafeAreaInsets();
@@ -61,45 +113,6 @@ export default function RegisterScreen() {
       setIsLoading(false);
     }
   };
-
-  const Field = ({
-    label,
-    icon,
-    value,
-    onChange,
-    placeholder,
-    secure,
-    keyboardType,
-    autoCapitalize,
-    rightElement,
-    testID,
-  }: any) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputContainer}>
-        <Ionicons
-          name={icon}
-          size={18}
-          color={Colors.light.textMuted}
-          style={styles.inputIcon}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder={placeholder}
-          placeholderTextColor={Colors.light.textMuted}
-          value={value}
-          onChangeText={onChange}
-          secureTextEntry={secure}
-          keyboardType={keyboardType || "default"}
-          autoCapitalize={autoCapitalize || "words"}
-          autoCorrect={false}
-          testID={testID}
-          accessibilityLabel={label}
-        />
-        {rightElement}
-      </View>
-    </View>
-  );
 
   return (
     <KeyboardAvoidingView
@@ -197,7 +210,7 @@ export default function RegisterScreen() {
                 style={styles.inputIcon}
               />
               <TextInput
-                style={[styles.input, { flex: 1 }]}
+                style={styles.input}
                 placeholder="Enter your auth code"
                 placeholderTextColor={Colors.light.textMuted}
                 value={authCode}
@@ -352,6 +365,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   input: {
+    flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
     color: Colors.light.text,
