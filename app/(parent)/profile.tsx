@@ -17,10 +17,18 @@ export default function ParentProfileScreen() {
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (Platform.OS === "web") {
+      await logout();
+      router.replace("/(auth)/login");
+      return;
+    }
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Sign Out", style: "destructive", onPress: logout },
+      { text: "Sign Out", style: "destructive", onPress: async () => {
+        await logout();
+        router.replace("/(auth)/login");
+      }},
     ]);
   };
 

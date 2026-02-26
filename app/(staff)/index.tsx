@@ -336,22 +336,19 @@ export default function StaffCheckInScreen() {
     );
   };
 
-  const handleNfcPayload = (payload: WristbandPayload) => {
-    setNfcScanVisible(false);
-    const camper = campers.find((c) => c.id === payload.camperId);
-    if (!camper) {
-      Alert.alert(
-        "Camper Not Found",
-        `${payload.firstName} ${payload.lastName} is not registered in this CampSync system.`
-      );
+  const handleLogout = async () => {
+    if (Platform.OS === "web") {
+      await logout();
+      router.replace("/(auth)/login");
       return;
     }
-    const activeCheckIn = getActiveCheckIn(camper.id);
-    if (activeCheckIn) {
-      handleCheckOut(camper, activeCheckIn.id);
-    } else {
-      handleCheckIn(camper);
-    }
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign Out", style: "destructive", onPress: async () => {
+        await logout();
+        router.replace("/(auth)/login");
+      }},
+    ]);
   };
 
   const handleCheckOut = async (camper: Camper, checkInId: string) => {
@@ -395,7 +392,7 @@ export default function StaffCheckInScreen() {
             >
               <Ionicons name="medkit" size={18} color={Colors.danger} />
             </Pressable>
-            <Pressable onPress={logout} style={styles.logoutButton}>
+            <Pressable onPress={handleLogout} style={styles.logoutButton}>
               <Ionicons name="log-out-outline" size={20} color={Colors.light.textSecondary} />
             </Pressable>
           </View>

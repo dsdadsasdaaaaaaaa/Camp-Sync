@@ -103,9 +103,20 @@ export default function DashboardScreen() {
     .sort((a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime())
     .slice(0, 5);
 
-  const handleLogout = useCallback(() => {
-    logout();
-  }, [logout]);
+  const handleLogout = async () => {
+    if (Platform.OS === "web") {
+      await logout();
+      router.replace("/(auth)/login");
+      return;
+    }
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign Out", style: "destructive", onPress: async () => {
+        await logout();
+        router.replace("/(auth)/login");
+      }},
+    ]);
+  };
 
   return (
     <ScrollView

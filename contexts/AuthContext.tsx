@@ -238,8 +238,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : c
     );
 
-    await setItem(KEYS.USERS, [...users, newUser]);
+    const updatedUsers = [...users, newUser];
+    await setItem(KEYS.USERS, updatedUsers);
     await setItem(KEYS.AUTH_CODES, updatedCodes);
+
+    // Verify the user was actually saved by reading it back
+    const verifyUsers = await getItem<User[]>(KEYS.USERS);
+    const isSaved = verifyUsers?.find(u => u.id === newUser.id);
+    if (!isSaved) {
+      // Fallback: try one more time if storage was flaky
+      await setItem(KEYS.USERS, updatedUsers);
+    }
 
     if (code.role === "parent" && code.linkedCamperId) {
       const campers = (await getItem<any[]>(KEYS.CAMPERS)) || [];

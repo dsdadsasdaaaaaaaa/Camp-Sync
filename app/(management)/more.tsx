@@ -279,34 +279,19 @@ export default function MoreScreen() {
     setShowCodeModal(true);
   };
 
-  const handleAdminResetPassword = async () => {
-    if (!resetEmail.trim() || !resetNewPassword.trim()) {
-      Alert.alert("Missing Fields", "Please enter email and new password.");
+  const handleLogout = async () => {
+    if (Platform.OS === "web") {
+      await logout();
+      router.replace("/(auth)/login");
       return;
     }
-    if (resetNewPassword !== resetConfirmPassword) {
-      Alert.alert("Mismatch", "Passwords do not match.");
-      return;
-    }
-    if (resetNewPassword.trim().length < 4) {
-      Alert.alert("Too Short", "Password must be at least 4 characters.");
-      return;
-    }
-    setResetLoading(true);
-    try {
-      await adminResetPassword(resetEmail, resetNewPassword);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Success", `Password has been reset for ${resetEmail.trim()}.`);
-      setShowResetModal(false);
-      setResetEmail("");
-      setResetNewPassword("");
-      setResetConfirmPassword("");
-    } catch (err: any) {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Reset Failed", err.message || "Something went wrong.");
-    } finally {
-      setResetLoading(false);
-    }
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign Out", style: "destructive", onPress: async () => {
+        await logout();
+        router.replace("/(auth)/login");
+      }},
+    ]);
   };
 
   return (
@@ -319,7 +304,7 @@ export default function MoreScreen() {
       >
         <View style={styles.headerTop}>
           <Text style={styles.headerTitle}>Management</Text>
-          <Pressable onPress={logout} style={styles.logoutBtn}>
+          <Pressable onPress={handleLogout} style={styles.logoutBtn}>
             <Ionicons name="log-out-outline" size={20} color={Colors.light.textSecondary} />
           </Pressable>
         </View>
