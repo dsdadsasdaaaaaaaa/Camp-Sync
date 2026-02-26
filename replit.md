@@ -17,6 +17,12 @@ Key features include:
 - Pending wristband update queue
 - Apple Liquid Glass design on iOS 26+ via NativeTabs
 - Demo auth codes displayed on registration page for presentations
+- Reusable DatePicker component (calendar UI for dates, multi-select for session authorized dates)
+- Password reset flow (self-service via email+auth code, management override)
+- Staff emergency medical lookup (search campers, view medical info without NFC)
+- Input validation (email, phone format validation with inline error messages)
+- Local notifications on check-in/out events via expo-notifications
+- Parent activity feed showing recent check-in/check-out history
 
 The app runs on iOS, Android, and Web via Expo Router, with an Express.js backend that currently serves as a scaffold for future API routes.
 
@@ -127,10 +133,16 @@ The app uses **Expo Router** with file-based routing. The route structure reflec
 
 ### Utilities
 - **expo-crypto** — Password hashing (SHA-256)
+- **expo-notifications** — Local push notifications for check-in/out events and wristband updates
 - **expo-location** — Location services (imported, available for future use)
 - **expo-image-picker** — Image selection (available for future use)
 - **react-native-keyboard-controller** — Keyboard-aware scroll views
 - **zod** — Schema validation
+
+### New Components and Libraries
+- **DatePicker** (`components/DatePicker.tsx`) — Reusable calendar date picker with single and multi-select modes
+- **Validation** (`lib/validation.ts`) — Email, phone, and date validation utilities with formatting helpers
+- **Notifications** (`lib/notifications.ts`) — Local notification scheduling for check-in/out and wristband update events
 
 ### Backend
 - **express ^5** — API server

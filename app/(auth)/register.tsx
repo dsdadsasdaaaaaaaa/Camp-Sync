@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/contexts/AuthContext";
+import { isValidEmail } from "@/lib/validation";
 import Colors from "@/constants/colors";
 
 const DEMO_CODES = [
@@ -35,6 +36,7 @@ function Field({
   autoCapitalize,
   rightElement,
   testID,
+  error,
 }: {
   label: string;
   icon: any;
@@ -46,15 +48,16 @@ function Field({
   autoCapitalize?: any;
   rightElement?: React.ReactNode;
   testID?: string;
+  error?: string;
 }) {
   return (
     <View style={styles.inputGroup}>
       <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, error ? styles.inputError : null]}>
         <Ionicons
           name={icon}
           size={18}
-          color={Colors.light.textMuted}
+          color={error ? Colors.danger : Colors.light.textMuted}
           style={styles.inputIcon}
         />
         <TextInput
@@ -72,6 +75,7 @@ function Field({
         />
         {rightElement}
       </View>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 }
@@ -86,12 +90,26 @@ export default function RegisterScreen() {
   const [authCode, setAuthCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState("");
+
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    if (emailError && (text.trim() === "" || isValidEmail(text))) {
+      setEmailError("");
+    }
+  };
 
   const handleRegister = async () => {
     if (!name.trim() || !email.trim() || !password.trim() || !authCode.trim()) {
+      if (!email.trim()) setEmailError("Email is required");
       Alert.alert("Missing Fields", "Please fill in all fields.");
       return;
     }
+    if (!isValidEmail(email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+    setEmailError("");
     if (password !== confirmPassword) {
       Alert.alert("Password Mismatch", "Passwords do not match.");
       return;
@@ -156,11 +174,12 @@ export default function RegisterScreen() {
             label="Email Address"
             icon="mail-outline"
             value={email}
-            onChange={setEmail}
+            onChange={handleEmailChange}
             placeholder="your@email.com"
             keyboardType="email-address"
             autoCapitalize="none"
             testID="register-email"
+            error={emailError}
           />
           <Field
             label="Password"
@@ -372,6 +391,15 @@ const styles = StyleSheet.create({
   },
   eyeButton: {
     padding: 4,
+  },
+  inputError: {
+    borderColor: Colors.danger,
+  },
+  errorText: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.danger,
+    marginTop: 2,
   },
   divider: {
     height: 1,

@@ -17,11 +17,24 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { isValidPhone, formatPhone } from "@/lib/validation";
 import Colors from "@/constants/colors";
 import NFCScanner from "@/components/NFCScanner";
+import DatePicker from "@/components/DatePicker";
 import type { Camper, MedicalInfo, WristbandPayload } from "@/types";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"];
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function formatDOBDisplay(dateStr: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    const m = parseInt(parts[1], 10) - 1;
+    return `${MONTHS_SHORT[m] || parts[1]} ${parseInt(parts[2], 10)}, ${parts[0]}`;
+  }
+  return dateStr;
+}
 
 function InfoField({ label, value }: { label: string; value: string }) {
   return (
@@ -39,6 +52,7 @@ function EditField({
   placeholder,
   keyboardType,
   multiline,
+  error,
 }: {
   label: string;
   value: string;
@@ -46,12 +60,13 @@ function EditField({
   placeholder?: string;
   keyboardType?: any;
   multiline?: boolean;
+  error?: string;
 }) {
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
-        style={[styles.fieldInput, multiline && styles.multilineInput]}
+        style={[styles.fieldInput, multiline && styles.multilineInput, error ? styles.fieldInputError : null]}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
@@ -61,6 +76,7 @@ function EditField({
         numberOfLines={multiline ? 3 : 1}
         autoCapitalize={keyboardType === "phone-pad" ? "none" : "words"}
       />
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 }
@@ -119,8 +135,13 @@ export default function CamperDetailScreen() {
     );
   }
 
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
   const updateMedical = (key: keyof MedicalInfo, value: string) => {
     setMedical((prev) => ({ ...prev, [key]: value }));
+    if (fieldErrors[key]) {
+      setFieldErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
+    }
   };
 
   const handleSave = async () => {
@@ -128,6 +149,19 @@ export default function CamperDetailScreen() {
       Alert.alert("Missing Info", "First and last name are required.");
       return;
     }
+    const errors: Record<string, string> = {};
+    if (medical.emergencyPhone.trim() && !isValidPhone(medical.emergencyPhone)) {
+      errors.emergencyPhone = "Please enter a valid phone number";
+    }
+    if (medical.doctorPhone.trim() && !isValidPhone(medical.doctorPhone)) {
+      errors.doctorPhone = "Please enter a valid phone number";
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setSection("medical");
+      return;
+    }
+    setFieldErrors({});
     setIsSaving(true);
     try {
       await updateCamper(camper.id, {
@@ -277,14 +311,21 @@ export default function CamperDetailScreen() {
               <>
                 <EditField label="First Name" value={firstName} onChange={setFirstName} placeholder="First Name" />
                 <EditField label="Last Name" value={lastName} onChange={setLastName} placeholder="Last Name" />
-                <EditField label="Date of Birth" value={dateOfBirth} onChange={setDateOfBirth} placeholder="MM/DD/YYYY" />
+                <DatePicker
+                  mode="single"
+                  label="Date of Birth"
+                  value={dateOfBirth}
+                  onChange={setDateOfBirth}
+                  placeholder="Select date of birth"
+                  maxDate={new Date().toISOString().split("T")[0]}
+                />
                 <EditField label="Cabin / Group" value={cabinGroup} onChange={setCabinGroup} placeholder="Cabin name" />
               </>
             ) : (
               <>
                 <InfoField label="First Name" value={camper.firstName} />
                 <InfoField label="Last Name" value={camper.lastName} />
-                <InfoField label="Date of Birth" value={camper.dateOfBirth} />
+                <InfoField label="Date of Birth" value={formatDOBDisplay(camper.dateOfBirth)} />
                 <InfoField label="Cabin / Group" value={camper.cabinGroup} />
               </>
             )}
@@ -364,12 +405,12 @@ export default function CamperDetailScreen() {
                   </View>
                 </View>
                 <EditField label="Emergency Contact" value={medical.emergencyContact} onChange={(v: string) => updateMedical("emergencyContact", v)} placeholder="Name" />
-                <EditField label="Emergency Phone" value={medical.emergencyPhone} onChange={(v: string) => updateMedical("emergencyPhone", v)} placeholder="Phone" keyboardType="phone-pad" />
+                <EditField label="Emergency Phone" value={medical.emergencyPhone} onChange={(v: string) => updateMedical("emergencyPhone", v)} placeholder="Phone" keyboardType="phone-pad" error={fieldErrors.emergencyPhone} />
                 <EditField label="Allergies" value={medical.allergies} onChange={(v: string) => updateMedical("allergies", v)} placeholder="Allergies" multiline />
                 <EditField label="Medications" value={medical.medications} onChange={(v: string) => updateMedical("medications", v)} placeholder="Medications" multiline />
                 <EditField label="Medical Conditions" value={medical.conditions} onChange={(v: string) => updateMedical("conditions", v)} placeholder="Conditions" multiline />
                 <EditField label="Doctor Name" value={medical.doctorName} onChange={(v: string) => updateMedical("doctorName", v)} placeholder="Doctor" />
-                <EditField label="Doctor Phone" value={medical.doctorPhone} onChange={(v: string) => updateMedical("doctorPhone", v)} placeholder="Phone" keyboardType="phone-pad" />
+                <EditField label="Doctor Phone" value={medical.doctorPhone} onChange={(v: string) => updateMedical("doctorPhone", v)} placeholder="Phone" keyboardType="phone-pad" error={fieldErrors.doctorPhone} />
                 <EditField label="Insurance Provider" value={medical.insuranceProvider} onChange={(v: string) => updateMedical("insuranceProvider", v)} placeholder="Provider" />
                 <EditField label="Notes" value={medical.notes} onChange={(v: string) => updateMedical("notes", v)} placeholder="Additional notes" multiline />
               </>
@@ -697,6 +738,15 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
     color: Colors.light.text,
+  },
+  fieldInputError: {
+    borderColor: Colors.danger,
+  },
+  errorText: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.danger,
+    marginTop: 2,
   },
   multilineInput: {
     height: 80,

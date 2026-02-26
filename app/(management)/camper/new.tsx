@@ -16,7 +16,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useData } from "@/contexts/DataContext";
+import { isValidPhone, formatPhone } from "@/lib/validation";
 import Colors from "@/constants/colors";
+import DatePicker from "@/components/DatePicker";
 import type { MedicalInfo } from "@/types";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"];
@@ -29,6 +31,7 @@ function InputField({
   keyboardType,
   multiline,
   required,
+  error,
 }: {
   label: string;
   value: string;
@@ -37,6 +40,7 @@ function InputField({
   keyboardType?: any;
   multiline?: boolean;
   required?: boolean;
+  error?: string;
 }) {
   return (
     <View style={styles.fieldGroup}>
@@ -45,7 +49,7 @@ function InputField({
         {required && <Text style={{ color: Colors.danger }}> *</Text>}
       </Text>
       <TextInput
-        style={[styles.fieldInput, multiline && styles.multilineInput]}
+        style={[styles.fieldInput, multiline && styles.multilineInput, error ? styles.fieldInputError : null]}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
@@ -55,6 +59,7 @@ function InputField({
         numberOfLines={multiline ? 3 : 1}
         autoCapitalize={keyboardType === "email-address" ? "none" : "words"}
       />
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 }
@@ -81,23 +86,49 @@ export default function NewCamperScreen() {
     bloodType: "Unknown",
     notes: "",
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const updateMedical = (key: keyof MedicalInfo, value: string) => {
     setMedical((prev) => ({ ...prev, [key]: value }));
+    if (fieldErrors[key]) {
+      setFieldErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
+    }
+  };
+
+  const handlePhoneBlur = (field: string, value: string) => {
+    if (value.trim() && isValidPhone(value)) {
+      const formatted = formatPhone(value);
+      updateMedical(field as keyof MedicalInfo, formatted);
+    }
   };
 
   const handleSave = async () => {
+    const errors: Record<string, string> = {};
     if (!firstName.trim() || !lastName.trim()) {
       Alert.alert("Missing Info", "First name and last name are required.");
       return;
     }
     if (!medical.emergencyContact.trim() || !medical.emergencyPhone.trim()) {
+      if (!medical.emergencyPhone.trim()) errors.emergencyPhone = "Emergency phone is required";
       Alert.alert(
         "Missing Emergency Contact",
         "Emergency contact information is required for safety."
       );
+      setFieldErrors(errors);
       return;
     }
+    if (medical.emergencyPhone.trim() && !isValidPhone(medical.emergencyPhone)) {
+      errors.emergencyPhone = "Please enter a valid phone number";
+    }
+    if (medical.doctorPhone.trim() && !isValidPhone(medical.doctorPhone)) {
+      errors.doctorPhone = "Please enter a valid phone number";
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setSection("medical");
+      return;
+    }
+    setFieldErrors({});
 
     setIsLoading(true);
     try {
@@ -214,11 +245,13 @@ export default function NewCamperScreen() {
               placeholder="Smith"
               required
             />
-            <InputField
+            <DatePicker
+              mode="single"
               label="Date of Birth"
               value={dateOfBirth}
               onChange={setDateOfBirth}
-              placeholder="MM/DD/YYYY"
+              placeholder="Select date of birth"
+              maxDate={new Date().toISOString().split("T")[0]}
             />
             <InputField
               label="Cabin / Group"
@@ -247,6 +280,7 @@ export default function NewCamperScreen() {
               placeholder="(555) 000-0000"
               keyboardType="phone-pad"
               required
+              error={fieldErrors.emergencyPhone}
             />
 
             <View style={[styles.sectionHeader, { marginTop: 8 }]}>
@@ -317,6 +351,7 @@ export default function NewCamperScreen() {
               onChange={(v: string) => updateMedical("doctorPhone", v)}
               placeholder="(555) 000-0000"
               keyboardType="phone-pad"
+              error={fieldErrors.doctorPhone}
             />
             <InputField
               label="Insurance Provider"
@@ -450,6 +485,15 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
     color: Colors.light.text,
+  },
+  fieldInputError: {
+    borderColor: Colors.danger,
+  },
+  errorText: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.danger,
+    marginTop: 2,
   },
   multilineInput: {
     height: 80,

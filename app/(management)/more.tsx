@@ -10,16 +10,18 @@ import {
   Platform,
   RefreshControl,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
+import DatePicker from "@/components/DatePicker";
 import Colors from "@/constants/colors";
 import type { Session, AuthCode, UserRole } from "@/types";
 
-type Tab = "sessions" | "codes";
+type Tab = "sessions" | "codes" | "users";
 
 function SessionCard({
   session,
@@ -175,7 +177,7 @@ function AuthCodeCard({
 }
 
 export default function MoreScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, adminResetPassword } = useAuth();
   const { 
     sessions, 
     authCodes, 
@@ -198,28 +200,29 @@ export default function MoreScreen() {
   const [sessionName, setSessionName] = useState("");
   const [sessionStart, setSessionStart] = useState("");
   const [sessionEnd, setSessionEnd] = useState("");
-  const [authorizedDates, setAuthorizedDates] = useState("");
+  const [authorizedDates, setAuthorizedDates] = useState<string[]>([]);
   
   const [selectedRole, setSelectedRole] = useState<UserRole>("staff");
   const [selectedCamperId, setSelectedCamperId] = useState<string | undefined>();
   const [maxUses, setMaxUses] = useState("1");
+
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleAddSession = async () => {
     if (!sessionName.trim() || !sessionStart.trim() || !sessionEnd.trim()) {
       Alert.alert("Missing Info", "Please fill in session name, start date, and end date.");
       return;
     }
-    const dates = authorizedDates
-      .split(",")
-      .map((d) => d.trim())
-      .filter((d) => d.length > 0);
-
     try {
       await addSession({
         name: sessionName.trim(),
         startDate: sessionStart.trim(),
         endDate: sessionEnd.trim(),
-        authorizedDates: dates,
+        authorizedDates: authorizedDates,
         isActive: true,
         createdBy: user?.id || "",
       });
@@ -227,7 +230,7 @@ export default function MoreScreen() {
       setSessionName("");
       setSessionStart("");
       setSessionEnd("");
-      setAuthorizedDates("");
+      setAuthorizedDates([]);
       setShowNewSession(false);
     } catch (err: any) {
       Alert.alert("Error", err.message);
@@ -276,6 +279,36 @@ export default function MoreScreen() {
     setShowCodeModal(true);
   };
 
+  const handleAdminResetPassword = async () => {
+    if (!resetEmail.trim() || !resetNewPassword.trim()) {
+      Alert.alert("Missing Fields", "Please enter email and new password.");
+      return;
+    }
+    if (resetNewPassword !== resetConfirmPassword) {
+      Alert.alert("Mismatch", "Passwords do not match.");
+      return;
+    }
+    if (resetNewPassword.trim().length < 4) {
+      Alert.alert("Too Short", "Password must be at least 4 characters.");
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await adminResetPassword(resetEmail, resetNewPassword);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Success", `Password has been reset for ${resetEmail.trim()}.`);
+      setShowResetModal(false);
+      setResetEmail("");
+      setResetNewPassword("");
+      setResetConfirmPassword("");
+    } catch (err: any) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Reset Failed", err.message || "Something went wrong.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: Colors.light.background }}>
       <View
@@ -292,21 +325,21 @@ export default function MoreScreen() {
         </View>
 
         <View style={styles.tabRow}>
-          {(["sessions", "codes"] as Tab[]).map((t) => (
+          {(["sessions", "codes", "users"] as Tab[]).map((t) => (
             <Pressable
               key={t}
               style={[styles.tabBtn, activeTab === t && styles.tabBtnActive]}
               onPress={() => setActiveTab(t)}
             >
               <Ionicons
-                name={t === "sessions" ? "calendar-outline" : "key-outline"}
+                name={t === "sessions" ? "calendar-outline" : t === "codes" ? "key-outline" : "people-outline"}
                 size={16}
                 color={activeTab === t ? Colors.primary : Colors.light.textMuted}
               />
               <Text
                 style={[styles.tabBtnText, activeTab === t && styles.tabBtnActiveText]}
               >
-                {t === "sessions" ? "Sessions" : "Auth Codes"}
+                {t === "sessions" ? "Sessions" : t === "codes" ? "Auth Codes" : "Users"}
               </Text>
             </Pressable>
           ))}
@@ -413,7 +446,110 @@ export default function MoreScreen() {
             ))}
           </>
         )}
+
+        {activeTab === "users" && (
+          <>
+            <Pressable
+              style={({ pressed }) => [
+                styles.addBtn,
+                { opacity: pressed ? 0.85 : 1 },
+              ]}
+              onPress={() => setShowResetModal(true)}
+            >
+              <Ionicons name="key" size={20} color="#fff" />
+              <Text style={styles.addBtnText}>Reset User Password</Text>
+            </Pressable>
+
+            <View style={styles.userInfoCard}>
+              <Ionicons name="information-circle-outline" size={20} color={Colors.primary} />
+              <Text style={styles.userInfoText}>
+                As a manager, you can reset any user's password without requiring their auth code.
+              </Text>
+            </View>
+          </>
+        )}
       </ScrollView>
+
+      <Modal
+        visible={showResetModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          setShowResetModal(false);
+          setResetEmail("");
+          setResetNewPassword("");
+          setResetConfirmPassword("");
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Reset User Password</Text>
+            <Text style={styles.modalSub}>
+              Enter the user's email and set a new password for them
+            </Text>
+
+            <Text style={styles.fieldLabel}>User Email</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={resetEmail}
+              onChangeText={setResetEmail}
+              placeholder="user@email.com"
+              placeholderTextColor={Colors.light.textMuted}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoCorrect={false}
+            />
+
+            <Text style={styles.fieldLabel}>New Password</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={resetNewPassword}
+              onChangeText={setResetNewPassword}
+              placeholder="New password"
+              placeholderTextColor={Colors.light.textMuted}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+
+            <Text style={styles.fieldLabel}>Confirm Password</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={resetConfirmPassword}
+              onChangeText={setResetConfirmPassword}
+              placeholder="Confirm new password"
+              placeholderTextColor={Colors.light.textMuted}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
+                onPress={() => {
+                  setShowResetModal(false);
+                  setResetEmail("");
+                  setResetNewPassword("");
+                  setResetConfirmPassword("");
+                }}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]}
+                onPress={handleAdminResetPassword}
+                disabled={resetLoading}
+              >
+                {resetLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>Reset Password</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showNewSession}
@@ -432,21 +568,32 @@ export default function MoreScreen() {
             <Text style={styles.fieldLabel}>Session Name</Text>
             <TextInput style={styles.fieldInput} value={sessionName} onChangeText={setSessionName} placeholder="e.g. Week 1 - Summer 2025" placeholderTextColor={Colors.light.textMuted} />
 
-            <Text style={styles.fieldLabel}>Start Date</Text>
-            <TextInput style={styles.fieldInput} value={sessionStart} onChangeText={setSessionStart} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.light.textMuted} />
+            <DatePicker
+              mode="single"
+              value={sessionStart}
+              onChange={setSessionStart}
+              label="Start Date"
+              placeholder="Select start date"
+              maxDate={sessionEnd || undefined}
+            />
 
-            <Text style={styles.fieldLabel}>End Date</Text>
-            <TextInput style={styles.fieldInput} value={sessionEnd} onChangeText={setSessionEnd} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.light.textMuted} />
+            <DatePicker
+              mode="single"
+              value={sessionEnd}
+              onChange={setSessionEnd}
+              label="End Date"
+              placeholder="Select end date"
+              minDate={sessionStart || undefined}
+            />
 
-            <Text style={styles.fieldLabel}>Authorized Check-in Dates</Text>
-            <Text style={styles.fieldHint}>Comma-separated dates (YYYY-MM-DD)</Text>
-            <TextInput
-              style={[styles.fieldInput, { height: 72, textAlignVertical: "top" }]}
+            <DatePicker
+              mode="multi"
               value={authorizedDates}
-              onChangeText={setAuthorizedDates}
-              placeholder="2025-06-01, 2025-06-08, ..."
-              placeholderTextColor={Colors.light.textMuted}
-              multiline
+              onChange={setAuthorizedDates}
+              label="Authorized Check-in Dates"
+              placeholder="Select check-in dates"
+              minDate={sessionStart || undefined}
+              maxDate={sessionEnd || undefined}
             />
 
             <View style={styles.modalButtons}>
@@ -952,5 +1099,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
     color: "#fff",
+  },
+  userInfoCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    backgroundColor: Colors.primary + "10",
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary + "20",
+  },
+  userInfoText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    lineHeight: 20,
   },
 });

@@ -23,6 +23,8 @@ interface AuthContextValue {
     authCode: string
   ) => Promise<void>;
   logout: () => Promise<void>;
+  resetPassword: (email: string, authCode: string, newPassword: string) => Promise<void>;
+  adminResetPassword: (email: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -253,13 +255,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(newUser);
   };
 
+  const resetPassword = async (email: string, authCode: string, newPassword: string) => {
+    const users = await getItem<User[]>(KEYS.USERS);
+    if (!users || users.length === 0) {
+      throw new Error("No accounts found.");
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+    const found = users.find((u) => u.email.toLowerCase() === normalizedEmail);
+    if (!found) {
+      throw new Error("No account found with that email address.");
+    }
+    if (found.authCode.toUpperCase() !== authCode.trim().toUpperCase()) {
+      throw new Error("Invalid auth code. Please enter the code you used to register.");
+    }
+    const newHash = await hashPassword(newPassword.trim());
+    const updatedUsers = users.map((u) =>
+      u.id === found.id ? { ...u, passwordHash: newHash } : u
+    );
+    await setItem(KEYS.USERS, updatedUsers);
+  };
+
+  const adminResetPassword = async (email: string, newPassword: string) => {
+    const users = await getItem<User[]>(KEYS.USERS);
+    if (!users || users.length === 0) {
+      throw new Error("No accounts found.");
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+    const found = users.find((u) => u.email.toLowerCase() === normalizedEmail);
+    if (!found) {
+      throw new Error("No account found with that email address.");
+    }
+    const newHash = await hashPassword(newPassword.trim());
+    const updatedUsers = users.map((u) =>
+      u.id === found.id ? { ...u, passwordHash: newHash } : u
+    );
+    await setItem(KEYS.USERS, updatedUsers);
+  };
+
   const logout = async () => {
     await secureDelete(SECURE_KEY);
     setUser(null);
   };
 
   const value = useMemo(
-    () => ({ user, isLoading, login, register, logout }),
+    () => ({ user, isLoading, login, register, logout, resetPassword, adminResetPassword }),
     [user, isLoading]
   );
 

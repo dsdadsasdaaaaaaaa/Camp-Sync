@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { getItem, setItem, KEYS } from "@/lib/storage";
 import { generateId, generateWristbandId, encryptWristbandData } from "@/lib/crypto";
+import { scheduleCheckInNotification, scheduleWristbandUpdateNotification } from "@/lib/notifications";
 import type {
   Camper,
   Session,
@@ -133,6 +134,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           const updatedPending = [...pendingUpdates, newPending];
           await setItem(KEYS.PENDING_UPDATES, updatedPending);
           setPendingUpdates(updatedPending);
+          scheduleWristbandUpdateNotification(newPending.camperName);
         }
       }
     },
@@ -253,13 +255,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const updated = [...checkIns, newCheckIn];
       await setItem(KEYS.CHECK_INS, updated);
       setCheckIns(updated);
+
+      const camper = campers.find((c) => c.id === camperId);
+      if (camper) {
+        scheduleCheckInNotification(
+          `${camper.firstName} ${camper.lastName}`,
+          "in",
+          user.name
+        );
+      }
     },
-    [checkIns, user]
+    [checkIns, user, campers]
   );
 
   const checkOutCamper = useCallback(
     async (checkInId: string) => {
       if (!user) throw new Error("Not authenticated");
+      const target = checkIns.find((ci) => ci.id === checkInId);
       const updated = checkIns.map((ci) =>
         ci.id === checkInId
           ? {
@@ -272,8 +284,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
       );
       await setItem(KEYS.CHECK_INS, updated);
       setCheckIns(updated);
+
+      if (target) {
+        const camper = campers.find((c) => c.id === target.camperId);
+        if (camper) {
+          scheduleCheckInNotification(
+            `${camper.firstName} ${camper.lastName}`,
+            "out",
+            user.name
+          );
+        }
+      }
     },
-    [checkIns, user]
+    [checkIns, user, campers]
   );
 
   const getActiveCheckIn = useCallback(

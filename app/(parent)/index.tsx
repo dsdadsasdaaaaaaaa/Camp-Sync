@@ -178,6 +178,67 @@ export default function ParentChildrenScreen() {
         </View>
       )}
 
+      {myChildren.length > 0 && (
+        <View style={styles.activitySection}>
+          <View style={styles.activityHeader}>
+            <Ionicons name="notifications-outline" size={20} color={Colors.light.text} />
+            <Text style={styles.activityTitle}>Recent Activity</Text>
+          </View>
+          {(() => {
+            const childIds = myChildren.map((c) => c.id);
+            const recentActivity = checkIns
+              .filter((ci) => childIds.includes(ci.camperId))
+              .sort((a, b) => {
+                const dateA = a.checkedOutAt || a.checkedInAt;
+                const dateB = b.checkedOutAt || b.checkedInAt;
+                return new Date(dateB).getTime() - new Date(dateA).getTime();
+              })
+              .slice(0, 10);
+
+            if (recentActivity.length === 0) {
+              return (
+                <View style={styles.activityEmpty}>
+                  <Ionicons name="calendar-outline" size={24} color={Colors.light.textMuted} />
+                  <Text style={styles.activityEmptyText}>No activity yet</Text>
+                </View>
+              );
+            }
+
+            return recentActivity.map((ci) => {
+              const camper = myChildren.find((c) => c.id === ci.camperId);
+              const isCheckOut = !!ci.checkedOutAt;
+              const eventTime = isCheckOut ? ci.checkedOutAt! : ci.checkedInAt;
+              const staffName = isCheckOut ? ci.checkedOutByName : ci.checkedInByName;
+              return (
+                <View key={ci.id + (isCheckOut ? "-out" : "-in")} style={styles.activityItem}>
+                  <View style={[
+                    styles.activityDot,
+                    { backgroundColor: isCheckOut ? Colors.light.textMuted : Colors.success }
+                  ]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.activityText}>
+                      <Text style={styles.activityBold}>{camper?.firstName}</Text>
+                      {isCheckOut ? " checked out" : " checked in"}
+                    </Text>
+                    <Text style={styles.activityMeta}>
+                      {new Date(eventTime).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}
+                      {" at "}
+                      {new Date(eventTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {staffName ? ` · by ${staffName}` : ""}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={isCheckOut ? "log-out-outline" : "log-in-outline"}
+                    size={16}
+                    color={isCheckOut ? Colors.light.textMuted : Colors.success}
+                  />
+                </View>
+              );
+            });
+          })()}
+        </View>
+      )}
+
       <View style={styles.infoCard}>
         <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
         <Text style={styles.infoText}>
@@ -330,6 +391,64 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     textAlign: "center",
     lineHeight: 21,
+  },
+  activitySection: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: 20,
+    padding: 18,
+    gap: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  activityHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  activityTitle: {
+    fontSize: 18,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.light.text,
+  },
+  activityEmpty: {
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 16,
+  },
+  activityEmptyText: {
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textMuted,
+  },
+  activityItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+  },
+  activityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  activityText: {
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.text,
+  },
+  activityBold: {
+    fontFamily: "Outfit_600SemiBold",
+  },
+  activityMeta: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textMuted,
+    marginTop: 2,
   },
   infoCard: {
     flexDirection: "row",

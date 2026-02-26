@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { Image } from "expo-image";
 import { router } from "expo-router";
@@ -17,23 +18,44 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/contexts/AuthContext";
+import { isValidEmail } from "@/lib/validation";
 import Colors from "@/constants/colors";
 
 const logo = require("@/assets/images/campsync-logo.png");
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { login, resetPassword } = useAuth();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotAuthCode, setForgotAuthCode] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    if (emailError && (text.trim() === "" || isValidEmail(text))) {
+      setEmailError("");
+    }
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert("Missing Fields", "Please enter your email and password.");
+      if (!email.trim()) setEmailError("Email is required");
       return;
     }
+    if (!isValidEmail(email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+    setEmailError("");
     setIsLoading(true);
     try {
       await login(email.trim(), password);
@@ -44,6 +66,40 @@ export default function LoginScreen() {
       Alert.alert("Login Failed", err.message || "Something went wrong.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!forgotEmail.trim() || !forgotAuthCode.trim() || !forgotNewPassword.trim()) {
+      Alert.alert("Missing Fields", "Please fill in all fields.");
+      return;
+    }
+    if (forgotNewPassword !== forgotConfirmPassword) {
+      Alert.alert("Mismatch", "Passwords do not match.");
+      return;
+    }
+    if (forgotNewPassword.trim().length < 4) {
+      Alert.alert("Too Short", "Password must be at least 4 characters.");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      await resetPassword(forgotEmail, forgotAuthCode, forgotNewPassword);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Success", "Your password has been reset. You can now sign in.", [
+        { text: "OK", onPress: () => {
+          setShowForgot(false);
+          setForgotEmail("");
+          setForgotAuthCode("");
+          setForgotNewPassword("");
+          setForgotConfirmPassword("");
+        }},
+      ]);
+    } catch (err: any) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Reset Failed", err.message || "Something went wrong.");
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -78,11 +134,11 @@ export default function LoginScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email Address</Text>
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, emailError ? styles.inputError : null]}>
               <Ionicons
                 name="mail-outline"
                 size={18}
-                color={Colors.light.textMuted}
+                color={emailError ? Colors.danger : Colors.light.textMuted}
                 style={styles.inputIcon}
               />
               <TextInput
@@ -90,7 +146,7 @@ export default function LoginScreen() {
                 placeholder="your@email.com"
                 placeholderTextColor={Colors.light.textMuted}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={handleEmailChange}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 autoCorrect={false}
@@ -98,6 +154,7 @@ export default function LoginScreen() {
                 accessibilityLabel="Email Address"
               />
             </View>
+            {emailError ? <Text style={styles.errorText} testID="email-error" accessibilityRole="alert">{emailError}</Text> : null}
           </View>
 
           <View style={styles.inputGroup}>
@@ -134,6 +191,16 @@ export default function LoginScreen() {
           </View>
 
           <Pressable
+            onPress={() => {
+              setForgotEmail(email);
+              setShowForgot(true);
+            }}
+            style={styles.forgotBtn}
+          >
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </Pressable>
+
+          <Pressable
             style={({ pressed }) => [
               styles.loginButton,
               { opacity: pressed ? 0.85 : 1 },
@@ -156,6 +223,116 @@ export default function LoginScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showForgot}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowForgot(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ justifyContent: "flex-end", flex: 1 }}
+          >
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHandle} />
+              <Text style={styles.modalTitle}>Reset Password</Text>
+              <Text style={styles.modalSub}>
+                Enter your email and the auth code you used to register
+              </Text>
+
+              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <Text style={styles.fieldLabel}>Email Address</Text>
+                <View style={styles.modalInputRow}>
+                  <Ionicons name="mail-outline" size={18} color={Colors.light.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.modalFieldInput}
+                    value={forgotEmail}
+                    onChangeText={setForgotEmail}
+                    placeholder="your@email.com"
+                    placeholderTextColor={Colors.light.textMuted}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    autoCorrect={false}
+                  />
+                </View>
+
+                <Text style={styles.fieldLabel}>Auth Code</Text>
+                <View style={styles.modalInputRow}>
+                  <Ionicons name="key-outline" size={18} color={Colors.light.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.modalFieldInput}
+                    value={forgotAuthCode}
+                    onChangeText={setForgotAuthCode}
+                    placeholder="Code used during registration"
+                    placeholderTextColor={Colors.light.textMuted}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                  />
+                </View>
+
+                <Text style={styles.fieldLabel}>New Password</Text>
+                <View style={styles.modalInputRow}>
+                  <Ionicons name="lock-closed-outline" size={18} color={Colors.light.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.modalFieldInput}
+                    value={forgotNewPassword}
+                    onChangeText={setForgotNewPassword}
+                    placeholder="New password"
+                    placeholderTextColor={Colors.light.textMuted}
+                    secureTextEntry={!showForgotPassword}
+                    autoCapitalize="none"
+                  />
+                  <Pressable onPress={() => setShowForgotPassword(!showForgotPassword)} style={styles.eyeButton}>
+                    <Ionicons name={showForgotPassword ? "eye-off-outline" : "eye-outline"} size={18} color={Colors.light.textMuted} />
+                  </Pressable>
+                </View>
+
+                <Text style={styles.fieldLabel}>Confirm Password</Text>
+                <View style={styles.modalInputRow}>
+                  <Ionicons name="lock-closed-outline" size={18} color={Colors.light.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.modalFieldInput}
+                    value={forgotConfirmPassword}
+                    onChangeText={setForgotConfirmPassword}
+                    placeholder="Confirm new password"
+                    placeholderTextColor={Colors.light.textMuted}
+                    secureTextEntry={!showForgotPassword}
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <View style={styles.modalButtons}>
+                  <Pressable
+                    style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
+                    onPress={() => {
+                      setShowForgot(false);
+                      setForgotEmail("");
+                      setForgotAuthCode("");
+                      setForgotNewPassword("");
+                      setForgotConfirmPassword("");
+                    }}
+                  >
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]}
+                    onPress={handleResetPassword}
+                    disabled={forgotLoading}
+                  >
+                    {forgotLoading ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.confirmBtnText}>Reset Password</Text>
+                    )}
+                  </Pressable>
+                </View>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -233,6 +410,15 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: 4,
   },
+  inputError: {
+    borderColor: Colors.danger,
+  },
+  errorText: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.danger,
+    marginTop: 4,
+  },
   loginButton: {
     backgroundColor: Colors.primary,
     borderRadius: 14,
@@ -261,5 +447,101 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.primary,
+  },
+  forgotBtn: {
+    alignSelf: "flex-end",
+    marginTop: -8,
+  },
+  forgotText: {
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.primary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: Colors.light.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingTop: 12,
+    maxHeight: "85%",
+  },
+  modalHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: Colors.light.border,
+    borderRadius: 2.5,
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.light.text,
+  },
+  modalSub: {
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+    marginBottom: 8,
+  },
+  modalInputRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    paddingHorizontal: 14,
+    height: 48,
+    marginBottom: 16,
+  },
+  modalFieldInput: {
+    flex: 1,
+    fontFamily: "Outfit_400Regular",
+    fontSize: 15,
+    color: Colors.light.text,
+  },
+  modalButtons: {
+    flexDirection: "row" as const,
+    gap: 12,
+    marginTop: 8,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 50,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    borderRadius: 14,
+    backgroundColor: Colors.light.surfaceSecondary,
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.textSecondary,
+  },
+  confirmBtn: {
+    flex: 2,
+    height: 50,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    borderRadius: 14,
+    backgroundColor: Colors.primary,
+  },
+  confirmBtnText: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+    color: "#fff",
   },
 });
