@@ -29,7 +29,6 @@ function setupCors(app: express.Application) {
 
     const origin = req.header("origin");
 
-    // Allow localhost origins for Expo web development (any port)
     const isLocalhost =
       origin?.startsWith("http://localhost:") ||
       origin?.startsWith("http://127.0.0.1:");
@@ -167,7 +166,14 @@ function configureExpoAndLanding(app: express.Application) {
     "templates",
     "landing-page.html",
   );
-  const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
+
+  let landingPageTemplate = "";
+  try {
+    landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
+  } catch {
+    landingPageTemplate = `<!DOCTYPE html><html><head><title>CampSync</title></head><body><h1>CampSync</h1><p>Download Expo Go to use this app.</p></body></html>`;
+  }
+
   const appName = getAppName();
 
   log("Serving static Expo files with dynamic manifest routing");
@@ -199,7 +205,11 @@ function configureExpoAndLanding(app: express.Application) {
   });
 
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
-  app.use(express.static(path.resolve(process.cwd(), "static-build")));
+
+  const staticBuildPath = path.resolve(process.cwd(), "static-build");
+  if (fs.existsSync(staticBuildPath)) {
+    app.use(express.static(staticBuildPath));
+  }
 
   log("Expo routing: Checking expo-platform header on / and /manifest");
 }
@@ -226,6 +236,10 @@ function setupErrorHandler(app: express.Application) {
 }
 
 (async () => {
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
+
   setupCors(app);
   setupBodyParsing(app);
   setupRequestLogging(app);
