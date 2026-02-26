@@ -91,14 +91,18 @@ async function seedInitialData() {
       {
         code: "DEMO-ADMIN",
         role: "management",
-        used: false,
+        maxUses: 0,
+        usedCount: 0,
+        usedBy: [],
         createdAt: new Date().toISOString(),
         createdBy: "system",
       },
       {
         code: "DEMO-STAFF",
         role: "staff",
-        used: false,
+        maxUses: 0,
+        usedCount: 0,
+        usedBy: [],
         createdAt: new Date().toISOString(),
         createdBy: "system",
       },
@@ -106,28 +110,36 @@ async function seedInitialData() {
         code: "DEMO-PARENT",
         role: "parent",
         linkedCamperId: DEMO_CAMPER_ID,
-        used: false,
+        maxUses: 0,
+        usedCount: 0,
+        usedBy: [],
         createdAt: new Date().toISOString(),
         createdBy: "system",
       },
       {
         code: "MGMT-MASTER-2024",
         role: "management",
-        used: false,
+        maxUses: 1,
+        usedCount: 0,
+        usedBy: [],
         createdAt: new Date().toISOString(),
         createdBy: "system",
       },
       {
         code: "STAFF-001",
         role: "staff",
-        used: false,
+        maxUses: 1,
+        usedCount: 0,
+        usedBy: [],
         createdAt: new Date().toISOString(),
         createdBy: "system",
       },
       {
         code: "STAFF-002",
         role: "staff",
-        used: false,
+        maxUses: 1,
+        usedCount: 0,
+        usedBy: [],
         createdAt: new Date().toISOString(),
         createdBy: "system",
       },
@@ -181,9 +193,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!codes) throw new Error("Invalid auth code");
 
     const code = codes.find(
-      (c) => c.code.toUpperCase() === authCode.toUpperCase() && !c.used
+      (c) => 
+        c.code.toUpperCase() === authCode.toUpperCase() && 
+        (c.maxUses === 0 || c.usedCount < c.maxUses)
     );
-    if (!code) throw new Error("Invalid or already-used auth code");
+    if (!code) throw new Error("Invalid or max uses reached for this auth code");
 
     const users = (await getItem<User[]>(KEYS.USERS)) || [];
     if (users.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
@@ -204,7 +218,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const updatedCodes = codes.map((c) =>
       c.code === code.code
-        ? { ...c, used: true, usedBy: newUser.id }
+        ? { 
+            ...c, 
+            usedCount: c.usedCount + 1, 
+            usedBy: [...(c.usedBy || []), newUser.id] 
+          }
         : c
     );
 

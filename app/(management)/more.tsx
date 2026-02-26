@@ -99,9 +99,11 @@ function SessionCard({
 
 function AuthCodeCard({
   code,
+  onEdit,
   onDelete,
 }: {
   code: AuthCode;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
   const roleColors: Record<UserRole, string> = {
@@ -109,6 +111,8 @@ function AuthCodeCard({
     staff: Colors.accent,
     parent: "#8B5CF6",
   };
+
+  const isFull = code.maxUses > 0 && code.usedCount >= code.maxUses;
 
   return (
     <View style={styles.codeCard}>
@@ -130,52 +134,75 @@ function AuthCodeCard({
           <Text style={styles.codeValue}>{code.code}</Text>
           <Text style={styles.codeRole}>
             {code.role.charAt(0).toUpperCase() + code.role.slice(1)} ·{" "}
-            {code.used ? `Used by ${code.usedBy?.slice(0, 8)}...` : "Available"}
+            {code.usedCount} / {code.maxUses === 0 ? "∞" : code.maxUses} used
           </Text>
         </View>
         <View
           style={[
             styles.usedBadge,
-            { backgroundColor: code.used ? Colors.light.surfaceSecondary : Colors.success + "20" },
+            { backgroundColor: isFull ? Colors.danger + "15" : Colors.success + "15" },
           ]}
         >
           <Text
             style={[
               styles.usedBadgeText,
-              { color: code.used ? Colors.light.textMuted : Colors.success },
+              { color: isFull ? Colors.danger : Colors.success },
             ]}
           >
-            {code.used ? "Used" : "Active"}
+            {isFull ? "Full" : "Active"}
           </Text>
         </View>
       </View>
-      {!code.used && (
+      
+      <View style={styles.codeActions}>
+        <Pressable
+          onPress={onEdit}
+          style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <Ionicons name="pencil-outline" size={16} color={Colors.primary} />
+          <Text style={[styles.actionBtnText, { color: Colors.primary }]}>Edit</Text>
+        </Pressable>
         <Pressable
           onPress={onDelete}
-          style={({ pressed }) => [styles.deleteSessionBtn, { opacity: pressed ? 0.7 : 1 }]}
+          style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}
         >
           <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-          <Text style={styles.deleteSessionText}>Revoke Code</Text>
+          <Text style={[styles.actionBtnText, { color: Colors.danger }]}>Revoke</Text>
         </Pressable>
-      )}
+      </View>
     </View>
   );
 }
 
 export default function MoreScreen() {
   const { user, logout } = useAuth();
-  const { sessions, authCodes, campers, addSession, updateSession, deleteSession, createAuthCode, deleteAuthCode, isLoading, refresh } = useData();
+  const { 
+    sessions, 
+    authCodes, 
+    campers, 
+    addSession, 
+    updateSession, 
+    deleteSession, 
+    createAuthCode, 
+    updateAuthCode,
+    deleteAuthCode, 
+    isLoading, 
+    refresh 
+  } = useData();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<Tab>("sessions");
   const [showNewSession, setShowNewSession] = useState(false);
-  const [showNewCode, setShowNewCode] = useState(false);
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [editingCode, setEditingCode] = useState<AuthCode | null>(null);
 
   const [sessionName, setSessionName] = useState("");
   const [sessionStart, setSessionStart] = useState("");
   const [sessionEnd, setSessionEnd] = useState("");
   const [authorizedDates, setAuthorizedDates] = useState("");
+  
   const [selectedRole, setSelectedRole] = useState<UserRole>("staff");
   const [selectedCamperId, setSelectedCamperId] = useState<string | undefined>();
+  const [maxUses, setMaxUses] = useState("1");
 
   const handleAddSession = async () => {
     if (!sessionName.trim() || !sessionStart.trim() || !sessionEnd.trim()) {
@@ -207,18 +234,46 @@ export default function MoreScreen() {
     }
   };
 
-  const handleCreateCode = async () => {
+  const handleSaveCode = async () => {
     try {
-      const code = await createAuthCode(selectedRole, selectedCamperId);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        "Auth Code Created",
-        `Share this code:\n\n${code}\n\nThis grants ${selectedRole} access.`,
-        [{ text: "Done", onPress: () => setShowNewCode(false) }]
-      );
+      const uses = parseInt(maxUses) || 0;
+      if (editingCode) {
+        await updateAuthCode(editingCode.code, {
+          role: selectedRole,
+          linkedCamperId: selectedCamperId,
+          maxUses: uses,
+        });
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("Success", "Auth code updated successfully.");
+      } else {
+        const code = await createAuthCode(selectedRole, uses, selectedCamperId);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert(
+          "Auth Code Created",
+          `Share this code:\n\n${code}\n\nThis grants ${selectedRole} access.`,
+          [{ text: "Done" }]
+        );
+      }
+      setShowCodeModal(false);
+      setEditingCode(null);
     } catch (err: any) {
       Alert.alert("Error", err.message);
     }
+  };
+
+  const openCodeModal = (code?: AuthCode) => {
+    if (code) {
+      setEditingCode(code);
+      setSelectedRole(code.role);
+      setSelectedCamperId(code.linkedCamperId);
+      setMaxUses(code.maxUses.toString());
+    } else {
+      setEditingCode(null);
+      setSelectedRole("staff");
+      setSelectedCamperId(undefined);
+      setMaxUses("1");
+    }
+    setShowCodeModal(true);
   };
 
   return (
@@ -323,7 +378,7 @@ export default function MoreScreen() {
                 styles.addBtn,
                 { opacity: pressed ? 0.85 : 1 },
               ]}
-              onPress={() => setShowNewCode(true)}
+              onPress={() => openCodeModal()}
             >
               <Ionicons name="key" size={20} color="#fff" />
               <Text style={styles.addBtnText}>Generate Code</Text>
@@ -343,6 +398,7 @@ export default function MoreScreen() {
               <AuthCodeCard
                 key={code.code}
                 code={code}
+                onEdit={() => openCodeModal(code)}
                 onDelete={() =>
                   Alert.alert("Revoke Code", `Revoke "${code.code}"?`, [
                     { text: "Cancel", style: "cancel" },
@@ -412,16 +468,21 @@ export default function MoreScreen() {
       </Modal>
 
       <Modal
-        visible={showNewCode}
+        visible={showCodeModal}
         animationType="slide"
         transparent
-        onRequestClose={() => setShowNewCode(false)}
+        onRequestClose={() => {
+          setShowCodeModal(false);
+          setEditingCode(null);
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Generate Auth Code</Text>
-            <Text style={styles.modalSub}>Select the role this code will grant</Text>
+            <Text style={styles.modalTitle}>{editingCode ? "Edit Auth Code" : "Generate Auth Code"}</Text>
+            <Text style={styles.modalSub}>
+              {editingCode ? `Editing code: ${editingCode.code}` : "Select the role and usage limits"}
+            </Text>
 
             <Text style={styles.fieldLabel}>Role</Text>
             {(["staff", "management", "parent"] as UserRole[]).map((role) => (
@@ -452,7 +513,7 @@ export default function MoreScreen() {
                     {role === "management"
                       ? "Full access to all features"
                       : role === "staff"
-                      ? "Check-in/out on authorized dates only"
+                      ? "Check-in/out on authorized dates"
                       : "View & update their child's info"}
                   </Text>
                 </View>
@@ -462,11 +523,22 @@ export default function MoreScreen() {
               </Pressable>
             ))}
 
+            <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Maximum Uses</Text>
+            <Text style={styles.fieldHint}>Enter 0 for infinite uses</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={maxUses}
+              onChangeText={setMaxUses}
+              keyboardType="number-pad"
+              placeholder="1"
+              placeholderTextColor={Colors.light.textMuted}
+            />
+
             {selectedRole === "parent" && (
               <>
                 <Text style={styles.fieldLabel}>Link to Camper (optional)</Text>
                 <ScrollView
-                  style={{ maxHeight: 150 }}
+                  style={{ maxHeight: 120 }}
                   nestedScrollEnabled
                 >
                   {campers.map((c) => (
@@ -497,15 +569,18 @@ export default function MoreScreen() {
             <View style={styles.modalButtons}>
               <Pressable
                 style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
-                onPress={() => setShowNewCode(false)}
+                onPress={() => {
+                  setShowCodeModal(false);
+                  setEditingCode(null);
+                }}
               >
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </Pressable>
               <Pressable
                 style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]}
-                onPress={handleCreateCode}
+                onPress={handleSaveCode}
               >
-                <Text style={styles.confirmBtnText}>Generate</Text>
+                <Text style={styles.confirmBtnText}>{editingCode ? "Save Changes" : "Generate"}</Text>
               </Pressable>
             </View>
           </View>
@@ -585,6 +660,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderRadius: 14,
     height: 50,
+    marginBottom: 8,
   },
   addBtnText: {
     color: "#fff",
@@ -661,6 +737,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     alignSelf: "flex-start",
+    marginTop: 4,
   },
   deleteSessionText: {
     fontSize: 13,
@@ -671,7 +748,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.surface,
     borderRadius: 16,
     padding: 16,
-    gap: 10,
+    gap: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -691,7 +768,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   codeValue: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: "Outfit_700Bold",
     color: Colors.light.text,
     letterSpacing: 0.5,
@@ -704,12 +781,28 @@ const styles = StyleSheet.create({
   },
   usedBadge: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 5,
+    borderRadius: 10,
   },
   usedBadgeText: {
     fontSize: 11,
     fontFamily: "Outfit_700Bold",
+  },
+  codeActions: {
+    flexDirection: "row",
+    gap: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+    paddingTop: 12,
+  },
+  actionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  actionBtnText: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
   },
   empty: {
     alignItems: "center",
@@ -727,7 +820,7 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     textAlign: "center",
-    lineHeight: 20,
+    paddingHorizontal: 40,
   },
   modalOverlay: {
     flex: 1,
@@ -735,23 +828,23 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalSheet: {
-    backgroundColor: Colors.light.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: Colors.light.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 24,
-    gap: 14,
+    paddingTop: 12,
     maxHeight: "90%",
   },
   modalHandle: {
     width: 40,
-    height: 4,
+    height: 5,
     backgroundColor: Colors.light.border,
-    borderRadius: 2,
+    borderRadius: 2.5,
     alignSelf: "center",
-    marginBottom: 4,
+    marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: "Outfit_700Bold",
     color: Colors.light.text,
   },
@@ -759,29 +852,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
-    marginTop: -6,
+    marginBottom: 20,
+    lineHeight: 20,
   },
   fieldLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
+    marginBottom: 8,
   },
   fieldHint: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textMuted,
-    marginTop: -8,
+    marginBottom: 8,
+    marginTop: -4,
   },
   fieldInput: {
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: Colors.light.surface,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.light.border,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    height: 48,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
     color: Colors.light.text,
+    marginBottom: 16,
   },
   roleOption: {
     flexDirection: "row",
@@ -791,10 +888,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.light.border,
+    marginBottom: 10,
   },
   roleOptionSelected: {
     borderColor: Colors.primary,
-    backgroundColor: Colors.primary + "08",
+    backgroundColor: Colors.primary + "05",
   },
   roleName: {
     fontSize: 15,
@@ -811,15 +909,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    marginBottom: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
   },
   camperSelectRowActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary + "08",
+    backgroundColor: Colors.primary + "05",
   },
   camperSelectName: {
     fontSize: 14,
@@ -828,18 +924,16 @@ const styles = StyleSheet.create({
   },
   modalButtons: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 4,
+    gap: 12,
+    marginTop: 8,
   },
   cancelBtn: {
     flex: 1,
     height: 50,
-    borderRadius: 14,
-    backgroundColor: Colors.light.surfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderRadius: 14,
+    backgroundColor: Colors.light.surfaceSecondary,
   },
   cancelBtnText: {
     fontSize: 15,
@@ -847,12 +941,12 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
   },
   confirmBtn: {
-    flex: 1,
+    flex: 2,
     height: 50,
-    borderRadius: 14,
-    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 14,
+    backgroundColor: Colors.primary,
   },
   confirmBtnText: {
     fontSize: 15,

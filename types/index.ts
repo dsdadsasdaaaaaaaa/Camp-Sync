@@ -66,8 +66,9 @@ export interface AuthCode {
   code: string;
   role: UserRole;
   linkedCamperId?: string;
-  used: boolean;
-  usedBy?: string;
+  maxUses: number; // 0 for infinite
+  usedCount: number;
+  usedBy: string[]; // IDs of users who used it
   createdAt: string;
   createdBy: string;
 }

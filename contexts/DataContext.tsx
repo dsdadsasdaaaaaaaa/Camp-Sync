@@ -40,7 +40,8 @@ interface DataContextValue {
   checkInCamper: (camperId: string, sessionId: string) => Promise<void>;
   checkOutCamper: (checkInId: string) => Promise<void>;
   getActiveCheckIn: (camperId: string) => CheckIn | undefined;
-  createAuthCode: (role: UserRole, linkedCamperId?: string) => Promise<string>;
+  createAuthCode: (role: UserRole, maxUses: number, linkedCamperId?: string) => Promise<string>;
+  updateAuthCode: (code: string, data: Partial<AuthCode>) => Promise<void>;
   deleteAuthCode: (code: string) => Promise<void>;
   resolvePendingUpdate: (updateId: string) => Promise<void>;
   getTodaySessions: () => Session[];
@@ -283,7 +284,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
 
   const createAuthCode = useCallback(
-    async (role: UserRole, linkedCamperId?: string) => {
+    async (role: UserRole, maxUses: number, linkedCamperId?: string) => {
       if (!user) throw new Error("Not authenticated");
       const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
       const randomPart = Array.from({ length: 8 }, () =>
@@ -302,7 +303,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         code,
         role,
         linkedCamperId,
-        used: false,
+        maxUses,
+        usedCount: 0,
+        usedBy: [],
         createdAt: new Date().toISOString(),
         createdBy: user.id,
       };
@@ -313,6 +316,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return code;
     },
     [authCodes, user]
+  );
+
+  const updateAuthCode = useCallback(
+    async (code: string, data: Partial<AuthCode>) => {
+      const updated = authCodes.map((c) =>
+        c.code === code ? { ...c, ...data } : c
+      );
+      await setItem(KEYS.AUTH_CODES, updated);
+      setAuthCodes(updated);
+    },
+    [authCodes]
   );
 
   const deleteAuthCode = useCallback(
@@ -365,6 +379,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       checkOutCamper,
       getActiveCheckIn,
       createAuthCode,
+      updateAuthCode,
       deleteAuthCode,
       resolvePendingUpdate,
       getTodaySessions,
@@ -390,6 +405,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       checkOutCamper,
       getActiveCheckIn,
       createAuthCode,
+      updateAuthCode,
       deleteAuthCode,
       resolvePendingUpdate,
       getTodaySessions,

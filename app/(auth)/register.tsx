@@ -261,7 +261,7 @@ export default function RegisterScreen() {
                     <Text style={[styles.demoCodeText, { color: demo.color }]}>
                       {demo.code}
                     </Text>
-                    <Text style={styles.demoRoleText}>{demo.role}</Text>
+                    <Text style={styles.demoRoleText}>{demo.role} (Infinite)</Text>
                   </View>
                 </Pressable>
               ))}
