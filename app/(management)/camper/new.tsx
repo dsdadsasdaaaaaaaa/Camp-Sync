@@ -94,7 +94,7 @@ export default function NewCamperScreen() {
         {required && <Text style={{ color: Colors.danger }}> *</Text>}
       </Text>
       <TextInput
-        style={[styles.fieldInput, multiline && styles.multilineInput]}
+        style={[styles.fieldInput, multiline && styles.multilineInput, { flex: 1 }]}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}

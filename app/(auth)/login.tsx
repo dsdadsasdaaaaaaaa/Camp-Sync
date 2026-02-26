@@ -110,7 +110,7 @@ export default function LoginScreen() {
                 style={styles.inputIcon}
               />
               <TextInput
-                style={[styles.input, { flex: 1 }]}
+                style={styles.input}
                 placeholder="Your password"
                 placeholderTextColor={Colors.light.textMuted}
                 value={password}

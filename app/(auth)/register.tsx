@@ -84,7 +84,7 @@ export default function RegisterScreen() {
           style={styles.inputIcon}
         />
         <TextInput
-          style={[styles.input, { flex: 1 }]}
+          style={styles.input}
           placeholder={placeholder}
           placeholderTextColor={Colors.light.textMuted}
           value={value}
