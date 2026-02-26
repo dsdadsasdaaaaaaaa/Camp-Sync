@@ -15,7 +15,13 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.campsync.app"
+      "bundleIdentifier": "com.campsync.app",
+      "infoPlist": {
+        "NFCReaderUsageDescription": "CampSync uses NFC to read and write encrypted camper data on wristbands for fast, offline-first check-in and emergency medical access."
+      },
+      "entitlements": {
+        "com.apple.developer.nfc.readersession.formats": ["NDEF"]
+      }
     },
     "android": {
       "package": "com.campsync.app",
@@ -24,7 +30,8 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      }
+      },
+      "permissions": ["android.permission.NFC"]
     },
     "web": {
       "favicon": "./assets/images/favicon.png"

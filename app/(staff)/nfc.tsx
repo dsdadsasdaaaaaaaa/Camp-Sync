@@ -5,57 +5,28 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  TextInput,
   Platform,
-  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
-import { useData } from "@/contexts/DataContext";
-import { decryptWristbandData } from "@/lib/crypto";
 import Colors from "@/constants/colors";
+import NFCScanner from "@/components/NFCScanner";
 import type { WristbandPayload } from "@/types";
 
-type State = "idle" | "scanning" | "success" | "error";
-
 export default function StaffNFCScreen() {
-  const { campers } = useData();
   const insets = useSafeAreaInsets();
-  const [state, setState] = useState<State>("idle");
-  const [wristbandId, setWristbandId] = useState("");
+  const [scannerVisible, setScannerVisible] = useState(false);
   const [result, setResult] = useState<WristbandPayload | null>(null);
-  const [errorMsg, setErrorMsg] = useState("");
 
-  const handleRead = () => {
-    if (!wristbandId.trim()) return;
-    setState("scanning");
-    setTimeout(async () => {
-      const camper = campers.find(
-        (c) => c.wristbandId === wristbandId.trim().toUpperCase()
-      );
-      if (!camper || !camper.wristbandEncryptedData) {
-        setState("error");
-        setErrorMsg("No wristband found with that ID. This wristband may not be registered in CampSync.");
-        return;
-      }
-      const data = decryptWristbandData(camper.wristbandEncryptedData);
-      if (!data) {
-        setState("error");
-        setErrorMsg("Failed to decrypt data. This wristband does not belong to CampSync.");
-        return;
-      }
-      setResult(data as WristbandPayload);
-      setState("success");
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }, 2000);
+  const handleStartScan = () => {
+    setResult(null);
+    setScannerVisible(true);
   };
 
-  const reset = () => {
-    setState("idle");
-    setWristbandId("");
-    setResult(null);
-    setErrorMsg("");
+  const handlePayloadRead = (payload: WristbandPayload) => {
+    setScannerVisible(false);
+    setResult(payload);
   };
 
   return (
@@ -69,125 +40,165 @@ export default function StaffNFCScreen() {
         },
       ]}
     >
-      <Text style={styles.title}>Read Wristband</Text>
-      <Text style={styles.subtitle}>Scan camper wristbands to view their medical info</Text>
+      <Text style={styles.title}>Scan Wristband</Text>
+      <Text style={styles.subtitle}>
+        Tap a camper's NFC wristband to view their medical info instantly
+      </Text>
 
       <View style={styles.infoCard}>
-        <Ionicons name="shield-checkmark" size={18} color={Colors.primary} />
+        <Ionicons name="cloud-offline" size={18} color={Colors.primary} />
         <Text style={styles.infoText}>
-          Staff can only read wristband data. Programming wristbands requires management access.
+          Works offline — all data is stored encrypted on the wristband tag itself.
         </Text>
       </View>
 
-      {state === "idle" && (
-        <View style={styles.card}>
-          <View style={styles.scanIcon}>
-            <Ionicons name="radio" size={40} color={Colors.primary} />
-          </View>
-          <Text style={styles.cardTitle}>Enter Wristband ID</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. WB-001234"
-            placeholderTextColor={Colors.light.textMuted}
-            value={wristbandId}
-            onChangeText={(v) => setWristbandId(v.toUpperCase())}
-            autoCapitalize="characters"
-          />
+      {!result ? (
+        <View style={styles.scanPrompt}>
           <Pressable
             style={({ pressed }) => [
-              styles.readBtn,
-              !wristbandId.trim() && styles.readBtnDisabled,
-              { opacity: pressed && wristbandId.trim() ? 0.85 : 1 },
+              styles.scanButton,
+              { transform: [{ scale: pressed ? 0.95 : 1 }] },
             ]}
-            onPress={handleRead}
-            disabled={!wristbandId.trim()}
+            onPress={handleStartScan}
           >
-            <Ionicons name="scan" size={18} color="#fff" />
-            <Text style={styles.readBtnText}>Read Wristband</Text>
+            <View style={styles.scanButtonInner}>
+              <Ionicons name="radio" size={52} color={Colors.accent} />
+            </View>
           </Pressable>
+          <Text style={styles.scanTitle}>Tap to Scan</Text>
+          <Text style={styles.scanSub}>
+            Hold a CampSync wristband near your iPhone to read the encrypted camper data
+          </Text>
+          <View style={styles.instructionCard}>
+            <Ionicons name="information-circle-outline" size={16} color={Colors.light.textSecondary} />
+            <Text style={styles.instructionText}>
+              Staff can only read wristbands. Contact management to program or replace wristbands.
+            </Text>
+          </View>
         </View>
-      )}
-
-      {state === "scanning" && (
-        <View style={styles.scanCard}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.scanTitle}>Reading Wristband...</Text>
-          <Text style={styles.scanSub}>Decrypting data</Text>
-        </View>
-      )}
-
-      {state === "success" && result && (
+      ) : (
         <View style={styles.card}>
           <View style={styles.successHeader}>
-            <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
+            <View style={styles.successIcon}>
+              <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
+            </View>
             <Text style={styles.successTitle}>Wristband Data</Text>
+            <Text style={styles.offlineLabel}>Read from NFC tag · Offline</Text>
           </View>
 
           <View style={styles.camperBanner}>
             <Text style={styles.camperBannerName}>
               {result.firstName} {result.lastName}
             </Text>
-            <Text style={styles.camperBannerDob}>DOB: {result.dateOfBirth || "—"}</Text>
+            <Text style={styles.camperBannerDob}>
+              DOB: {result.dateOfBirth || "—"}
+            </Text>
           </View>
 
-          <View style={styles.bloodTypeHighlight}>
-            <Ionicons name="water" size={20} color={Colors.danger} />
+          <View style={styles.bloodHighlight}>
+            <Ionicons name="water" size={22} color={Colors.danger} />
             <View>
-              <Text style={styles.bloodTypeLabel}>Blood Type</Text>
-              <Text style={styles.bloodTypeValue}>{result.medical?.bloodType || "Unknown"}</Text>
+              <Text style={styles.bloodLabel}>Blood Type</Text>
+              <Text style={styles.bloodValue}>
+                {result.medical?.bloodType || "Unknown"}
+              </Text>
             </View>
           </View>
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Emergency Contact</Text>
-            <Text style={styles.dataValue}>{result.medical?.emergencyContact || "—"}</Text>
-            <Text style={styles.dataValue}>{result.medical?.emergencyPhone || "—"}</Text>
+            <Text style={styles.dataValue}>
+              {result.medical?.emergencyContact || "—"}
+            </Text>
+            <Text style={styles.dataValueSec}>
+              {result.medical?.emergencyPhone || "—"}
+            </Text>
           </View>
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Allergies</Text>
-            <Text style={[styles.dataValue, { color: result.medical?.allergies && result.medical.allergies.toLowerCase() !== "none" ? Colors.danger : Colors.light.text }]}>
+            <Text
+              style={[
+                styles.dataValue,
+                result.medical?.allergies &&
+                result.medical.allergies.toLowerCase() !== "none"
+                  ? { color: Colors.danger, fontFamily: "Outfit_700Bold" }
+                  : {},
+              ]}
+            >
               {result.medical?.allergies || "None reported"}
             </Text>
           </View>
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Medications</Text>
-            <Text style={styles.dataValue}>{result.medical?.medications || "None reported"}</Text>
+            <Text style={styles.dataValue}>
+              {result.medical?.medications || "None reported"}
+            </Text>
           </View>
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Medical Conditions</Text>
-            <Text style={styles.dataValue}>{result.medical?.conditions || "None reported"}</Text>
+            <Text style={styles.dataValue}>
+              {result.medical?.conditions || "None reported"}
+            </Text>
           </View>
 
+          <View style={styles.dataSection}>
+            <Text style={styles.dataSectionTitle}>Doctor</Text>
+            <Text style={styles.dataValue}>
+              {result.medical?.doctorName || "—"}
+            </Text>
+            <Text style={styles.dataValueSec}>
+              {result.medical?.doctorPhone || "—"}
+            </Text>
+          </View>
+
+          <View style={styles.dataSection}>
+            <Text style={styles.dataSectionTitle}>Insurance</Text>
+            <Text style={styles.dataValue}>
+              {result.medical?.insuranceProvider || "—"}
+            </Text>
+          </View>
+
+          {result.medical?.notes ? (
+            <View style={styles.dataSection}>
+              <Text style={styles.dataSectionTitle}>Notes</Text>
+              <Text style={styles.dataValue}>{result.medical.notes}</Text>
+            </View>
+          ) : null}
+
           <Text style={styles.programmedAt}>
-            Programmed: {result.programmedAt ? new Date(result.programmedAt).toLocaleString() : "—"}
+            Tag programmed:{" "}
+            {result.programmedAt
+              ? new Date(result.programmedAt).toLocaleString()
+              : "—"}
           </Text>
 
           <Pressable
-            style={({ pressed }) => [styles.readBtn, { opacity: pressed ? 0.85 : 1 }]}
-            onPress={reset}
+            style={({ pressed }) => [
+              styles.scanAgainBtn,
+              { opacity: pressed ? 0.85 : 1 },
+            ]}
+            onPress={handleStartScan}
           >
-            <Text style={styles.readBtnText}>Read Another</Text>
+            <Ionicons name="radio" size={18} color="#fff" />
+            <Text style={styles.scanAgainText}>Scan Another Wristband</Text>
           </Pressable>
         </View>
       )}
 
-      {state === "error" && (
-        <View style={styles.card}>
-          <View style={styles.errorHeader}>
-            <Ionicons name="close-circle" size={32} color={Colors.danger} />
-            <Text style={styles.errorTitle}>Read Failed</Text>
-            <Text style={styles.errorMsg}>{errorMsg}</Text>
-          </View>
-          <Pressable
-            style={({ pressed }) => [styles.readBtn, { opacity: pressed ? 0.85 : 1 }]}
-            onPress={reset}
-          >
-            <Text style={styles.readBtnText}>Try Again</Text>
-          </Pressable>
-        </View>
+      {scannerVisible && (
+        <NFCScanner
+          visible={scannerVisible}
+          mode="read"
+          onPayloadRead={handlePayloadRead}
+          onError={(msg) => {
+            setScannerVisible(false);
+            Alert.alert("Scan Error", msg);
+          }}
+          onCancel={() => setScannerVisible(false)}
+        />
       )}
     </ScrollView>
   );
@@ -196,7 +207,7 @@ export default function StaffNFCScreen() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    gap: 20,
+    gap: 16,
   },
   title: {
     fontSize: 28,
@@ -207,7 +218,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
-    marginTop: -12,
+    marginTop: -8,
   },
   infoCard: {
     flexDirection: "row",
@@ -225,6 +236,59 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     lineHeight: 18,
   },
+  scanPrompt: {
+    alignItems: "center",
+    paddingVertical: 24,
+    gap: 16,
+  },
+  scanButton: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: Colors.accent + "10",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: Colors.accent + "30",
+  },
+  scanButtonInner: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: Colors.accent + "15",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: Colors.accent + "40",
+  },
+  scanTitle: {
+    fontSize: 22,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.light.text,
+  },
+  scanSub: {
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    textAlign: "center",
+    lineHeight: 20,
+    paddingHorizontal: 20,
+  },
+  instructionCard: {
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: Colors.light.surfaceSecondary,
+    borderRadius: 12,
+    padding: 12,
+    alignSelf: "stretch",
+  },
+  instructionText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    lineHeight: 17,
+  },
   card: {
     backgroundColor: Colors.light.surface,
     borderRadius: 20,
@@ -236,84 +300,35 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  scanIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: Colors.primary + "15",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-    textAlign: "center",
-  },
-  input: {
-    backgroundColor: Colors.light.surfaceSecondary,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    paddingHorizontal: 14,
-    height: 50,
-    fontFamily: "Outfit_400Regular",
-    fontSize: 15,
-    color: Colors.light.text,
-    textAlign: "center",
-    letterSpacing: 1,
-  },
-  readBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    height: 50,
-  },
-  readBtnDisabled: {
-    backgroundColor: Colors.light.textMuted,
-  },
-  readBtnText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
-  },
-  scanCard: {
-    backgroundColor: Colors.light.surface,
-    borderRadius: 20,
-    padding: 48,
-    alignItems: "center",
-    gap: 16,
-  },
-  scanTitle: {
-    fontSize: 20,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-  },
-  scanSub: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-  },
   successHeader: {
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+  },
+  successIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.success + "15",
+    alignItems: "center",
+    justifyContent: "center",
   },
   successTitle: {
     fontSize: 20,
     fontFamily: "Outfit_700Bold",
     color: Colors.success,
   },
+  offlineLabel: {
+    fontSize: 12,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.textMuted,
+  },
   camperBanner: {
     backgroundColor: Colors.primary + "10",
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 14,
+    padding: 16,
   },
   camperBannerName: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: "Outfit_700Bold",
     color: Colors.primary,
   },
@@ -323,41 +338,46 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     marginTop: 4,
   },
-  bloodTypeHighlight: {
+  bloodHighlight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     backgroundColor: Colors.danger + "10",
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
   },
-  bloodTypeLabel: {
+  bloodLabel: {
     fontSize: 12,
     fontFamily: "Outfit_500Medium",
     color: Colors.light.textSecondary,
   },
-  bloodTypeValue: {
-    fontSize: 24,
+  bloodValue: {
+    fontSize: 26,
     fontFamily: "Outfit_700Bold",
     color: Colors.danger,
   },
   dataSection: {
     gap: 4,
-    paddingBottom: 12,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
   dataSectionTitle: {
-    fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    fontSize: 11,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.light.textMuted,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   dataValue: {
     fontSize: 15,
     fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
+  },
+  dataValueSec: {
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
   },
   programmedAt: {
     fontSize: 12,
@@ -365,20 +385,19 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
     textAlign: "center",
   },
-  errorHeader: {
+  scanAgainBtn: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    height: 52,
+    marginTop: 4,
   },
-  errorTitle: {
-    fontSize: 18,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.danger,
-  },
-  errorMsg: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    textAlign: "center",
-    lineHeight: 20,
+  scanAgainText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Outfit_600SemiBold",
   },
 });

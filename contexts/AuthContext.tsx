@@ -173,12 +173,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const users = await getItem<User[]>(KEYS.USERS);
-    if (!users || users.length === 0) throw new Error("No accounts found. Please register first.");
-    const hash = await hashPassword(password);
+    if (!users || users.length === 0) {
+      throw new Error("No accounts found. Please register first using your invite code.");
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+    const trimmedPassword = password.trim();
+    const hash = await hashPassword(trimmedPassword);
     const found = users.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.passwordHash === hash
+      (u) => u.email.toLowerCase() === normalizedEmail && u.passwordHash === hash
     );
-    if (!found) throw new Error("Invalid email or password");
+    if (!found) {
+      const emailExists = users.find((u) => u.email.toLowerCase() === normalizedEmail);
+      if (!emailExists) {
+        throw new Error("No account found with that email address.");
+      }
+      throw new Error("Incorrect password. Please try again.");
+    }
     await secureSet(SECURE_KEY, found.id);
     setUser(found);
   };
@@ -204,7 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("An account with this email already exists");
     }
 
-    const hash = await hashPassword(password);
+    const hash = await hashPassword(password.trim());
     const newUser: User = {
       id: generateId(),
       name,

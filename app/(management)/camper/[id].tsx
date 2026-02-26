@@ -18,7 +18,8 @@ import * as Haptics from "expo-haptics";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
-import type { Camper, MedicalInfo } from "@/types";
+import NFCScanner from "@/components/NFCScanner";
+import type { Camper, MedicalInfo, WristbandPayload } from "@/types";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"];
 
@@ -66,13 +67,15 @@ function EditField({
 
 export default function CamperDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { campers, checkIns, pendingUpdates, updateCamper, programWristband, createAuthCode, getActiveCheckIn } = useData();
+  const { campers, checkIns, sessions, pendingUpdates, updateCamper, programWristband, createAuthCode, getActiveCheckIn, checkInCamper, checkOutCamper } = useData();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [section, setSection] = useState<"basic" | "medical" | "status">("basic");
   const [isEditing, setIsEditing] = useState(false);
+  const [nfcScanVisible, setNfcScanVisible] = useState(false);
+  const [nfcWritePayload, setNfcWritePayload] = useState<WristbandPayload | null>(null);
 
   const camper = campers.find((c) => c.id === id);
   const activeCheckIn = camper ? getActiveCheckIn(camper.id) : undefined;
@@ -143,33 +146,33 @@ export default function CamperDetailScreen() {
     }
   };
 
-  const handleProgramWristband = async () => {
-    Alert.alert(
-      "Program Wristband",
-      `Hold the NFC wristband to the device to program it for ${camper.firstName} ${camper.lastName}.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Program Now",
-          onPress: async () => {
-            setIsLoading(true);
-            try {
-              await new Promise((resolve) => setTimeout(resolve, 2500));
-              const wbId = await programWristband(camper.id);
-              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert(
-                "Wristband Programmed",
-                `Successfully programmed wristband ${wbId} for ${camper.firstName} ${camper.lastName}.`
-              );
-            } catch (err: any) {
-              Alert.alert("Error", err.message || "Failed to program wristband.");
-            } finally {
-              setIsLoading(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleProgramWristband = () => {
+    const payload: WristbandPayload = {
+      camperId: camper.id,
+      firstName: camper.firstName,
+      lastName: camper.lastName,
+      dateOfBirth: camper.dateOfBirth,
+      medical: camper.medical,
+      programmedAt: new Date().toISOString(),
+      appVersion: "1.0",
+    };
+    setNfcWritePayload(payload);
+    setNfcScanVisible(true);
+  };
+
+  const handleNFCWriteSuccess = async () => {
+    setNfcScanVisible(false);
+    setNfcWritePayload(null);
+    try {
+      const wbId = await programWristband(camper.id);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "Wristband Programmed",
+        `${camper.firstName} ${camper.lastName}'s wristband is now programmed.\n\nID: ${wbId}\n\nAll data is encrypted and accessible offline.`
+      );
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to save wristband record.");
+    }
   };
 
   const handleCreateParentCode = async () => {
@@ -426,6 +429,70 @@ export default function CamperDetailScreen() {
                   <InfoField label="Checked In By" value={activeCheckIn.checkedInByName} />
                 </>
               )}
+              {activeCheckIn ? (
+                <Pressable
+                  style={({ pressed }) => [styles.checkOutBtn, { opacity: pressed ? 0.85 : 1 }]}
+                  onPress={() => {
+                    Alert.alert(
+                      "Check Out",
+                      `Check out ${camper.firstName} ${camper.lastName}?`,
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Check Out",
+                          onPress: async () => {
+                            try {
+                              await checkOutCamper(activeCheckIn.id);
+                              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            } catch (err: any) {
+                              Alert.alert("Error", err.message);
+                            }
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <Ionicons name="log-out-outline" size={18} color={Colors.danger} />
+                  <Text style={styles.checkOutBtnText}>Check Out Now</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [styles.checkInBtn, { opacity: pressed ? 0.85 : 1 }]}
+                  onPress={() => {
+                    const todaySession = sessions.find((s) => {
+                      const today = new Date().toISOString().split("T")[0];
+                      return s.isActive && s.authorizedDates.includes(today);
+                    });
+                    const sessionId = todaySession?.id || "MANAGEMENT_OVERRIDE";
+                    Alert.alert(
+                      "Check In",
+                      `Check in ${camper.firstName} ${camper.lastName}?${!todaySession ? "\n\nNo session is scheduled today. Management override will be used." : ""}`,
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Check In",
+                          onPress: async () => {
+                            try {
+                              await checkInCamper(camper.id, sessionId);
+                              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            } catch (err: any) {
+                              Alert.alert("Error", err.message);
+                            }
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                  <Text style={styles.checkInBtnText}>Check In Now</Text>
+                </Pressable>
+              )}
+              <View style={styles.mgmtNote}>
+                <Ionicons name="shield-checkmark" size={14} color={Colors.accent} />
+                <Text style={styles.mgmtNoteText}>Management can check in at any time</Text>
+              </View>
             </View>
 
             <Text style={styles.sectionTitle}>Check-in History</Text>
@@ -479,6 +546,23 @@ export default function CamperDetailScreen() {
           </>
         )}
       </ScrollView>
+
+      {nfcScanVisible && nfcWritePayload && (
+        <NFCScanner
+          mode="write"
+          writePayload={nfcWritePayload}
+          onWriteSuccess={handleNFCWriteSuccess}
+          onError={(msg) => {
+            setNfcScanVisible(false);
+            setNfcWritePayload(null);
+            Alert.alert("NFC Error", msg);
+          }}
+          onCancel={() => {
+            setNfcScanVisible(false);
+            setNfcWritePayload(null);
+          }}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -715,9 +799,53 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   statusLabel: {
+    flex: 1,
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
+  },
+  checkInBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.success,
+    borderRadius: 12,
+    height: 48,
+    marginTop: 4,
+  },
+  checkInBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  checkOutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.danger + "12",
+    borderRadius: 12,
+    height: 48,
+    borderWidth: 1,
+    borderColor: Colors.danger + "30",
+    marginTop: 4,
+  },
+  checkOutBtnText: {
+    color: Colors.danger,
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  mgmtNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingTop: 4,
+  },
+  mgmtNoteText: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.accent,
   },
   historyRow: {
     flexDirection: "row",

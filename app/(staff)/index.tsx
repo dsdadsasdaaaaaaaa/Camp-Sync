@@ -16,7 +16,8 @@ import * as Haptics from "expo-haptics";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
-import type { Camper } from "@/types";
+import NFCScanner from "@/components/NFCScanner";
+import type { Camper, WristbandPayload } from "@/types";
 
 function CamperCheckInCard({
   camper,
@@ -101,6 +102,7 @@ export default function StaffCheckInScreen() {
   } = useData();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState("");
+  const [nfcScanVisible, setNfcScanVisible] = useState(false);
 
   const todaySessions = getTodaySessions();
   const activeSession = todaySessions[0];
@@ -137,6 +139,24 @@ export default function StaffCheckInScreen() {
         },
       ]
     );
+  };
+
+  const handleNfcPayload = (payload: WristbandPayload) => {
+    setNfcScanVisible(false);
+    const camper = campers.find((c) => c.id === payload.camperId);
+    if (!camper) {
+      Alert.alert(
+        "Camper Not Found",
+        `${payload.firstName} ${payload.lastName} is not registered in this CampSync system.`
+      );
+      return;
+    }
+    const activeCheckIn = getActiveCheckIn(camper.id);
+    if (activeCheckIn) {
+      handleCheckOut(camper, activeCheckIn.id);
+    } else {
+      handleCheckIn(camper);
+    }
   };
 
   const handleCheckOut = async (camper: Camper, checkInId: string) => {
@@ -186,11 +206,22 @@ export default function StaffCheckInScreen() {
             </Text>
           </View>
         ) : (
-          <View style={styles.sessionBanner}>
-            <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-            <Text style={styles.sessionText}>
-              {activeSession?.name} — Check-in active today
-            </Text>
+          <View style={styles.sessionRow}>
+            <View style={[styles.sessionBanner, { flex: 1 }]}>
+              <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+              <Text style={styles.sessionText}>
+                {activeSession?.name} — Active
+              </Text>
+            </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.nfcBtn,
+                { opacity: pressed ? 0.85 : 1 },
+              ]}
+              onPress={() => setNfcScanVisible(true)}
+            >
+              <Ionicons name="radio" size={20} color="#fff" />
+            </Pressable>
           </View>
         )}
 
@@ -253,6 +284,19 @@ export default function StaffCheckInScreen() {
           </View>
         }
       />
+
+      {nfcScanVisible && (
+        <NFCScanner
+          visible={nfcScanVisible}
+          mode="read"
+          onPayloadRead={handleNfcPayload}
+          onError={(msg) => {
+            setNfcScanVisible(false);
+            Alert.alert("NFC Error", msg);
+          }}
+          onCancel={() => setNfcScanVisible(false)}
+        />
+      )}
     </View>
   );
 }
@@ -302,6 +346,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     lineHeight: 18,
   },
+  sessionRow: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "stretch",
+  },
   sessionBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -317,6 +366,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.success,
+  },
+  nfcBtn: {
+    width: 50,
+    borderRadius: 14,
+    backgroundColor: Colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
   },
   searchContainer: {
     flexDirection: "row",

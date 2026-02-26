@@ -8,158 +8,86 @@ import {
   TextInput,
   Alert,
   Platform,
-  ActivityIndicator,
-  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRef, useEffect } from "react";
-import * as Haptics from "expo-haptics";
 import { useData } from "@/contexts/DataContext";
-import { decryptWristbandData } from "@/lib/crypto";
 import Colors from "@/constants/colors";
+import NFCScanner from "@/components/NFCScanner";
 import type { Camper, WristbandPayload } from "@/types";
 
-type Mode = "idle" | "read" | "write" | "scanning" | "success" | "error";
-
-function ScanAnimation({ active }: { active: boolean }) {
-  const pulse1 = useRef(new Animated.Value(1)).current;
-  const pulse2 = useRef(new Animated.Value(1)).current;
-  const pulse3 = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (!active) {
-      pulse1.setValue(1);
-      pulse2.setValue(1);
-      pulse3.setValue(1);
-      return;
-    }
-    const createPulse = (anim: Animated.Value, delay: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(anim, {
-            toValue: 1.6,
-            duration: 1200,
-            useNativeDriver: true,
-          }),
-          Animated.timing(anim, {
-            toValue: 1,
-            duration: 1200,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-
-    const a1 = createPulse(pulse1, 0);
-    const a2 = createPulse(pulse2, 400);
-    const a3 = createPulse(pulse3, 800);
-    a1.start();
-    a2.start();
-    a3.start();
-    return () => {
-      a1.stop();
-      a2.stop();
-      a3.stop();
-    };
-  }, [active]);
-
-  const ring = (anim: Animated.Value, size: number, opacity: number) => (
-    <Animated.View
-      style={{
-        position: "absolute",
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        borderWidth: 1.5,
-        borderColor: Colors.accent,
-        opacity: opacity,
-        transform: [{ scale: anim }],
-      }}
-    />
-  );
-
-  return (
-    <View style={styles.scanContainer}>
-      {active && ring(pulse3, 160, 0.15)}
-      {active && ring(pulse2, 120, 0.25)}
-      {active && ring(pulse1, 80, 0.4)}
-      <View style={styles.nfcCircle}>
-        <Ionicons name="radio" size={44} color={active ? Colors.accent : Colors.light.textMuted} />
-      </View>
-    </View>
-  );
-}
+type Screen = "home" | "selectCamper" | "readResult";
 
 export default function NFCScreen() {
-  const { campers, programWristband, getActiveCheckIn } = useData();
+  const { campers, programWristband } = useData();
   const insets = useSafeAreaInsets();
-  const [mode, setMode] = useState<Mode>("idle");
+  const [screen, setScreen] = useState<Screen>("home");
+  const [readScanVisible, setReadScanVisible] = useState(false);
+  const [writeScanVisible, setWriteScanVisible] = useState(false);
   const [selectedCamper, setSelectedCamper] = useState<Camper | null>(null);
-  const [wristbandId, setWristbandId] = useState("");
+  const [writePayload, setWritePayload] = useState<WristbandPayload | null>(null);
   const [readResult, setReadResult] = useState<WristbandPayload | null>(null);
   const [camperSearch, setCamperSearch] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
+
+  const programmedWristbands = campers.filter(
+    (c) => c.wristbandId && c.wristbandEncryptedData
+  );
 
   const filteredCampers = campers.filter((c) =>
     `${c.firstName} ${c.lastName}`.toLowerCase().includes(camperSearch.toLowerCase())
   );
 
   const handleStartRead = () => {
-    if (!wristbandId.trim()) {
-      Alert.alert("Enter Wristband ID", "Please enter the wristband ID to read.");
-      return;
-    }
-    const camper = campers.find((c) => c.wristbandId === wristbandId.trim().toUpperCase());
-    if (!camper || !camper.wristbandEncryptedData) {
-      setMode("error");
-      setErrorMsg("No programmed wristband found with that ID.");
-      return;
-    }
-    setMode("scanning");
-    setTimeout(() => {
-      const data = decryptWristbandData(camper.wristbandEncryptedData!);
-      if (!data) {
-        setMode("error");
-        setErrorMsg("Failed to decrypt wristband data. This wristband may not belong to CampSync.");
-        return;
-      }
-      setReadResult(data as WristbandPayload);
-      setMode("success");
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }, 2000);
+    setReadScanVisible(true);
   };
 
-  const handleStartWrite = async () => {
+  const handleStartWrite = () => {
     if (!selectedCamper) {
-      Alert.alert("Select Camper", "Please select a camper to program the wristband for.");
+      Alert.alert("Select Camper", "Please select a camper first.");
       return;
     }
-    setMode("scanning");
-    setTimeout(async () => {
-      try {
-        const id = await programWristband(selectedCamper.id);
-        setMode("success");
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(
-          "Wristband Programmed",
-          `Successfully programmed wristband for ${selectedCamper.firstName} ${selectedCamper.lastName}.\n\nWristband ID: ${id}`,
-          [{ text: "Done", onPress: resetAll }]
-        );
-      } catch (err: any) {
-        setMode("error");
-        setErrorMsg(err.message || "Failed to program wristband.");
-      }
-    }, 2500);
+    const payload: WristbandPayload = {
+      camperId: selectedCamper.id,
+      firstName: selectedCamper.firstName,
+      lastName: selectedCamper.lastName,
+      dateOfBirth: selectedCamper.dateOfBirth,
+      medical: selectedCamper.medical,
+      programmedAt: new Date().toISOString(),
+      appVersion: "1.0",
+    };
+    setWritePayload(payload);
+    setWriteScanVisible(true);
+  };
+
+  const handleWriteSuccess = async () => {
+    setWriteScanVisible(false);
+    if (!selectedCamper) return;
+    try {
+      await programWristband(selectedCamper.id);
+      Alert.alert(
+        "Wristband Programmed",
+        `${selectedCamper.firstName} ${selectedCamper.lastName}'s wristband now contains their encrypted profile and medical data. It can be read offline anywhere.`,
+        [{ text: "Done", onPress: resetAll }]
+      );
+    } catch (err: any) {
+      Alert.alert("Error", err.message);
+    }
+  };
+
+  const handlePayloadRead = (payload: WristbandPayload) => {
+    setReadScanVisible(false);
+    setReadResult(payload);
+    setScreen("readResult");
   };
 
   const resetAll = () => {
-    setMode("idle");
+    setScreen("home");
     setSelectedCamper(null);
-    setWristbandId("");
+    setWritePayload(null);
     setReadResult(null);
     setCamperSearch("");
-    setErrorMsg("");
+    setReadScanVisible(false);
+    setWriteScanVisible(false);
   };
 
   return (
@@ -172,11 +100,12 @@ export default function NFCScreen() {
           paddingBottom: insets.bottom + 100,
         },
       ]}
+      keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.headerTitle}>NFC Wristband</Text>
-      <Text style={styles.headerSub}>Program or read encrypted wristband data</Text>
+      <Text style={styles.headerSub}>Program or scan encrypted wristbands</Text>
 
-      {mode === "idle" && (
+      {screen === "home" && (
         <>
           <View style={styles.modeGrid}>
             <Pressable
@@ -184,84 +113,81 @@ export default function NFCScreen() {
                 styles.modeCard,
                 { opacity: pressed ? 0.85 : 1, borderColor: Colors.primary + "40" },
               ]}
-              onPress={() => setMode("write")}
+              onPress={() => setScreen("selectCamper")}
             >
-              <View style={[styles.modeIcon, { backgroundColor: Colors.primary + "20" }]}>
+              <View style={[styles.modeIcon, { backgroundColor: Colors.primary + "15" }]}>
                 <Ionicons name="create" size={28} color={Colors.primary} />
               </View>
-              <Text style={styles.modeTitle}>Program Wristband</Text>
-              <Text style={styles.modeSub}>Write encrypted camper data</Text>
+              <Text style={styles.modeTitle}>Program</Text>
+              <Text style={styles.modeSub}>Write camper data to wristband</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [
                 styles.modeCard,
                 { opacity: pressed ? 0.85 : 1, borderColor: Colors.accent + "40" },
               ]}
-              onPress={() => setMode("read")}
+              onPress={handleStartRead}
             >
-              <View style={[styles.modeIcon, { backgroundColor: Colors.accent + "20" }]}>
-                <Ionicons name="scan" size={28} color={Colors.accent} />
+              <View style={[styles.modeIcon, { backgroundColor: Colors.accent + "15" }]}>
+                <Ionicons name="radio" size={28} color={Colors.accent} />
               </View>
-              <Text style={styles.modeTitle}>Read Wristband</Text>
-              <Text style={styles.modeSub}>Decrypt and view stored data</Text>
+              <Text style={styles.modeTitle}>Scan</Text>
+              <Text style={styles.modeSub}>Read wristband data offline</Text>
             </Pressable>
           </View>
 
-          <View style={styles.infoCard}>
-            <Ionicons name="information-circle" size={20} color={Colors.primary} />
-            <Text style={styles.infoText}>
-              NFC functionality requires a physical device with NFC capabilities. In the Expo Go preview, wristband simulation is shown for demonstration.
-            </Text>
+          <View style={styles.statsCard}>
+            <View style={styles.statRow}>
+              <View style={[styles.statIcon, { backgroundColor: Colors.success + "15" }]}>
+                <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.statLabel}>Programmed Wristbands</Text>
+                <Text style={styles.statValue}>{programmedWristbands.length} of {campers.length}</Text>
+              </View>
+            </View>
+            <View style={styles.statRow}>
+              <View style={[styles.statIcon, { backgroundColor: Colors.warning + "15" }]}>
+                <Ionicons name="alert-circle" size={20} color={Colors.warning} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.statLabel}>Not Yet Programmed</Text>
+                <Text style={styles.statValue}>{campers.length - programmedWristbands.length}</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.offlineCard}>
+            <Ionicons name="cloud-offline" size={20} color={Colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.offlineTitle}>Offline-First NFC</Text>
+              <Text style={styles.offlineText}>
+                All camper data is AES-encrypted and written directly to the NFC wristband tag. Scanning works anywhere — no internet required. Medical info and emergency contacts are always accessible.
+              </Text>
+            </View>
           </View>
         </>
       )}
 
-      {mode === "read" && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Read Wristband</Text>
-          <Text style={styles.cardSub}>Enter the wristband ID printed on the band</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. WB-001234"
-            placeholderTextColor={Colors.light.textMuted}
-            value={wristbandId}
-            onChangeText={(v) => setWristbandId(v.toUpperCase())}
-            autoCapitalize="characters"
-          />
-          <View style={styles.buttonRow}>
-            <Pressable
-              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
-              onPress={resetAll}
-            >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.primaryBtn, { opacity: pressed ? 0.85 : 1 }]}
-              onPress={handleStartRead}
-            >
-              <Ionicons name="scan" size={18} color="#fff" />
-              <Text style={styles.primaryBtnText}>Read</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-
-      {mode === "write" && (
+      {screen === "selectCamper" && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Select Camper</Text>
+          <Text style={styles.cardSub}>
+            Their encrypted data will be written directly onto the NFC wristband
+          </Text>
           <TextInput
             style={styles.input}
-            placeholder="Search camper..."
+            placeholder="Search campers..."
             placeholderTextColor={Colors.light.textMuted}
             value={camperSearch}
             onChangeText={setCamperSearch}
           />
           {campers.length === 0 && (
             <Text style={[styles.cardSub, { textAlign: "center", paddingVertical: 16 }]}>
-              No campers registered yet. Add campers first.
+              No campers registered yet.
             </Text>
           )}
-          {filteredCampers.slice(0, 6).map((camper) => (
+          {filteredCampers.slice(0, 8).map((camper) => (
             <Pressable
               key={camper.id}
               style={[
@@ -270,17 +196,25 @@ export default function NFCScreen() {
               ]}
               onPress={() => setSelectedCamper(camper)}
             >
-              <View style={styles.camperOptionAvatar}>
-                <Text style={styles.camperOptionInitial}>
+              <View style={styles.camperAvatar}>
+                <Text style={styles.camperInitial}>
                   {camper.firstName.charAt(0)}
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.camperOptionName}>
+                <Text style={styles.camperName}>
                   {camper.firstName} {camper.lastName}
                 </Text>
-                <Text style={styles.camperOptionSub}>{camper.cabinGroup || "No cabin"}</Text>
+                <Text style={styles.camperSub}>
+                  {camper.cabinGroup || "No cabin"}
+                  {camper.wristbandId ? " · Wristband active" : " · No wristband"}
+                </Text>
               </View>
+              {camper.wristbandId && (
+                <View style={styles.activeBadge}>
+                  <Text style={styles.activeBadgeText}>Active</Text>
+                </View>
+              )}
               {selectedCamper?.id === camper.id && (
                 <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />
               )}
@@ -303,86 +237,130 @@ export default function NFCScreen() {
               disabled={!selectedCamper}
             >
               <Ionicons name="radio" size={18} color="#fff" />
-              <Text style={styles.primaryBtnText}>Program</Text>
+              <Text style={styles.primaryBtnText}>Program Wristband</Text>
             </Pressable>
           </View>
         </View>
       )}
 
-      {mode === "scanning" && (
-        <View style={styles.scanCard}>
-          <ScanAnimation active={true} />
-          <Text style={styles.scanTitle}>Scanning...</Text>
-          <Text style={styles.scanSub}>
-            {readResult !== null ? "Reading wristband data" : "Hold wristband to device"}
-          </Text>
-          <ActivityIndicator color={Colors.primary} style={{ marginTop: 8 }} />
-        </View>
-      )}
-
-      {mode === "success" && readResult && (
+      {screen === "readResult" && readResult && (
         <View style={styles.card}>
           <View style={styles.successHeader}>
-            <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
-            <Text style={styles.successTitle}>Wristband Read Successfully</Text>
+            <View style={styles.successIcon}>
+              <Ionicons name="checkmark-circle" size={36} color={Colors.success} />
+            </View>
+            <Text style={styles.successTitle}>Wristband Scanned</Text>
+            <Text style={styles.successSub}>Read from NFC tag · Offline</Text>
           </View>
-          <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>Name</Text>
-            <Text style={styles.dataValue}>{readResult.firstName} {readResult.lastName}</Text>
-          </View>
-          <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>Date of Birth</Text>
-            <Text style={styles.dataValue}>{readResult.dateOfBirth || "—"}</Text>
-          </View>
-          <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>Blood Type</Text>
-            <Text style={[styles.dataValue, { color: Colors.danger, fontFamily: "Outfit_700Bold" }]}>
-              {readResult.medical?.bloodType || "—"}
+
+          <View style={styles.camperBanner}>
+            <Text style={styles.camperBannerName}>
+              {readResult.firstName} {readResult.lastName}
             </Text>
+            <Text style={styles.camperBannerDob}>DOB: {readResult.dateOfBirth || "—"}</Text>
           </View>
-          <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>Allergies</Text>
-            <Text style={styles.dataValue}>{readResult.medical?.allergies || "None"}</Text>
+
+          <View style={styles.bloodHighlight}>
+            <Ionicons name="water" size={22} color={Colors.danger} />
+            <View>
+              <Text style={styles.bloodLabel}>Blood Type</Text>
+              <Text style={styles.bloodValue}>{readResult.medical?.bloodType || "Unknown"}</Text>
+            </View>
           </View>
-          <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>Emergency Contact</Text>
+
+          <View style={styles.dataSection}>
+            <Text style={styles.dataSectionTitle}>Emergency Contact</Text>
             <Text style={styles.dataValue}>{readResult.medical?.emergencyContact || "—"}</Text>
+            <Text style={styles.dataValueSec}>{readResult.medical?.emergencyPhone || "—"}</Text>
           </View>
-          <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>Emergency Phone</Text>
-            <Text style={styles.dataValue}>{readResult.medical?.emergencyPhone || "—"}</Text>
-          </View>
-          <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>Programmed</Text>
-            <Text style={styles.dataValue}>
-              {readResult.programmedAt
-                ? new Date(readResult.programmedAt).toLocaleString()
-                : "—"}
+
+          <View style={styles.dataSection}>
+            <Text style={styles.dataSectionTitle}>Allergies</Text>
+            <Text style={[
+              styles.dataValue,
+              readResult.medical?.allergies && readResult.medical.allergies.toLowerCase() !== "none"
+                ? { color: Colors.danger }
+                : {},
+            ]}>
+              {readResult.medical?.allergies || "None reported"}
             </Text>
           </View>
+
+          <View style={styles.dataSection}>
+            <Text style={styles.dataSectionTitle}>Medications</Text>
+            <Text style={styles.dataValue}>{readResult.medical?.medications || "None reported"}</Text>
+          </View>
+
+          <View style={styles.dataSection}>
+            <Text style={styles.dataSectionTitle}>Medical Conditions</Text>
+            <Text style={styles.dataValue}>{readResult.medical?.conditions || "None reported"}</Text>
+          </View>
+
+          <View style={styles.dataSection}>
+            <Text style={styles.dataSectionTitle}>Doctor</Text>
+            <Text style={styles.dataValue}>{readResult.medical?.doctorName || "—"}</Text>
+            <Text style={styles.dataValueSec}>{readResult.medical?.doctorPhone || "—"}</Text>
+          </View>
+
+          <View style={styles.dataSection}>
+            <Text style={styles.dataSectionTitle}>Insurance</Text>
+            <Text style={styles.dataValue}>{readResult.medical?.insuranceProvider || "—"}</Text>
+          </View>
+
+          {readResult.medical?.notes ? (
+            <View style={styles.dataSection}>
+              <Text style={styles.dataSectionTitle}>Notes</Text>
+              <Text style={styles.dataValue}>{readResult.medical.notes}</Text>
+            </View>
+          ) : null}
+
+          <Text style={styles.programmedAt}>
+            Encrypted: {readResult.programmedAt ? new Date(readResult.programmedAt).toLocaleString() : "—"}
+          </Text>
+
           <Pressable
             style={({ pressed }) => [styles.primaryBtn, { opacity: pressed ? 0.85 : 1, marginTop: 4 }]}
+            onPress={handleStartRead}
+          >
+            <Ionicons name="radio" size={18} color="#fff" />
+            <Text style={styles.primaryBtnText}>Scan Another</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
             onPress={resetAll}
           >
-            <Text style={styles.primaryBtnText}>Done</Text>
+            <Text style={styles.cancelBtnText}>Done</Text>
           </Pressable>
         </View>
       )}
 
-      {mode === "error" && (
-        <View style={styles.card}>
-          <View style={styles.errorHeader}>
-            <Ionicons name="close-circle" size={32} color={Colors.danger} />
-            <Text style={styles.errorTitle}>Read Failed</Text>
-            <Text style={styles.errorMsg}>{errorMsg}</Text>
-          </View>
-          <Pressable
-            style={({ pressed }) => [styles.primaryBtn, { opacity: pressed ? 0.85 : 1 }]}
-            onPress={resetAll}
-          >
-            <Text style={styles.primaryBtnText}>Try Again</Text>
-          </Pressable>
-        </View>
+      {readScanVisible && (
+        <NFCScanner
+          visible={readScanVisible}
+          mode="read"
+          onPayloadRead={handlePayloadRead}
+          onError={(msg) => {
+            setReadScanVisible(false);
+            Alert.alert("Scan Error", msg);
+          }}
+          onCancel={() => setReadScanVisible(false)}
+        />
+      )}
+
+      {writeScanVisible && selectedCamper && writePayload && (
+        <NFCScanner
+          visible={writeScanVisible}
+          mode="write"
+          writePayload={writePayload}
+          writeCamper={selectedCamper}
+          onWriteSuccess={handleWriteSuccess}
+          onError={(msg) => {
+            setWriteScanVisible(false);
+            Alert.alert("Write Error", msg);
+          }}
+          onCancel={() => setWriteScanVisible(false)}
+        />
       )}
     </ScrollView>
   );
@@ -391,7 +369,7 @@ export default function NFCScreen() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    gap: 20,
+    gap: 16,
   },
   headerTitle: {
     fontSize: 28,
@@ -402,7 +380,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
-    marginTop: -12,
+    marginTop: -8,
   },
   modeGrid: {
     flexDirection: "row",
@@ -430,7 +408,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   modeTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: "Outfit_700Bold",
     color: Colors.light.text,
     textAlign: "center",
@@ -441,17 +419,55 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     textAlign: "center",
   },
-  infoCard: {
+  statsCard: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statRow: {
     flexDirection: "row",
-    gap: 10,
-    backgroundColor: Colors.primary + "10",
+    alignItems: "center",
+    gap: 12,
+  },
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statLabel: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+  },
+  statValue: {
+    fontSize: 16,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.light.text,
+  },
+  offlineCard: {
+    flexDirection: "row",
+    gap: 12,
+    backgroundColor: Colors.primary + "08",
     borderRadius: 14,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: Colors.primary + "20",
   },
-  infoText: {
-    flex: 1,
+  offlineTitle: {
+    fontSize: 14,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.primary,
+    marginBottom: 4,
+  },
+  offlineText: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
@@ -503,7 +519,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     backgroundColor: Colors.primary + "08",
   },
-  camperOptionAvatar: {
+  camperAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -511,20 +527,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  camperOptionInitial: {
+  camperInitial: {
     fontSize: 16,
     fontFamily: "Outfit_700Bold",
     color: Colors.primary,
   },
-  camperOptionName: {
+  camperName: {
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
   },
-  camperOptionSub: {
+  camperSub: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
+  },
+  activeBadge: {
+    backgroundColor: Colors.success + "15",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  activeBadgeText: {
+    fontSize: 11,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.success,
   },
   buttonRow: {
     flexDirection: "row",
@@ -547,7 +574,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
   },
   primaryBtn: {
-    flex: 1,
+    flex: 2,
     height: 50,
     borderRadius: 12,
     backgroundColor: Colors.primary,
@@ -564,84 +591,89 @@ const styles = StyleSheet.create({
   disabledBtn: {
     backgroundColor: Colors.light.textMuted,
   },
-  scanCard: {
-    backgroundColor: Colors.light.surface,
-    borderRadius: 20,
-    padding: 40,
-    alignItems: "center",
-    gap: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  scanContainer: {
-    width: 160,
-    height: 160,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  nfcCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.light.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  scanTitle: {
-    fontSize: 22,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-  },
-  scanSub: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-  },
   successHeader: {
     alignItems: "center",
     gap: 8,
   },
+  successIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.success + "15",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   successTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: "Outfit_700Bold",
     color: Colors.success,
   },
-  dataRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-  },
-  dataLabel: {
+  successSub: {
     fontSize: 13,
-    fontFamily: "Outfit_500Medium",
+    fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
   },
-  dataValue: {
-    fontSize: 13,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
-    maxWidth: "60%",
-    textAlign: "right",
+  camperBanner: {
+    backgroundColor: Colors.primary + "10",
+    borderRadius: 14,
+    padding: 16,
   },
-  errorHeader: {
-    alignItems: "center",
-    gap: 8,
-  },
-  errorTitle: {
-    fontSize: 18,
+  camperBannerName: {
+    fontSize: 22,
     fontFamily: "Outfit_700Bold",
-    color: Colors.danger,
+    color: Colors.primary,
   },
-  errorMsg: {
+  camperBannerDob: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
+    marginTop: 4,
+  },
+  bloodHighlight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: Colors.danger + "10",
+    borderRadius: 14,
+    padding: 14,
+  },
+  bloodLabel: {
+    fontSize: 12,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.textSecondary,
+  },
+  bloodValue: {
+    fontSize: 26,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.danger,
+  },
+  dataSection: {
+    gap: 4,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  dataSectionTitle: {
+    fontSize: 11,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.light.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  dataValue: {
+    fontSize: 15,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.text,
+  },
+  dataValueSec: {
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+  },
+  programmedAt: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textMuted,
     textAlign: "center",
-    lineHeight: 20,
   },
 });
