@@ -177,7 +177,7 @@ export default function CamperDetailScreen() {
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
-        style={[styles.fieldInput, multiline && styles.multilineInput, { flex: 1 }]}
+        style={[styles.fieldInput, multiline && styles.multilineInput]}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
