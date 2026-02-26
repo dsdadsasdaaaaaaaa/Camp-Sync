@@ -31,6 +31,8 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [loginError, setLoginError] = useState("");
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotAuthCode, setForgotAuthCode] = useState("");
@@ -41,21 +43,36 @@ export default function LoginScreen() {
 
   const handleEmailChange = (text: string) => {
     setEmail(text);
-    if (emailError && (text.trim() === "" || isValidEmail(text))) {
-      setEmailError("");
-    }
+    setLoginError("");
+    if (emailError) setEmailError("");
+  };
+
+  const handlePasswordChange = (text: string) => {
+    setPassword(text);
+    setLoginError("");
+    if (passwordError) setPasswordError("");
   };
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      if (!email.trim()) setEmailError("Email is required");
-      return;
-    }
-    if (!isValidEmail(email)) {
+    let valid = true;
+    if (!email.trim()) {
+      setEmailError("Email is required");
+      valid = false;
+    } else if (!isValidEmail(email)) {
       setEmailError("Please enter a valid email address");
-      return;
+      valid = false;
+    } else {
+      setEmailError("");
     }
-    setEmailError("");
+    if (!password.trim()) {
+      setPasswordError("Password is required");
+      valid = false;
+    } else {
+      setPasswordError("");
+    }
+    if (!valid) return;
+
+    setLoginError("");
     setIsLoading(true);
     try {
       await login(email.trim(), password);
@@ -63,7 +80,7 @@ export default function LoginScreen() {
       router.replace("/");
     } catch (err: any) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Login Failed", err.message || "Something went wrong.");
+      setLoginError(err.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -159,11 +176,11 @@ export default function LoginScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
               <Ionicons
                 name="lock-closed-outline"
                 size={18}
-                color={Colors.light.textMuted}
+                color={passwordError ? Colors.danger : Colors.light.textMuted}
                 style={styles.inputIcon}
               />
               <TextInput
@@ -171,7 +188,7 @@ export default function LoginScreen() {
                 placeholder="Your password"
                 placeholderTextColor={Colors.light.textMuted}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={handlePasswordChange}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 testID="login-password"
@@ -188,6 +205,7 @@ export default function LoginScreen() {
                 />
               </Pressable>
             </View>
+            {passwordError ? <Text style={styles.errorText} testID="password-error" accessibilityRole="alert">{passwordError}</Text> : null}
           </View>
 
           <Pressable
@@ -199,6 +217,13 @@ export default function LoginScreen() {
           >
             <Text style={styles.forgotText}>Forgot Password?</Text>
           </Pressable>
+
+          {loginError ? (
+            <View style={styles.loginErrorBox} testID="login-error" accessibilityRole="alert">
+              <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
+              <Text style={styles.loginErrorText}>{loginError}</Text>
+            </View>
+          ) : null}
 
           <Pressable
             style={({ pressed }) => [
@@ -418,6 +443,22 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     color: Colors.danger,
     marginTop: 4,
+  },
+  loginErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.danger + "15",
+    borderWidth: 1,
+    borderColor: Colors.danger + "40",
+    borderRadius: 10,
+    padding: 12,
+  },
+  loginErrorText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.danger,
   },
   loginButton: {
     backgroundColor: Colors.primary,
