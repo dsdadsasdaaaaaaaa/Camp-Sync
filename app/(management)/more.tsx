@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import DatePicker from "@/components/DatePicker";
@@ -277,6 +278,35 @@ export default function MoreScreen() {
       setMaxUses("1");
     }
     setShowCodeModal(true);
+  };
+
+  const handleAdminResetPassword = async () => {
+    if (!resetEmail.trim()) {
+      Alert.alert("Missing Info", "Please enter the user's email address.");
+      return;
+    }
+    if (!resetNewPassword.trim() || resetNewPassword.length < 6) {
+      Alert.alert("Invalid Password", "Password must be at least 6 characters.");
+      return;
+    }
+    if (resetNewPassword !== resetConfirmPassword) {
+      Alert.alert("Mismatch", "Passwords do not match.");
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await adminResetPassword(resetEmail.trim().toLowerCase(), resetNewPassword);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Success", `Password reset for ${resetEmail.trim()}.`);
+      setShowResetModal(false);
+      setResetEmail("");
+      setResetNewPassword("");
+      setResetConfirmPassword("");
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to reset password.");
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   const handleLogout = async () => {
