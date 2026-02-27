@@ -174,7 +174,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const users = await getItem<User[]>(KEYS.USERS);
+    let users = await getItem<User[]>(KEYS.USERS);
+    
+    // If users is null, it might be because seedInitialData hasn't finished or storage is weird
+    if (!users) {
+      await seedInitialData();
+      users = await getItem<User[]>(KEYS.USERS);
+    }
+
     const normalizedEmail = email.trim().toLowerCase();
     const trimmedPassword = password.trim();
     const hash = await hashPassword(trimmedPassword);
@@ -243,6 +250,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const updatedUsers = [...users, newUser];
     await setItem(KEYS.USERS, updatedUsers);
     await setItem(KEYS.AUTH_CODES, updatedCodes);
+
+    // Force a small delay to ensure storage write is settled on web
+    if (Platform.OS === "web") {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
 
     // Verify the user was actually saved by reading it back
     const verifyUsers = await getItem<User[]>(KEYS.USERS);
