@@ -29,10 +29,7 @@ function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
         { opacity: pressed ? 0.9 : 1 },
       ]}
       onPress={() =>
-        router.push({
-          pathname: "/(parent)/child/[id]",
-          params: { id: camper.id },
-        })
+        router.push(`/(parent)/child/${camper.id}`)
       }
     >
       <View style={styles.cardHeader}>

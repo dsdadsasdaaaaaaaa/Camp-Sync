@@ -69,7 +69,7 @@ function ClassicTabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="child" options={{ href: null }} />
+      <Tabs.Screen name="child/[id]" options={{ href: null }} />
     </Tabs>
   );
 }
