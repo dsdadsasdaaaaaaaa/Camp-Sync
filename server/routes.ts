@@ -215,6 +215,8 @@ async function seedAuthCodes() {
   }
 }
 
+const DEMO_CAMPER_ID = "demo-camper-jamie-001";
+
 async function seedDemoUsers() {
   const demoAccounts = [
     { email: "admin@demo.com", name: "Demo Manager", password: "demo1234", authCode: "DEMO-ADMIN", role: "management" },
@@ -228,14 +230,54 @@ async function seedDemoUsers() {
 
     const passwordHash = await hashPassword(account.password);
     const userId = generateId();
+    const linkedCamperIds = account.role === "parent" ? JSON.stringify([DEMO_CAMPER_ID]) : "[]";
     await db.insert(csUsers).values({
       id: userId,
       name: account.name,
       email: account.email,
       passwordHash,
       role: account.role,
-      linkedCamperIds: "[]",
+      linkedCamperIds,
       authCode: account.authCode,
+    });
+  }
+
+  // Ensure parent@demo.com always has the demo camper linked (even if already created without it)
+  const [parentUser] = await db.select().from(csUsers).where(eq(csUsers.email, "parent@demo.com"));
+  if (parentUser) {
+    const linked = JSON.parse(parentUser.linkedCamperIds || "[]") as string[];
+    if (!linked.includes(DEMO_CAMPER_ID)) {
+      await db.update(csUsers)
+        .set({ linkedCamperIds: JSON.stringify([...linked, DEMO_CAMPER_ID]) })
+        .where(eq(csUsers.email, "parent@demo.com"));
+    }
+  }
+
+  // Seed demo camper Jamie
+  const [existingCamper] = await db.select().from(csCampers).where(eq(csCampers.id, DEMO_CAMPER_ID));
+  if (!existingCamper) {
+    const demoMedical = {
+      allergies: "Peanuts",
+      medications: "EpiPen (carry at all times)",
+      conditions: "None",
+      emergencyContact: "Demo Parent",
+      emergencyPhone: "555-0100",
+      doctorName: "Dr. Smith",
+      doctorPhone: "555-0199",
+      insuranceProvider: "Blue Shield Demo",
+      bloodType: "O+",
+      notes: "Demo camper — for testing purposes",
+    };
+    const { encrypted, iv, authTag } = encryptMedical(demoMedical);
+    await db.insert(csCampers).values({
+      id: DEMO_CAMPER_ID,
+      firstName: "Jamie",
+      lastName: "Demo",
+      dateOfBirth: "2015-06-15",
+      cabinGroup: "Cabin 4 - Sunrise",
+      medicalEncrypted: encrypted,
+      medicalIv: iv,
+      medicalAuthTag: authTag,
     });
   }
 }

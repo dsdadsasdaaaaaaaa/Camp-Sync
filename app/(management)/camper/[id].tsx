@@ -88,7 +88,7 @@ export default function CamperDetailScreen() {
   const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [section, setSection] = useState<"basic" | "medical" | "status">("basic");
+  const [section, setSection] = useState<"basic" | "medical" | "status" | "history">("basic");
   const [isEditing, setIsEditing] = useState(false);
   const [nfcScanVisible, setNfcScanVisible] = useState(false);
   const [nfcWritePayload, setNfcWritePayload] = useState<WristbandPayload | null>(null);
@@ -282,14 +282,14 @@ export default function CamperDetailScreen() {
       </View>
 
       <View style={styles.tabs}>
-        {(["basic", "medical", "status"] as const).map((s) => (
+        {(["basic", "medical", "status", "history"] as const).map((s) => (
           <Pressable
             key={s}
             style={[styles.tab, section === s && styles.activeTab]}
             onPress={() => setSection(s)}
           >
             <Text style={[styles.tabText, section === s && styles.activeTabText]}>
-              {s === "basic" ? "Info" : s === "medical" ? "Medical" : "Status"}
+              {s === "basic" ? "Info" : s === "medical" ? "Medical" : s === "status" ? "Status" : "History"}
             </Text>
             {s === "status" && hasPending && (
               <View style={styles.tabBadge} />
@@ -441,6 +441,62 @@ export default function CamperDetailScreen() {
               </>
             )}
           </View>
+        )}
+
+        {section === "history" && (
+          <>
+            <Text style={styles.sectionTitle}>Attendance History</Text>
+            <View style={styles.card}>
+              {camperHistory.length === 0 ? (
+                <View style={{ alignItems: "center", paddingVertical: 32, gap: 8 }}>
+                  <Ionicons name="calendar-outline" size={40} color={Colors.light.textMuted} />
+                  <Text style={[styles.infoLabel, { textAlign: "center" }]}>No attendance history yet</Text>
+                  <Text style={[styles.infoValue, { textAlign: "center", fontSize: 13 }]}>Check-ins will appear here once recorded</Text>
+                </View>
+              ) : (
+                camperHistory.map((ci, idx) => {
+                  const session = sessions.find((s) => s.id === ci.sessionId);
+                  return (
+                    <View key={ci.id}>
+                      <View style={styles.historyRow}>
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={styles.historySessionName}>
+                            {session?.name ?? "Unknown Session"}
+                          </Text>
+                          <Text style={styles.historyDate}>
+                            {new Date(ci.checkedInAt).toLocaleDateString([], {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </Text>
+                          <Text style={styles.historyTime}>
+                            In: {new Date(ci.checkedInAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            {ci.checkedOutAt
+                              ? ` · Out: ${new Date(ci.checkedOutAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                              : ""}
+                          </Text>
+                          <Text style={styles.historyBy}>By {ci.checkedInByName}</Text>
+                        </View>
+                        <View style={[
+                          styles.historyBadge,
+                          { backgroundColor: ci.checkedOutAt ? Colors.light.surfaceSecondary : Colors.success + "20" },
+                        ]}>
+                          <Text style={[
+                            styles.historyBadgeText,
+                            { color: ci.checkedOutAt ? Colors.light.textSecondary : Colors.success },
+                          ]}>
+                            {ci.checkedOutAt ? "Complete" : "Active"}
+                          </Text>
+                        </View>
+                      </View>
+                      {idx < camperHistory.length - 1 && <View style={styles.divider} />}
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          </>
         )}
 
         {section === "status" && (
@@ -905,15 +961,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 8,
   },
-  historyDate: {
+  historySessionName: {
     fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
+  },
+  historyDate: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
   },
   historyTime: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
+  },
+  historyBy: {
+    fontSize: 11,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textMuted,
     marginTop: 2,
   },
   historyBadge: {

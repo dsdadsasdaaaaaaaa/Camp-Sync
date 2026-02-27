@@ -109,6 +109,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return;
     }
     refresh();
+
+    const poll = setInterval(async () => {
+      if (!user || offlineMode) return;
+      try {
+        const [c, s, ci, pu, ac] = await Promise.all([
+          safeGet<Camper[]>("/api/campers", []),
+          safeGet<Session[]>("/api/sessions", []),
+          safeGet<CheckIn[]>("/api/check-ins", []),
+          safeGet<PendingWristbandUpdate[]>("/api/pending-updates", []),
+          safeGet<AuthCode[]>("/api/auth/codes", []),
+        ]);
+        setCampers(c);
+        setSessions(s);
+        setCheckIns(ci);
+        setPendingUpdates(pu);
+        setAuthCodes(ac);
+        if (user.role === "management") {
+          const u = await safeGet<User[]>("/api/users", []);
+          setUsers(u);
+        }
+      } catch {
+      }
+    }, 30000);
+
+    return () => clearInterval(poll);
   }, [authLoading, user, offlineMode]);
 
   // ── Campers ─────────────────────────────────────────────────────────────────

@@ -28,10 +28,12 @@ function SessionCard({
   session,
   onDelete,
   onToggleActive,
+  onViewRoster,
 }: {
   session: Session;
   onDelete: () => void;
   onToggleActive: () => void;
+  onViewRoster: () => void;
 }) {
   return (
     <View style={styles.sessionCard}>
@@ -89,13 +91,22 @@ function SessionCard({
         )}
       </View>
 
-      <Pressable
-        onPress={onDelete}
-        style={({ pressed }) => [styles.deleteSessionBtn, { opacity: pressed ? 0.7 : 1 }]}
-      >
-        <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-        <Text style={styles.deleteSessionText}>Delete Session</Text>
-      </Pressable>
+      <View style={styles.sessionCardActions}>
+        <Pressable
+          onPress={onViewRoster}
+          style={({ pressed }) => [styles.rosterBtn, { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <Ionicons name="list-outline" size={15} color={Colors.primary} />
+          <Text style={styles.rosterBtnText}>Roster</Text>
+        </Pressable>
+        <Pressable
+          onPress={onDelete}
+          style={({ pressed }) => [styles.deleteSessionBtn, { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+          <Text style={styles.deleteSessionText}>Delete</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -182,7 +193,8 @@ export default function MoreScreen() {
   const { 
     sessions, 
     authCodes, 
-    campers, 
+    campers,
+    checkIns,
     addSession, 
     updateSession, 
     deleteSession, 
@@ -212,6 +224,7 @@ export default function MoreScreen() {
   const [resetNewPassword, setResetNewPassword] = useState("");
   const [resetConfirmPassword, setResetConfirmPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
+  const [rosterSession, setRosterSession] = useState<Session | null>(null);
 
   const handleAddSession = async () => {
     if (!sessionName.trim() || !sessionStart.trim() || !sessionEnd.trim()) {
@@ -414,6 +427,7 @@ export default function MoreScreen() {
                 onToggleActive={() =>
                   updateSession(session.id, { isActive: !session.isActive })
                 }
+                onViewRoster={() => setRosterSession(session)}
               />
             ))}
           </>
@@ -745,6 +759,95 @@ export default function MoreScreen() {
                 <Text style={styles.confirmBtnText}>{editingCode ? "Save Changes" : "Generate"}</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={!!rosterSession}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setRosterSession(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { maxHeight: "85%" }]}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>{rosterSession?.name ?? ""}</Text>
+            <Text style={styles.modalSub}>
+              {rosterSession
+                ? `${new Date(rosterSession.startDate).toLocaleDateString()} — ${new Date(rosterSession.endDate).toLocaleDateString()}`
+                : ""}
+            </Text>
+            {rosterSession && (() => {
+              const roster = checkIns
+                .filter((ci) => ci.sessionId === rosterSession.id)
+                .sort((a, b) => new Date(a.checkedInAt).getTime() - new Date(b.checkedInAt).getTime());
+              return (
+                <>
+                  <View style={styles.rosterCount}>
+                    <Ionicons name="people" size={16} color={Colors.primary} />
+                    <Text style={styles.rosterCountText}>
+                      {roster.length} {roster.length === 1 ? "camper" : "campers"} attended
+                    </Text>
+                  </View>
+                  <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                    {roster.length === 0 ? (
+                      <View style={{ alignItems: "center", paddingVertical: 24, gap: 8 }}>
+                        <Ionicons name="calendar-outline" size={36} color={Colors.light.textMuted} />
+                        <Text style={styles.fieldHint}>No check-ins recorded for this session</Text>
+                      </View>
+                    ) : (
+                      roster.map((ci, idx) => {
+                        const camper = campers.find((c) => c.id === ci.camperId);
+                        return (
+                          <View key={ci.id}>
+                            <View style={styles.rosterRow}>
+                              <View style={styles.rosterAvatar}>
+                                <Text style={styles.rosterAvatarText}>
+                                  {camper?.firstName?.charAt(0)?.toUpperCase() ?? "?"}
+                                </Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.rosterName}>
+                                  {camper ? `${camper.firstName} ${camper.lastName}` : "Unknown Camper"}
+                                </Text>
+                                {camper?.cabinGroup ? (
+                                  <Text style={styles.rosterCabin}>{camper.cabinGroup}</Text>
+                                ) : null}
+                                <Text style={styles.rosterTime}>
+                                  In: {new Date(ci.checkedInAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                  {ci.checkedOutAt
+                                    ? ` · Out: ${new Date(ci.checkedOutAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                                    : ""}
+                                </Text>
+                              </View>
+                              <View style={[
+                                styles.historyBadge,
+                                { backgroundColor: ci.checkedOutAt ? Colors.light.surfaceSecondary : Colors.success + "20" },
+                              ]}>
+                                <Text style={[
+                                  styles.historyBadgeText,
+                                  { color: ci.checkedOutAt ? Colors.light.textSecondary : Colors.success },
+                                ]}>
+                                  {ci.checkedOutAt ? "Done" : "Present"}
+                                </Text>
+                              </View>
+                            </View>
+                            {idx < roster.length - 1 && <View style={styles.divider} />}
+                          </View>
+                        );
+                      })
+                    )}
+                  </ScrollView>
+                </>
+              );
+            })()}
+            <Pressable
+              style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]}
+              onPress={() => setRosterSession(null)}
+            >
+              <Text style={styles.confirmBtnText}>Close</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -1131,5 +1234,90 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     lineHeight: 20,
+  },
+  sessionCardActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 4,
+  },
+  rosterBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.primary + "40",
+    backgroundColor: Colors.primary + "08",
+  },
+  rosterBtnText: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.primary,
+  },
+  rosterCount: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.primary + "10",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  rosterCountText: {
+    fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.primary,
+  },
+  rosterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+  },
+  rosterAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primary + "20",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rosterAvatarText: {
+    fontSize: 15,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.primary,
+  },
+  rosterName: {
+    fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+  },
+  rosterCabin: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+  },
+  rosterTime: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textMuted,
+    marginTop: 2,
+  },
+  historyBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  historyBadgeText: {
+    fontSize: 12,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.light.border,
   },
 });
