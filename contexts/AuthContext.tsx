@@ -107,7 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let response: Response;
         try {
           response = await apiGet("/api/auth/me", token);
-        } catch {
+        } catch (err) {
+          console.log("Auth connection error, falling back to cache:", err);
           const cached = await getCachedUser();
           if (cached) {
             setUser(cached);

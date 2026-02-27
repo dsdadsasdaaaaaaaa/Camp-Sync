@@ -78,7 +78,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("GET", "/api/auth/codes");
       const codes = await res.json();
       setAuthCodes(codes);
-    } catch {
+      await setItem(KEYS.AUTH_CODES, codes); // Update cache on success
+    } catch (err) {
+      console.log("Data connection error, falling back to cache:", err);
       const ac = await getItem<AuthCode[]>(KEYS.AUTH_CODES);
       setAuthCodes(ac || []);
     }

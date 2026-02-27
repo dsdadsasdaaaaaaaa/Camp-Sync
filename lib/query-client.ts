@@ -4,7 +4,11 @@ import { getToken } from "@/lib/auth-token";
 
 export function getApiUrl(): string {
   let host = process.env.EXPO_PUBLIC_DOMAIN;
-  if (!host) throw new Error("EXPO_PUBLIC_DOMAIN is not set");
+  // Fallback for development/testing if domain is missing
+  if (!host) {
+    if (__DEV__) return "http://localhost:5000";
+    throw new Error("EXPO_PUBLIC_DOMAIN is not set");
+  }
   return new URL(`https://${host}`).href;
 }
 
