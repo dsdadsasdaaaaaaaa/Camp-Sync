@@ -383,7 +383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only management can delete codes" });
       }
 
-      await db.delete(csAuthCodes).where(eq(csAuthCodes.code, req.params.code));
+      await db.delete(csAuthCodes).where(eq(csAuthCodes.code, String(req.params.code)));
       return res.json({ success: true });
     } catch (err) {
       console.error("Delete code error:", err);
@@ -400,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updates: any = {};
       if (maxUses !== undefined) updates.maxUses = maxUses;
 
-      await db.update(csAuthCodes).set(updates).where(eq(csAuthCodes.code, req.params.code));
+      await db.update(csAuthCodes).set(updates).where(eq(csAuthCodes.code, String(req.params.code)));
       return res.json({ success: true });
     } catch (err) {
       console.error("Update code error:", err);

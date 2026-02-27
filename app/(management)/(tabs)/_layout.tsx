@@ -29,7 +29,7 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="pending">
         <Icon sf={{ default: "clock.arrow.circlepath", selected: "clock.arrow.circlepath" }} />
         <Label>Updates</Label>
-        {unresolved > 0 && <Badge>{unresolved}</Badge>}
+        {unresolved > 0 && <Badge>{unresolved.toString()}</Badge>}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="more">
         <Icon sf={{ default: "ellipsis", selected: "ellipsis.circle.fill" }} />

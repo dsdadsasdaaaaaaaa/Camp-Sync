@@ -156,6 +156,10 @@ export default function OfflineScannerScreen() {
           visible={scannerVisible}
           mode="read"
           onPayloadRead={handlePayloadRead}
+          onError={(msg) => {
+            setScannerVisible(false);
+            Alert.alert("NFC Error", msg);
+          }}
           onCancel={() => setScannerVisible(false)}
         />
       )}

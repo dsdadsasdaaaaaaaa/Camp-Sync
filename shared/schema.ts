@@ -1,5 +1,4 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -32,6 +31,59 @@ export const csUserSessions = pgTable("cs_user_sessions", {
     .references(() => csUsers.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
+});
+
+export const csCampers = pgTable("cs_campers", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  dateOfBirth: text("date_of_birth").notNull(),
+  cabinGroup: text("cabin_group").notNull(),
+  medicalEncrypted: text("medical_encrypted"),
+  medicalIv: text("medical_iv"),
+  medicalAuthTag: text("medical_auth_tag"),
+  wristbandId: text("wristband_id"),
+  wristbandLastProgrammed: text("wristband_last_programmed"),
+  wristbandEncryptedData: text("wristband_encrypted_data"),
+  parentAuthCode: text("parent_auth_code"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const csCampSessions = pgTable("cs_camp_sessions", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  name: text("name").notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  authorizedDates: text("authorized_dates").notNull().default("[]"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by", { length: 36 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const csCheckIns = pgTable("cs_check_ins", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  camperId: varchar("camper_id", { length: 36 }).notNull(),
+  sessionId: varchar("session_id", { length: 36 }).notNull(),
+  checkedInAt: timestamp("checked_in_at").defaultNow().notNull(),
+  checkedInBy: varchar("checked_in_by", { length: 36 }).notNull(),
+  checkedInByName: text("checked_in_by_name").notNull(),
+  checkedOutAt: timestamp("checked_out_at"),
+  checkedOutBy: varchar("checked_out_by", { length: 36 }),
+  checkedOutByName: text("checked_out_by_name"),
+});
+
+export const csPendingUpdates = pgTable("cs_pending_updates", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  camperId: varchar("camper_id", { length: 36 }).notNull(),
+  camperName: text("camper_name").notNull(),
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+  requestedBy: varchar("requested_by", { length: 36 }).notNull(),
+  requestedByName: text("requested_by_name").notNull(),
+  resolved: boolean("resolved").notNull().default(false),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: varchar("resolved_by", { length: 36 }),
+  resolvedByName: text("resolved_by_name"),
 });
 
 export const insertUserSchema = createInsertSchema(csUsers).pick({

@@ -588,10 +588,12 @@ export default function CamperDetailScreen() {
         )}
       </ScrollView>
 
-      {nfcScanVisible && nfcWritePayload && (
+      {nfcScanVisible && nfcWritePayload && camper && (
         <NFCScanner
+          visible={nfcScanVisible}
           mode="write"
           writePayload={nfcWritePayload}
+          writeCamper={camper}
           onWriteSuccess={handleNFCWriteSuccess}
           onError={(msg) => {
             setNfcScanVisible(false);

@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
@@ -370,6 +371,21 @@ export default function StaffCheckInScreen() {
         },
       ]
     );
+  };
+
+  const handleNfcPayload = (payload: WristbandPayload) => {
+    setNfcScanVisible(false);
+    const camper = campers.find((c) => c.id === payload.camperId);
+    if (!camper) {
+      Alert.alert("Camper Not Found", "No camper found for this wristband. They may not be registered in the system.");
+      return;
+    }
+    const activeCheckIn = getActiveCheckIn(camper.id);
+    if (activeCheckIn) {
+      handleCheckOut(camper, activeCheckIn.id);
+    } else {
+      handleCheckIn(camper);
+    }
   };
 
   return (
