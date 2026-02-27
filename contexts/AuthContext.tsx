@@ -175,12 +175,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const users = await getItem<User[]>(KEYS.USERS);
-    if (!users || users.length === 0) {
-      throw new Error("No accounts found. Please register first using your invite code.");
-    }
     const normalizedEmail = email.trim().toLowerCase();
     const trimmedPassword = password.trim();
     const hash = await hashPassword(trimmedPassword);
+
+    if (!users || users.length === 0) {
+      throw new Error("No accounts found. Please register first using your invite code.");
+    }
+    
     const found = users.find(
       (u) => u.email.toLowerCase() === normalizedEmail && u.passwordHash === hash
     );
@@ -220,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const newUser: User = {
       id: generateId(),
       name,
-      email,
+      email: email.trim().toLowerCase(),
       passwordHash: hash,
       role: code.role,
       linkedCamperIds: code.linkedCamperId ? [code.linkedCamperId] : [],
