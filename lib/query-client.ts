@@ -1,42 +1,44 @@
 import { fetch } from "expo/fetch";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getToken } from "@/lib/auth-token";
 
-/**
- * Gets the base URL for the Express API server (e.g., "http://localhost:3000")
- * @returns {string} The API base URL
- */
 export function getApiUrl(): string {
   let host = process.env.EXPO_PUBLIC_DOMAIN;
+  if (!host) throw new Error("EXPO_PUBLIC_DOMAIN is not set");
+  return new URL(`https://${host}`).href;
+}
 
-  if (!host) {
-    throw new Error("EXPO_PUBLIC_DOMAIN is not set");
-  }
-
-  let url = new URL(`https://${host}`);
-
-  return url.href;
+function buildHeaders(data?: unknown): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (data) headers["Content-Type"] = "application/json";
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
 }
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let message = res.statusText;
+    try {
+      const body = await res.json();
+      message = body.message || message;
+    } catch {}
+    throw new Error(message);
   }
 }
 
 export async function apiRequest(
   method: string,
   route: string,
-  data?: unknown | undefined,
+  data?: unknown,
 ): Promise<Response> {
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
 
   const res = await fetch(url.toString(), {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: buildHeaders(data),
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -53,7 +55,7 @@ export const getQueryFn: <T>(options: {
     const url = new URL(queryKey.join("/") as string, baseUrl);
 
     const res = await fetch(url.toString(), {
-      credentials: "include",
+      headers: buildHeaders(),
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

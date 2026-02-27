@@ -6,15 +6,23 @@ import React, {
   useMemo,
   ReactNode,
 } from "react";
-import * as SecureStore from "expo-secure-store";
-import { Platform } from "react-native";
-import { getItem, setItem, KEYS } from "@/lib/storage";
-import { hashPassword, generateId } from "@/lib/crypto";
-import type { User, UserRole, AuthCode, Camper, MedicalInfo } from "@/types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { fetch } from "expo/fetch";
+import { getApiUrl } from "@/lib/query-client";
+import {
+  loadTokenFromStorage,
+  saveToken,
+  clearToken,
+  getToken,
+} from "@/lib/auth-token";
+import type { User } from "@/types";
+
+const CACHED_USER_KEY = "campsync_cached_user";
 
 interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
+  offlineMode: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (
     name: string,
@@ -23,189 +31,140 @@ interface AuthContextValue {
     authCode: string
   ) => Promise<void>;
   logout: () => Promise<void>;
-  resetPassword: (email: string, authCode: string, newPassword: string) => Promise<void>;
+  resetPassword: (
+    email: string,
+    authCode: string,
+    newPassword: string
+  ) => Promise<void>;
   adminResetPassword: (email: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const SECURE_KEY = "campsync_user_id";
-
-async function secureGet(key: string): Promise<string | null> {
-  if (Platform.OS === "web") {
-    return localStorage.getItem(key);
-  }
-  return SecureStore.getItemAsync(key);
+async function apiPost(path: string, body: object, token?: string) {
+  const url = new URL(path, getApiUrl()).toString();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
 }
 
-async function secureSet(key: string, value: string): Promise<void> {
-  if (Platform.OS === "web") {
-    localStorage.setItem(key, value);
-    return;
-  }
-  return SecureStore.setItemAsync(key, value);
+async function apiGet(path: string, token: string) {
+  const url = new URL(path, getApiUrl()).toString();
+  return fetch(url, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
 }
 
-async function secureDelete(key: string): Promise<void> {
-  if (Platform.OS === "web") {
-    localStorage.removeItem(key);
-    return;
+async function getCachedUser(): Promise<User | null> {
+  try {
+    const raw = await AsyncStorage.getItem(CACHED_USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
   }
-  return SecureStore.deleteItemAsync(key);
 }
 
-const DEMO_CAMPER_ID = "demo-camper-001";
+async function cacheUser(user: User | null) {
+  try {
+    if (user) {
+      await AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
+    } else {
+      await AsyncStorage.removeItem(CACHED_USER_KEY);
+    }
+  } catch {}
+}
 
-async function seedInitialData() {
-  const users = await getItem<User[]>(KEYS.USERS);
-  if (users && users.length > 0) return;
-
-  const existingCampers = await getItem<Camper[]>(KEYS.CAMPERS);
-  if (!existingCampers || existingCampers.length === 0) {
-    const now = new Date().toISOString();
-    const demoCamper: Camper = {
-      id: DEMO_CAMPER_ID,
-      firstName: "Alex",
-      lastName: "Johnson",
-      dateOfBirth: "06/15/2015",
-      cabinGroup: "Cabin 3 - Eagles",
-      medical: {
-        allergies: "Peanuts",
-        medications: "EpiPen (as needed)",
-        conditions: "Mild Asthma",
-        emergencyContact: "Sarah Johnson",
-        emergencyPhone: "(555) 234-5678",
-        doctorName: "Dr. Emily Chen",
-        doctorPhone: "(555) 789-0123",
-        insuranceProvider: "BlueCross BlueShield",
-        bloodType: "A+",
-        notes: "Carries inhaler at all times. Parent should be notified immediately for any allergic reaction.",
-      },
-      createdAt: now,
-      updatedAt: now,
-    };
-    await setItem(KEYS.CAMPERS, [demoCamper]);
-  }
-
-  const codes = await getItem<AuthCode[]>(KEYS.AUTH_CODES);
-  if (!codes || codes.length === 0) {
-    const initialCodes: AuthCode[] = [
-      {
-        code: "DEMO-ADMIN",
-        role: "management",
-        maxUses: 0,
-        usedCount: 0,
-        usedBy: [],
-        createdAt: new Date().toISOString(),
-        createdBy: "system",
-      },
-      {
-        code: "DEMO-STAFF",
-        role: "staff",
-        maxUses: 0,
-        usedCount: 0,
-        usedBy: [],
-        createdAt: new Date().toISOString(),
-        createdBy: "system",
-      },
-      {
-        code: "DEMO-PARENT",
-        role: "parent",
-        linkedCamperId: DEMO_CAMPER_ID,
-        maxUses: 0,
-        usedCount: 0,
-        usedBy: [],
-        createdAt: new Date().toISOString(),
-        createdBy: "system",
-      },
-      {
-        code: "MGMT-MASTER-2024",
-        role: "management",
-        maxUses: 1,
-        usedCount: 0,
-        usedBy: [],
-        createdAt: new Date().toISOString(),
-        createdBy: "system",
-      },
-      {
-        code: "STAFF-001",
-        role: "staff",
-        maxUses: 1,
-        usedCount: 0,
-        usedBy: [],
-        createdAt: new Date().toISOString(),
-        createdBy: "system",
-      },
-      {
-        code: "STAFF-002",
-        role: "staff",
-        maxUses: 1,
-        usedCount: 0,
-        usedBy: [],
-        createdAt: new Date().toISOString(),
-        createdBy: "system",
-      },
-    ];
-    await setItem(KEYS.AUTH_CODES, initialCodes);
-  }
-
-  if (!users || users.length === 0) {
-    await setItem<User[]>(KEYS.USERS, []);
-  }
+function mapApiUser(data: any): User {
+  return {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    passwordHash: "",
+    role: data.role,
+    linkedCamperIds: data.linkedCamperIds ?? [],
+    authCode: data.authCode,
+    createdAt: data.createdAt,
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [offlineMode, setOfflineMode] = useState(false);
 
   useEffect(() => {
     (async () => {
-      await seedInitialData();
       try {
-        const userId = await secureGet(SECURE_KEY);
-        if (userId) {
-          const users = await getItem<User[]>(KEYS.USERS);
-          const found = users?.find((u) => u.id === userId);
-          if (found) {
-            setUser(found);
-          } else {
-            await secureDelete(SECURE_KEY);
-          }
+        const token = await loadTokenFromStorage();
+
+        if (!token) {
+          setOfflineMode(true);
+          setIsLoading(false);
+          return;
         }
-      } catch {}
+
+        let response: Response;
+        try {
+          response = await apiGet("/api/auth/me", token);
+        } catch {
+          const cached = await getCachedUser();
+          if (cached) {
+            setUser(cached);
+          } else {
+            setOfflineMode(true);
+          }
+          setIsLoading(false);
+          return;
+        }
+
+        if (response.ok) {
+          const data = await response.json();
+          const u = mapApiUser(data);
+          setUser(u);
+          await cacheUser(u);
+          setOfflineMode(false);
+        } else {
+          await clearToken();
+          await cacheUser(null);
+          setOfflineMode(true);
+        }
+      } catch {
+        setOfflineMode(true);
+      }
+
       setIsLoading(false);
     })();
   }, []);
 
   const login = async (email: string, password: string) => {
-    let users = await getItem<User[]>(KEYS.USERS);
-    
-    // If users is null, it might be because seedInitialData hasn't finished or storage is weird
-    if (!users) {
-      await seedInitialData();
-      users = await getItem<User[]>(KEYS.USERS);
+    let response: Response;
+    try {
+      response = await apiPost("/api/auth/login", {
+        email: email.trim(),
+        password: password.trim(),
+      });
+    } catch {
+      throw new Error(
+        "Cannot connect to server. Check your internet connection."
+      );
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const trimmedPassword = password.trim();
-    const hash = await hashPassword(trimmedPassword);
+    if (!response.ok) {
+      let msg = "Login failed";
+      try {
+        const body = await response.json();
+        msg = body.message || msg;
+      } catch {}
+      throw new Error(msg);
+    }
 
-    if (!users || users.length === 0) {
-      throw new Error("No accounts found. Please register first using your invite code.");
-    }
-    
-    const found = users.find(
-      (u) => u.email.toLowerCase() === normalizedEmail && u.passwordHash === hash
-    );
-    if (!found) {
-      const emailExists = users.find((u) => u.email.toLowerCase() === normalizedEmail);
-      if (!emailExists) {
-        throw new Error("No account found with that email address.");
-      }
-      throw new Error("Incorrect password. Please try again.");
-    }
-    await secureSet(SECURE_KEY, found.id);
-    setUser(found);
+    const { token, user: userData } = await response.json();
+    await saveToken(token);
+    const u = mapApiUser(userData);
+    await cacheUser(u);
+    setUser(u);
+    setOfflineMode(false);
   };
 
   const register = async (
@@ -214,119 +173,113 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     authCode: string
   ) => {
-    const codes = await getItem<AuthCode[]>(KEYS.AUTH_CODES);
-    if (!codes) throw new Error("Invalid auth code");
-
-    const code = codes.find(
-      (c) => 
-        c.code.toUpperCase() === authCode.toUpperCase() && 
-        (c.maxUses === 0 || c.usedCount < c.maxUses)
-    );
-    if (!code) throw new Error("Invalid or max uses reached for this auth code");
-
-    const users = (await getItem<User[]>(KEYS.USERS)) || [];
-    if (users.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
-      throw new Error("An account with this email already exists");
-    }
-
-    const hash = await hashPassword(password.trim());
-    const newUser: User = {
-      id: generateId(),
-      name,
-      email: email.trim().toLowerCase(),
-      passwordHash: hash,
-      role: code.role,
-      linkedCamperIds: code.linkedCamperId ? [code.linkedCamperId] : [],
-      authCode: code.code,
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedCodes = codes.map((c) =>
-      c.code === code.code
-        ? { 
-            ...c, 
-            usedCount: c.usedCount + 1, 
-            usedBy: [...(c.usedBy || []), newUser.id] 
-          }
-        : c
-    );
-
-    const updatedUsers = [...users, newUser];
-    await setItem(KEYS.USERS, updatedUsers);
-    await setItem(KEYS.AUTH_CODES, updatedCodes);
-
-    // Force a small delay to ensure storage write is settled on web
-    if (Platform.OS === "web") {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    // Verify the user was actually saved by reading it back
-    const verifyUsers = await getItem<User[]>(KEYS.USERS);
-    const isSaved = verifyUsers?.find(u => u.id === newUser.id);
-    if (!isSaved) {
-      // Fallback: try one more time if storage was flaky
-      await setItem(KEYS.USERS, updatedUsers);
-    }
-
-    if (code.role === "parent" && code.linkedCamperId) {
-      const campers = (await getItem<any[]>(KEYS.CAMPERS)) || [];
-      const updated = campers.map((c: any) =>
-        c.id === code.linkedCamperId
-          ? { ...c, parentAuthCode: code.code }
-          : c
+    let response: Response;
+    try {
+      response = await apiPost("/api/auth/register", {
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        authCode: authCode.trim(),
+      });
+    } catch {
+      throw new Error(
+        "Cannot connect to server. Check your internet connection."
       );
-      await setItem(KEYS.CAMPERS, updated);
     }
 
-    await secureSet(SECURE_KEY, newUser.id);
-    setUser(newUser);
-  };
+    if (!response.ok) {
+      let msg = "Registration failed";
+      try {
+        const body = await response.json();
+        msg = body.message || msg;
+      } catch {}
+      throw new Error(msg);
+    }
 
-  const resetPassword = async (email: string, authCode: string, newPassword: string) => {
-    const users = await getItem<User[]>(KEYS.USERS);
-    if (!users || users.length === 0) {
-      throw new Error("No accounts found.");
-    }
-    const normalizedEmail = email.trim().toLowerCase();
-    const found = users.find((u) => u.email.toLowerCase() === normalizedEmail);
-    if (!found) {
-      throw new Error("No account found with that email address.");
-    }
-    if (found.authCode.toUpperCase() !== authCode.trim().toUpperCase()) {
-      throw new Error("Invalid auth code. Please enter the code you used to register.");
-    }
-    const newHash = await hashPassword(newPassword.trim());
-    const updatedUsers = users.map((u) =>
-      u.id === found.id ? { ...u, passwordHash: newHash } : u
-    );
-    await setItem(KEYS.USERS, updatedUsers);
-  };
-
-  const adminResetPassword = async (email: string, newPassword: string) => {
-    const users = await getItem<User[]>(KEYS.USERS);
-    if (!users || users.length === 0) {
-      throw new Error("No accounts found.");
-    }
-    const normalizedEmail = email.trim().toLowerCase();
-    const found = users.find((u) => u.email.toLowerCase() === normalizedEmail);
-    if (!found) {
-      throw new Error("No account found with that email address.");
-    }
-    const newHash = await hashPassword(newPassword.trim());
-    const updatedUsers = users.map((u) =>
-      u.id === found.id ? { ...u, passwordHash: newHash } : u
-    );
-    await setItem(KEYS.USERS, updatedUsers);
+    const { token, user: userData } = await response.json();
+    await saveToken(token);
+    const u = mapApiUser(userData);
+    await cacheUser(u);
+    setUser(u);
+    setOfflineMode(false);
   };
 
   const logout = async () => {
-    await secureDelete(SECURE_KEY);
+    const token = getToken();
+    if (token) {
+      try {
+        await apiPost("/api/auth/logout", {}, token);
+      } catch {}
+    }
+    await clearToken();
+    await cacheUser(null);
     setUser(null);
+    setOfflineMode(true);
+  };
+
+  const resetPassword = async (
+    email: string,
+    authCode: string,
+    newPassword: string
+  ) => {
+    let response: Response;
+    try {
+      response = await apiPost("/api/auth/reset-password", {
+        email: email.trim(),
+        authCode: authCode.trim(),
+        newPassword: newPassword.trim(),
+      });
+    } catch {
+      throw new Error("Cannot connect to server. Check your internet connection.");
+    }
+
+    if (!response.ok) {
+      let msg = "Password reset failed";
+      try {
+        const body = await response.json();
+        msg = body.message || msg;
+      } catch {}
+      throw new Error(msg);
+    }
+  };
+
+  const adminResetPassword = async (email: string, newPassword: string) => {
+    const token = getToken();
+    if (!token) throw new Error("Not authenticated");
+
+    let response: Response;
+    try {
+      response = await apiPost(
+        "/api/auth/admin-reset-password",
+        { email: email.trim(), newPassword: newPassword.trim() },
+        token
+      );
+    } catch {
+      throw new Error("Cannot connect to server. Check your internet connection.");
+    }
+
+    if (!response.ok) {
+      let msg = "Password reset failed";
+      try {
+        const body = await response.json();
+        msg = body.message || msg;
+      } catch {}
+      throw new Error(msg);
+    }
   };
 
   const value = useMemo(
-    () => ({ user, isLoading, login, register, logout, resetPassword, adminResetPassword }),
-    [user, isLoading]
+    () => ({
+      user,
+      isLoading,
+      offlineMode,
+      login,
+      register,
+      logout,
+      resetPassword,
+      adminResetPassword,
+    }),
+    [user, isLoading, offlineMode]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

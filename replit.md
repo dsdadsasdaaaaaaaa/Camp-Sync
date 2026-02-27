@@ -24,7 +24,9 @@ Key features include:
 - Local notifications on check-in/out events via expo-notifications
 - Parent activity feed showing recent check-in/check-out history
 
-The app runs on iOS, Android, and Web via Expo Router, with an Express.js backend that currently serves as a scaffold for future API routes.
+The app runs on iOS, Android, and Web via Expo Router, with an Express.js backend that handles authentication and auth code management via a PostgreSQL database.
+
+**Offline mode**: When offline and no session exists (or session expired), the app routes to a wristband-scanner-only screen. Camper data embedded in NFC wristbands (encrypted) can be read without any account or internet connection. All other features require authentication.
 
 ## User Preferences
 
@@ -53,24 +55,28 @@ The app uses **Expo Router** with file-based routing. The route structure reflec
 
 ### Data Storage
 
-**Current state**: All app data (users, campers, sessions, check-ins, auth codes) is stored in `AsyncStorage` on-device using JSON serialization via `lib/storage.ts`. There is no active server-side data persistence.
+**Auth data (PostgreSQL)**: User accounts, auth codes, and sessions are stored in the PostgreSQL database via Drizzle ORM. Tables: `cs_users`, `cs_auth_codes`, `cs_user_sessions`.
 
-**Backend scaffold**: The Express server (`server/index.ts`, `server/routes.ts`) exists but has no API routes implemented yet. The `server/storage.ts` has a `MemStorage` class and `IStorage` interface, ready to be replaced with a real database implementation.
+**App data (local)**: Campers, camp sessions, check-ins, and pending wristband updates remain in `AsyncStorage` on-device for offline-first access.
 
-**Database schema**: `shared/schema.ts` defines a PostgreSQL `users` table using Drizzle ORM. Drizzle is configured for PostgreSQL (`drizzle.config.ts`), and `db:push` script is available. The schema is minimal (just users with username/password) — the full app data types are defined in `types/index.ts` as TypeScript interfaces (not yet in the DB schema).
-
-**Migration path**: The architecture is set up for PostgreSQL via Drizzle. When adding server-side persistence, expand `shared/schema.ts` to include campers, sessions, check-ins, etc., implement routes in `server/routes.ts`, and migrate the DataContext to use API calls instead of AsyncStorage.
+**Backend**: `server/routes.ts` implements all auth API routes. `server/db.ts` provides the Drizzle connection. Schema is in `shared/schema.ts`.
 
 ### Authentication
 
 - Registration requires an **auth code** that determines the user's role (management/staff/parent)
-- Demo codes seeded on first launch: `DEMO-ADMIN` (management), `DEMO-STAFF` (staff), `DEMO-PARENT` (parent, linked to demo camper "Alex Johnson")
+- Demo codes pre-seeded in the DB: `DEMO-ADMIN` (management), `DEMO-STAFF` (staff), `DEMO-PARENT` (parent)
 - Additional seed codes: `MGMT-MASTER-2024`, `STAFF-001`, `STAFF-002`
-- Demo codes are displayed on the registration page with tap-to-fill functionality for easy demo presentations
-- Passwords are hashed using `expo-crypto` (SHA-256 via `lib/crypto.ts`)
-- Session persistence uses `expo-secure-store` (native) or `localStorage` (web)
-- Role-based routing is enforced at the root `index.tsx` level
-- After login/register, app navigates to `/` which redirects to the appropriate role portal
+- Passwords are hashed server-side using Node.js `crypto.scrypt` with a random salt
+- Session tokens (64-char hex) are stored in `cs_user_sessions` with 7-day TTL, persisted client-side in SecureStore (native) or localStorage (web) via `lib/auth-token.ts`
+- API requests include `Authorization: Bearer <token>` header via `lib/query-client.ts`
+- **Offline mode**: When the app has no token or the network is unreachable, `offlineMode = true` is set in AuthContext. The app routes to `app/(offline)/index.tsx` — a wristband-scanner-only screen. Signing in requires network access.
+- Role-based routing enforced in `app/index.tsx`
+
+### Backend (Express.js)
+
+- `server/index.ts`: Express with CORS (allows Replit dev domains + localhost; Authorization header allowed)
+- `server/db.ts`: Drizzle ORM + pg Pool connection using DATABASE_URL
+- `server/routes.ts`: Auth API routes (register, login, logout, me, reset-password, admin-reset-password, CRUD for auth codes)
 
 ### Wristband/NFC System
 

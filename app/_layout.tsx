@@ -23,6 +23,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(offline)" />
       <Stack.Screen name="(management)" />
       <Stack.Screen name="(staff)" />
       <Stack.Screen name="(parent)" />

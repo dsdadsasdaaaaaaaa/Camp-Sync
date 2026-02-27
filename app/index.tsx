@@ -5,11 +5,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 
 export default function IndexScreen() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, offlineMode } = useAuth();
 
   useEffect(() => {
     if (isLoading) return;
-    if (!user) {
+    if (offlineMode && !user) {
+      router.replace("/(offline)");
+    } else if (!user) {
       router.replace("/(auth)/login");
     } else if (user.role === "management") {
       router.replace("/(management)");
@@ -18,7 +20,7 @@ export default function IndexScreen() {
     } else if (user.role === "parent") {
       router.replace("/(parent)");
     }
-  }, [user, isLoading]);
+  }, [user, isLoading, offlineMode]);
 
   return (
     <View

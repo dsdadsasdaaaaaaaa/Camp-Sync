@@ -10,6 +10,7 @@ import React, {
 import { getItem, setItem, KEYS } from "@/lib/storage";
 import { generateId, generateWristbandId, encryptWristbandData } from "@/lib/crypto";
 import { scheduleCheckInNotification, scheduleWristbandUpdateNotification } from "@/lib/notifications";
+import { apiRequest } from "@/lib/query-client";
 import type {
   Camper,
   Session,
@@ -62,20 +63,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [c, s, ci, ac, pu, u] = await Promise.all([
+    const [c, s, ci, pu] = await Promise.all([
       getItem<Camper[]>(KEYS.CAMPERS),
       getItem<Session[]>(KEYS.SESSIONS),
       getItem<CheckIn[]>(KEYS.CHECK_INS),
-      getItem<AuthCode[]>(KEYS.AUTH_CODES),
       getItem<PendingWristbandUpdate[]>(KEYS.PENDING_UPDATES),
-      getItem<User[]>(KEYS.USERS),
     ]);
     setCampers(c || []);
     setSessions(s || []);
     setCheckIns(ci || []);
-    setAuthCodes(ac || []);
     setPendingUpdates(pu || []);
-    setUsers(u || []);
+
+    try {
+      const res = await apiRequest("GET", "/api/auth/codes");
+      const codes = await res.json();
+      setAuthCodes(codes);
+    } catch {
+      const ac = await getItem<AuthCode[]>(KEYS.AUTH_CODES);
+      setAuthCodes(ac || []);
+    }
   }, []);
 
   useEffect(() => {
@@ -309,56 +315,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const createAuthCode = useCallback(
     async (role: UserRole, maxUses: number, linkedCamperId?: string) => {
       if (!user) throw new Error("Not authenticated");
-      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      const randomPart = Array.from({ length: 8 }, () =>
-        chars[Math.floor(Math.random() * chars.length)]
-      ).join("");
-
-      const prefix =
-        role === "management"
-          ? "MGMT"
-          : role === "staff"
-          ? "STAFF"
-          : "PARENT";
-      const code = `${prefix}-${randomPart}`;
-
-      const newCode: AuthCode = {
-        code,
-        role,
-        linkedCamperId,
-        maxUses,
-        usedCount: 0,
-        usedBy: [],
-        createdAt: new Date().toISOString(),
-        createdBy: user.id,
-      };
-
-      const updated = [...authCodes, newCode];
-      await setItem(KEYS.AUTH_CODES, updated);
-      setAuthCodes(updated);
-      return code;
+      const res = await apiRequest("POST", "/api/auth/codes", { role, maxUses, linkedCamperId });
+      const newCode: AuthCode = await res.json();
+      setAuthCodes((prev) => [...prev, newCode]);
+      return newCode.code;
     },
-    [authCodes, user]
+    [user]
   );
 
   const updateAuthCode = useCallback(
     async (code: string, data: Partial<AuthCode>) => {
-      const updated = authCodes.map((c) =>
-        c.code === code ? { ...c, ...data } : c
+      await apiRequest("PATCH", `/api/auth/codes/${encodeURIComponent(code)}`, data);
+      setAuthCodes((prev) =>
+        prev.map((c) => (c.code === code ? { ...c, ...data } : c))
       );
-      await setItem(KEYS.AUTH_CODES, updated);
-      setAuthCodes(updated);
     },
-    [authCodes]
+    []
   );
 
   const deleteAuthCode = useCallback(
     async (code: string) => {
-      const updated = authCodes.filter((c) => c.code !== code);
-      await setItem(KEYS.AUTH_CODES, updated);
-      setAuthCodes(updated);
+      await apiRequest("DELETE", `/api/auth/codes/${encodeURIComponent(code)}`);
+      setAuthCodes((prev) => prev.filter((c) => c.code !== code));
     },
-    [authCodes]
+    []
   );
 
   const resolvePendingUpdate = useCallback(
