@@ -32,23 +32,10 @@ function PendingCard({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleUpdate = async () => {
-    Alert.alert(
-      "Update Wristband",
-      `Hold ${camperName}'s wristband to the device to update it with their latest info.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Update Now",
-          onPress: async () => {
-            setIsLoading(true);
-            await new Promise((resolve) => setTimeout(resolve, 2500));
-            onUpdate();
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            setIsLoading(false);
-          },
-        },
-      ]
-    );
+    router.push({
+      pathname: "/(management)/camper/[id]",
+      params: { id: update.camperId, autoProgram: "true" },
+    });
   };
 
   return (

@@ -160,20 +160,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const updated: Camper = await res.json();
       setCampers((prev) => prev.map((c) => (c.id === id ? updated : c)));
 
-      // If camper is currently checked in and medical changed, create a pending update
-      if (data.medical && user) {
+      // If camper is currently checked in and data on wristband changed, create a pending update
+      const wristbandDataChanged = data.medical || data.firstName || data.lastName || data.dateOfBirth;
+      if (wristbandDataChanged && user) {
         const activeCheckIn = checkIns.find((ci) => ci.camperId === id && !ci.checkedOutAt);
         if (activeCheckIn) {
           const existing = pendingUpdates.find((p) => p.camperId === id && !p.resolved);
           if (!existing) {
-            const camper = campers.find((c) => c.id === id) ?? updated;
+            const camper = updated;
             const camperName = `${camper.firstName} ${camper.lastName}`;
             try {
               const puRes = await apiRequest("POST", "/api/pending-updates", { camperId: id, camperName });
               const pu: PendingWristbandUpdate = await puRes.json();
               setPendingUpdates((prev) => [...prev, pu]);
               scheduleWristbandUpdateNotification(camperName);
-            } catch {}
+            } catch (e) {
+              console.error("Failed to create pending update:", e);
+            }
           }
         }
       }
@@ -230,15 +233,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
       for (const pu of unresolved) {
         try {
           await apiRequest("PATCH", `/api/pending-updates/${pu.id}/resolve`);
-        } catch {}
+          // Update local state for each resolved update
+          setPendingUpdates((prev) =>
+            prev.map((p) =>
+              p.id === pu.id
+                ? { ...p, resolved: true, resolvedAt: now, resolvedBy: user?.id, resolvedByName: user?.name }
+                : p
+            )
+          );
+        } catch (e) {
+          console.error("Failed to resolve update on server:", e);
+        }
       }
-      setPendingUpdates((prev) =>
-        prev.map((p) =>
-          p.camperId === camperId && !p.resolved
-            ? { ...p, resolved: true, resolvedAt: now, resolvedBy: user?.id, resolvedByName: user?.name }
-            : p
-        )
-      );
 
       return wristbandId;
     },

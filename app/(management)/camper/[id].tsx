@@ -82,8 +82,8 @@ function EditField({
 }
 
 export default function CamperDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { campers, checkIns, sessions, pendingUpdates, updateCamper, programWristband, createAuthCode, getActiveCheckIn, checkInCamper, checkOutCamper } = useData();
+  const { id, autoProgram } = useLocalSearchParams<{ id: string; autoProgram?: string }>();
+  const { campers, checkIns, sessions, pendingUpdates, updateCamper, programWristband, createAuthCode, getActiveCheckIn, checkInCamper, checkOutCamper, resolvePendingUpdate } = useData();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(false);
@@ -92,6 +92,12 @@ export default function CamperDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [nfcScanVisible, setNfcScanVisible] = useState(false);
   const [nfcWritePayload, setNfcWritePayload] = useState<WristbandPayload | null>(null);
+
+  useEffect(() => {
+    if (autoProgram === "true" && camper && !nfcScanVisible) {
+      handleProgramWristband();
+    }
+  }, [autoProgram, camper]);
 
   const camper = campers.find((c) => c.id === id);
   const activeCheckIn = camper ? getActiveCheckIn(camper.id) : undefined;
