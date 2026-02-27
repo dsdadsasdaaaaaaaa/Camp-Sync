@@ -135,9 +135,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await cacheUser(u);
           setOfflineMode(false);
         } else {
-          await clearToken();
-          await cacheUser(null);
-          setOfflineMode(true);
+          // If token invalid, clear it and try to use cached user if available
+          const cached = await getCachedUser();
+          if (cached) {
+            setUser(cached);
+          } else {
+            await clearToken();
+            setOfflineMode(true);
+          }
         }
       } catch {
         setOfflineMode(true);

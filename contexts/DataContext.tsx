@@ -72,7 +72,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     if (!user || offlineMode) return;
-    setIsLoading(true);
+    
+    // Only set loading if we don't have data yet
+    const hasData = campers.length > 0;
+    if (!hasData) {
+      setIsLoading(true);
+    }
+    
     try {
       const [c, s, ci, pu, ac] = await Promise.all([
         safeGet<Camper[]>("/api/campers", []),
