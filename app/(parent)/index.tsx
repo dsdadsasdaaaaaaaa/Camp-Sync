@@ -29,7 +29,7 @@ function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
         { opacity: pressed ? 0.9 : 1 },
       ]}
       onPress={() =>
-        router.push(`/(parent)/child/${camper.id}`)
+        router.push(`/child/${camper.id}`)
       }
     >
       <View style={styles.cardHeader}>
@@ -106,9 +106,12 @@ export default function ParentChildrenScreen() {
   const { campers, checkIns, pendingUpdates, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
 
-  const myChildren = campers.filter((c) =>
-    user?.linkedCamperIds.includes(c.id)
-  );
+  const myChildren = campers.filter((c) => {
+    if (Array.isArray(user?.linkedCamperIds)) {
+      return user.linkedCamperIds.includes(c.id);
+    }
+    return false;
+  });
 
   const getActiveCheckIn = (camperId: string) =>
     checkIns.find((ci) => ci.camperId === camperId && !ci.checkedOutAt);

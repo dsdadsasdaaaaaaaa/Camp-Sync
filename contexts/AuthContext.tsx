@@ -76,13 +76,22 @@ async function cacheUser(user: User | null) {
 }
 
 function mapApiUser(data: any): User {
+  let linkedCamperIds = [];
+  try {
+    linkedCamperIds = typeof data.linkedCamperIds === "string" 
+      ? JSON.parse(data.linkedCamperIds) 
+      : (data.linkedCamperIds ?? []);
+  } catch (e) {
+    linkedCamperIds = [];
+  }
+
   return {
     id: data.id,
     name: data.name,
     email: data.email,
     passwordHash: "",
     role: data.role,
-    linkedCamperIds: data.linkedCamperIds ?? [],
+    linkedCamperIds,
     authCode: data.authCode,
     createdAt: data.createdAt,
   };
