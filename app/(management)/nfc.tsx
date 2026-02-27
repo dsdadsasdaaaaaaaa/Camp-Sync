@@ -66,7 +66,7 @@ export default function NFCScreen() {
       await programWristband(selectedCamper.id);
       Alert.alert(
         "Wristband Programmed",
-        `${selectedCamper.firstName} ${selectedCamper.lastName}'s wristband now contains their encrypted profile and medical data. It can be read offline anywhere.`,
+        `${selectedCamper.firstName} ${selectedCamper.lastName}'s wristband now contains their encrypted profile and medical data. It can be read offline anywhere. They have also been checked into camp automatically.`,
         [{ text: "Done", onPress: resetAll }]
       );
     } catch (err: any) {
@@ -78,6 +78,49 @@ export default function NFCScreen() {
     setReadScanVisible(false);
     setReadResult(payload);
     setScreen("readResult");
+  };
+
+  const handleCheckOut = async () => {
+    if (!readResult) return;
+    const camper = campers.find(c => c.id === readResult.camperId);
+    if (!camper) {
+      Alert.alert("Error", "Camper not found in system.");
+      return;
+    }
+
+    const activeCheckIn = checkIns.find(ci => ci.camperId === camper.id && !ci.checkedOutAt);
+    if (!activeCheckIn) {
+      Alert.alert("Error", "Camper is not currently checked in.");
+      return;
+    }
+
+    setReadScanVisible(false);
+    setWriteScanVisible(true);
+  };
+
+  const handleEraseSuccess = async () => {
+    setWriteScanVisible(false);
+    if (!readResult) return;
+    const camper = campers.find(c => c.id === readResult.camperId);
+    if (!camper) return;
+
+    const activeCheckIn = checkIns.find(ci => ci.camperId === camper.id && !ci.checkedOutAt);
+    if (!activeCheckIn) return;
+
+    try {
+      await checkOutCamper(activeCheckIn.id);
+      // Clear wristband data in DB too
+      await updateCamper(camper.id, {
+        wristbandId: null as any,
+        wristbandEncryptedData: null as any,
+        wristbandLastProgrammed: null as any
+      });
+      
+      Alert.alert("Checked Out", `${camper.firstName} has been checked out and their wristband has been erased.`);
+      resetAll();
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to complete check-out.");
+    }
   };
 
   const resetAll = () => {
@@ -162,7 +205,7 @@ export default function NFCScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.offlineTitle}>Offline-First NFC</Text>
               <Text style={styles.offlineText}>
-                All camper data is AES-encrypted and written directly to the NFC wristband tag. Scanning works anywhere — no internet required. Medical info and emergency contacts are always accessible.
+                All camper data is encrypted and written directly to the NFC wristband tag. Scanning works anywhere — no internet required. Medical info and emergency contacts are always accessible.
               </Text>
             </View>
           </View>
@@ -309,20 +352,30 @@ export default function NFCScreen() {
             Encrypted: {readResult.programmedAt ? new Date(readResult.programmedAt).toLocaleString() : "—"}
           </Text>
 
-          <Pressable
-            style={({ pressed }) => [styles.primaryBtn, { opacity: pressed ? 0.85 : 1, marginTop: 4 }]}
-            onPress={handleStartRead}
-          >
-            <Ionicons name="radio" size={18} color="#fff" />
-            <Text style={styles.primaryBtnText}>Scan Another</Text>
-          </Pressable>
+          <View style={{ gap: 10 }}>
+            <Pressable
+              style={({ pressed }) => [styles.checkOutBtn, { opacity: pressed ? 0.85 : 1 }]}
+              onPress={handleCheckOut}
+            >
+              <Ionicons name="log-out" size={18} color="#fff" />
+              <Text style={styles.checkOutBtnText}>Check Out Camper</Text>
+            </Pressable>
 
-          <Pressable
-            style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
-            onPress={resetAll}
-          >
-            <Text style={styles.cancelBtnText}>Done</Text>
-          </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.primaryBtn, { opacity: pressed ? 0.85 : 1, backgroundColor: Colors.light.surfaceSecondary, borderWidth: 1, borderColor: Colors.light.border }]}
+              onPress={handleStartRead}
+            >
+              <Ionicons name="radio" size={18} color={Colors.light.textSecondary} />
+              <Text style={[styles.primaryBtnText, { color: Colors.light.textSecondary }]}>Scan Another</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
+              onPress={resetAll}
+            >
+              <Text style={styles.cancelBtnText}>Done</Text>
+            </Pressable>
+          </View>
         </View>
       )}
 
@@ -339,7 +392,22 @@ export default function NFCScreen() {
         />
       )}
 
-      {writeScanVisible && selectedCamper && writePayload && (
+      {writeScanVisible && readResult && (
+        <NFCScanner
+          visible={writeScanVisible}
+          mode="write"
+          writePayload={{} as any} // Erase by writing empty
+          writeCamper={campers.find(c => c.id === readResult.camperId) as any}
+          onWriteSuccess={handleEraseSuccess}
+          onError={(msg) => {
+            setWriteScanVisible(false);
+            Alert.alert("Erase Error", msg);
+          }}
+          onCancel={() => setWriteScanVisible(false)}
+        />
+      )}
+
+      {writeScanVisible && selectedCamper && writePayload && !readResult && (
         <NFCScanner
           visible={writeScanVisible}
           mode="write"
@@ -666,6 +734,20 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textMuted,
     textAlign: "center",
+  },
+  checkOutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.danger,
+    borderRadius: 14,
+    height: 52,
+  },
+  checkOutBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Outfit_600SemiBold",
   },
   serverNote: {
     flexDirection: "row" as const,

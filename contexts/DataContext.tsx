@@ -213,6 +213,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const updated: Camper = await res.json();
       setCampers((prev) => prev.map((c) => (c.id === camperId ? updated : c)));
 
+      // Auto check-in if not already checked in
+      const activeCheckIn = checkIns.find((ci) => ci.camperId === camperId && !ci.checkedOutAt);
+      if (!activeCheckIn) {
+        const todaySessions = getTodaySessions();
+        const sessionId = todaySessions[0]?.id || "MANAGEMENT_OVERRIDE";
+        try {
+          await checkInCamper(camperId, sessionId);
+        } catch (e) {
+          console.error("Auto check-in failed:", e);
+        }
+      }
+
       // Resolve pending updates for this camper
       const unresolved = pendingUpdates.filter((p) => p.camperId === camperId && !p.resolved);
       for (const pu of unresolved) {

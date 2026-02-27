@@ -29,6 +29,49 @@ export default function StaffNFCScreen() {
     setResult(payload);
   };
 
+  const handleCheckOut = async () => {
+    if (!result) return;
+    const camper = campers.find(c => c.id === result.camperId);
+    if (!camper) {
+      Alert.alert("Error", "Camper not found in system.");
+      return;
+    }
+
+    const activeCheckIn = getActiveCheckIn(camper.id);
+    if (!activeCheckIn) {
+      Alert.alert("Error", "Camper is not currently checked in.");
+      return;
+    }
+
+    setScannerVisible(false);
+    setWriteScanVisible(true);
+  };
+
+  const handleEraseSuccess = async () => {
+    setWriteScanVisible(false);
+    if (!result) return;
+    const camper = campers.find(c => c.id === result.camperId);
+    if (!camper) return;
+
+    const activeCheckIn = getActiveCheckIn(camper.id);
+    if (!activeCheckIn) return;
+
+    try {
+      await checkOutCamper(activeCheckIn.id);
+      // Clear wristband data in DB too
+      await updateCamper(camper.id, {
+        wristbandId: null as any,
+        wristbandEncryptedData: null as any,
+        wristbandLastProgrammed: null as any
+      });
+      
+      Alert.alert("Checked Out", `${camper.firstName} has been checked out and their wristband has been erased.`);
+      setResult(null);
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to complete check-out.");
+    }
+  };
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: Colors.light.background }}
@@ -72,7 +115,7 @@ export default function StaffNFCScreen() {
           <View style={styles.instructionCard}>
             <Ionicons name="information-circle-outline" size={16} color={Colors.light.textSecondary} />
             <Text style={styles.instructionText}>
-              Staff can only read wristbands. Contact management to program or replace wristbands.
+              Staff can read and check out wristbands. Contact management to program new wristbands.
             </Text>
           </View>
         </View>
@@ -160,16 +203,29 @@ export default function StaffNFCScreen() {
               : "—"}
           </Text>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.scanAgainBtn,
-              { opacity: pressed ? 0.85 : 1 },
-            ]}
-            onPress={handleStartScan}
-          >
-            <Ionicons name="radio" size={18} color="#fff" />
-            <Text style={styles.scanAgainText}>Scan Another Wristband</Text>
-          </Pressable>
+          <View style={{ gap: 10 }}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.checkOutBtn,
+                { opacity: pressed ? 0.85 : 1 },
+              ]}
+              onPress={handleCheckOut}
+            >
+              <Ionicons name="log-out" size={18} color="#fff" />
+              <Text style={styles.checkOutText}>Check Out Camper</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.scanAgainBtn,
+                { opacity: pressed ? 0.85 : 1, backgroundColor: Colors.light.surfaceSecondary, borderWidth: 1, borderColor: Colors.light.border },
+              ]}
+              onPress={handleStartScan}
+            >
+              <Ionicons name="radio" size={18} color={Colors.light.textSecondary} />
+              <Text style={[styles.scanAgainText, { color: Colors.light.textSecondary }]}>Scan Another Wristband</Text>
+            </Pressable>
+          </View>
         </View>
       )}
 
@@ -183,6 +239,21 @@ export default function StaffNFCScreen() {
             Alert.alert("Scan Error", msg);
           }}
           onCancel={() => setScannerVisible(false)}
+        />
+      )}
+
+      {writeScanVisible && result && (
+        <NFCScanner
+          visible={writeScanVisible}
+          mode="write"
+          writePayload={{} as any} // Erase by writing empty
+          writeCamper={campers.find(c => c.id === result.camperId) as any}
+          onWriteSuccess={handleEraseSuccess}
+          onError={(msg) => {
+            setWriteScanVisible(false);
+            Alert.alert("Erase Error", msg);
+          }}
+          onCancel={() => setWriteScanVisible(false)}
         />
       )}
     </ScrollView>
@@ -381,6 +452,20 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textMuted,
     textAlign: "center",
+  },
+  checkOutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.danger,
+    borderRadius: 14,
+    height: 52,
+  },
+  checkOutText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Outfit_600SemiBold",
   },
   scanAgainBtn: {
     flexDirection: "row",
