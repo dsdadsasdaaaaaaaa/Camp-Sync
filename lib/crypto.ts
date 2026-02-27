@@ -2,6 +2,25 @@ import * as Crypto from "expo-crypto";
 
 const APP_SECRET = "CAMPSYNC_NFC_SECRET_KEY_2024_v1";
 
+const MAX_WRISTBAND_BYTES = 540;
+const MAX_PLAINTEXT_CHARS = Math.floor(MAX_WRISTBAND_BYTES * 3 / 4);
+
+const FIELD_LIMITS = {
+  fn: 15,
+  ln: 20,
+  al: 50,
+  md: 50,
+  co: 20,
+  ec: 25,
+  ep: 15,
+  bt: 5,
+};
+
+function trunc(value: string, limit: number): string {
+  if (!value || value.length <= limit) return value;
+  return value.slice(0, limit - 3) + "...";
+}
+
 function stringToBytes(str: string): number[] {
   const bytes: number[] = [];
   for (let i = 0; i < str.length; i++) {
@@ -48,12 +67,86 @@ function fromBase64(base64: string): string {
   return bytesToString(bytes);
 }
 
+function packPayload(data: {
+  camperId: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  medical: {
+    allergies?: string;
+    medications?: string;
+    conditions?: string;
+    emergencyContact?: string;
+    emergencyPhone?: string;
+    bloodType?: string;
+    [key: string]: string | undefined;
+  };
+  programmedAt: string;
+  appVersion: string;
+}): object {
+  return {
+    id: data.camperId,
+    fn: trunc(data.firstName ?? "", FIELD_LIMITS.fn),
+    ln: trunc(data.lastName ?? "", FIELD_LIMITS.ln),
+    dob: data.dateOfBirth,
+    m: {
+      al: trunc(data.medical.allergies ?? "", FIELD_LIMITS.al),
+      md: trunc(data.medical.medications ?? "", FIELD_LIMITS.md),
+      co: trunc(data.medical.conditions ?? "", FIELD_LIMITS.co),
+      ec: trunc(data.medical.emergencyContact ?? "", FIELD_LIMITS.ec),
+      ep: trunc(data.medical.emergencyPhone ?? "", FIELD_LIMITS.ep),
+      bt: trunc(data.medical.bloodType ?? "", FIELD_LIMITS.bt),
+    },
+    ts: data.programmedAt,
+    v: data.appVersion,
+  };
+}
+
+function unpackPayload(compact: any): object {
+  return {
+    camperId: compact.id ?? "",
+    firstName: compact.fn ?? "",
+    lastName: compact.ln ?? "",
+    dateOfBirth: compact.dob ?? "",
+    medical: {
+      allergies: compact.m?.al ?? "",
+      medications: compact.m?.md ?? "",
+      conditions: compact.m?.co ?? "",
+      emergencyContact: compact.m?.ec ?? "",
+      emergencyPhone: compact.m?.ep ?? "",
+      bloodType: compact.m?.bt ?? "",
+      doctorName: "",
+      doctorPhone: "",
+      insuranceProvider: "",
+      notes: "",
+    },
+    programmedAt: compact.ts ?? "",
+    appVersion: compact.v ?? "",
+  };
+}
+
 export function encryptWristbandData(data: object): string {
-  const json = JSON.stringify(data);
+  const compact = packPayload(data as any);
+  const json = JSON.stringify(compact);
+
+  if (json.length > MAX_PLAINTEXT_CHARS) {
+    throw new Error(
+      `Wristband payload too large (${json.length} chars, max ${MAX_PLAINTEXT_CHARS}). Shorten allergy, medication, or emergency contact fields.`
+    );
+  }
+
   const keyBytes = stringToBytes(APP_SECRET);
   const dataBytes = stringToBytes(json);
   const encrypted = dataBytes.map((b, i) => b ^ keyBytes[i % keyBytes.length]);
-  return toBase64(bytesToString(encrypted));
+  const result = toBase64(bytesToString(encrypted));
+
+  if (result.length > MAX_WRISTBAND_BYTES) {
+    throw new Error(
+      `Wristband payload too large after encoding (${result.length} bytes, max ${MAX_WRISTBAND_BYTES}).`
+    );
+  }
+
+  return result;
 }
 
 export function decryptWristbandData(encrypted: string): object | null {
@@ -63,7 +156,8 @@ export function decryptWristbandData(encrypted: string): object | null {
     const encBytes = stringToBytes(decoded);
     const decrypted = encBytes.map((b, i) => b ^ keyBytes[i % keyBytes.length]);
     const json = bytesToString(decrypted);
-    return JSON.parse(json);
+    const compact = JSON.parse(json);
+    return unpackPayload(compact);
   } catch {
     return null;
   }

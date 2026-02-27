@@ -144,29 +144,14 @@ export default function StaffNFCScreen() {
             </Text>
           </View>
 
-          <View style={styles.dataSection}>
-            <Text style={styles.dataSectionTitle}>Doctor</Text>
-            <Text style={styles.dataValue}>
-              {result.medical?.doctorName || "—"}
-            </Text>
-            <Text style={styles.dataValueSec}>
-              {result.medical?.doctorPhone || "—"}
-            </Text>
-          </View>
-
-          <View style={styles.dataSection}>
-            <Text style={styles.dataSectionTitle}>Insurance</Text>
-            <Text style={styles.dataValue}>
-              {result.medical?.insuranceProvider || "—"}
-            </Text>
-          </View>
-
-          {result.medical?.notes ? (
-            <View style={styles.dataSection}>
-              <Text style={styles.dataSectionTitle}>Notes</Text>
-              <Text style={styles.dataValue}>{result.medical.notes}</Text>
+          <View style={[styles.dataSection, { borderBottomWidth: 0 }]}>
+            <View style={styles.serverNote}>
+              <Ionicons name="cloud-outline" size={13} color={Colors.light.textMuted} />
+              <Text style={styles.serverNoteText}>
+                Doctor, insurance &amp; notes are stored in server records only
+              </Text>
             </View>
-          ) : null}
+          </View>
 
           <Text style={styles.programmedAt}>
             Tag programmed:{" "}
@@ -378,6 +363,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
+  },
+  serverNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  serverNoteText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textMuted,
+    fontStyle: "italic",
   },
   programmedAt: {
     fontSize: 12,
