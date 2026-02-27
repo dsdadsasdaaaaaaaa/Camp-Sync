@@ -221,15 +221,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     const token = getToken();
-    if (token) {
-      try {
-        await apiPost("/api/auth/logout", {}, token);
-      } catch {}
-    }
-    await clearToken();
-    await cacheUser(null);
     setUser(null);
     setOfflineMode(true);
+    clearToken().catch(() => {});
+    cacheUser(null).catch(() => {});
+    if (token) {
+      apiPost("/api/auth/logout", {}, token).catch(() => {});
+    }
   };
 
   const resetPassword = async (
