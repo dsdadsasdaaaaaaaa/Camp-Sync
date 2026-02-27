@@ -215,10 +215,36 @@ async function seedAuthCodes() {
   }
 }
 
+async function seedDemoUsers() {
+  const demoAccounts = [
+    { email: "admin@demo.com", name: "Demo Manager", password: "demo1234", authCode: "DEMO-ADMIN", role: "management" },
+    { email: "staff@demo.com", name: "Demo Staff", password: "demo1234", authCode: "DEMO-STAFF", role: "staff" },
+    { email: "parent@demo.com", name: "Demo Parent", password: "demo1234", authCode: "DEMO-PARENT", role: "parent" },
+  ];
+
+  for (const account of demoAccounts) {
+    const [existing] = await db.select().from(csUsers).where(eq(csUsers.email, account.email));
+    if (existing) continue;
+
+    const passwordHash = await hashPassword(account.password);
+    const userId = generateId();
+    await db.insert(csUsers).values({
+      id: userId,
+      name: account.name,
+      email: account.email,
+      passwordHash,
+      role: account.role,
+      linkedCamperIds: "[]",
+      authCode: account.authCode,
+    });
+  }
+}
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await seedAuthCodes();
+  await seedDemoUsers();
 
   // ── Auth: Register ──────────────────────────────────────────────────────────
 

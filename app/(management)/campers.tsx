@@ -239,12 +239,7 @@ export default function CampersScreen() {
             camper={item}
             isCheckedIn={!!getActiveCheckIn(item.id)}
             hasPendingUpdate={hasPendingUpdate(item.id)}
-            onPress={() =>
-              router.push({
-                pathname: "/(management)/camper/[id]",
-                params: { id: item.id },
-              })
-            }
+            onPress={() => router.push(`/(management)/camper/${item.id}`)}
             onDelete={() => handleDelete(item)}
           />
         )}

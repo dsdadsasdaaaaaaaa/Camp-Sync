@@ -86,6 +86,25 @@ export default function LoginScreen() {
     }
   };
 
+  const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setEmailError("");
+    setPasswordError("");
+    setLoginError("");
+    setIsLoading(true);
+    try {
+      await login(demoEmail, demoPassword);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace("/");
+    } catch (err: any) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setLoginError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleResetPassword = async () => {
     if (!forgotEmail.trim() || !forgotAuthCode.trim() || !forgotNewPassword.trim()) {
       Alert.alert("Missing Fields", "Please fill in all fields.");
@@ -250,6 +269,40 @@ export default function LoginScreen() {
               <Text style={styles.loginButtonText}>Sign In</Text>
             )}
           </Pressable>
+        </View>
+
+        <View style={styles.demoSection}>
+          <View style={styles.demoSeparator}>
+            <View style={styles.demoLine} />
+            <Text style={styles.demoSeparatorText}>Try a demo account</Text>
+            <View style={styles.demoLine} />
+          </View>
+          <View style={styles.demoButtons}>
+            <Pressable
+              style={({ pressed }) => [styles.demoBtn, styles.demoBtnManagement, { opacity: pressed ? 0.8 : 1 }]}
+              onPress={() => handleDemoLogin("admin@demo.com", "demo1234")}
+              disabled={isLoading}
+            >
+              <Ionicons name="shield-checkmark-outline" size={15} color="#fff" />
+              <Text style={styles.demoBtnText}>Management</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.demoBtn, styles.demoBtnStaff, { opacity: pressed ? 0.8 : 1 }]}
+              onPress={() => handleDemoLogin("staff@demo.com", "demo1234")}
+              disabled={isLoading}
+            >
+              <Ionicons name="people-outline" size={15} color="#fff" />
+              <Text style={styles.demoBtnText}>Staff</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.demoBtn, styles.demoBtnParent, { opacity: pressed ? 0.8 : 1 }]}
+              onPress={() => handleDemoLogin("parent@demo.com", "demo1234")}
+              disabled={isLoading}
+            >
+              <Ionicons name="heart-outline" size={15} color="#fff" />
+              <Text style={styles.demoBtnText}>Parent</Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.footer}>
@@ -611,6 +664,52 @@ const styles = StyleSheet.create({
   },
   confirmBtnText: {
     fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+    color: "#fff",
+  },
+  demoSection: {
+    gap: 12,
+    marginTop: 4,
+  },
+  demoSeparator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  demoLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.light.border,
+  },
+  demoSeparatorText: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textMuted,
+  },
+  demoButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  demoBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    height: 40,
+    borderRadius: 10,
+  },
+  demoBtnManagement: {
+    backgroundColor: Colors.primary,
+  },
+  demoBtnStaff: {
+    backgroundColor: "#34C759",
+  },
+  demoBtnParent: {
+    backgroundColor: "#FF9500",
+  },
+  demoBtnText: {
+    fontSize: 12,
     fontFamily: "Outfit_600SemiBold",
     color: "#fff",
   },
