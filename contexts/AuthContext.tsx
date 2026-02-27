@@ -166,7 +166,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (userId) {
           const users = await getItem<User[]>(KEYS.USERS);
           const found = users?.find((u) => u.id === userId);
-          if (found) setUser(found);
+          if (found) {
+            setUser(found);
+          } else {
+            await secureDelete(SECURE_KEY);
+          }
         }
       } catch {}
       setIsLoading(false);

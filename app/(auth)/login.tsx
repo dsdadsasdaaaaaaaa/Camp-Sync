@@ -219,9 +219,20 @@ export default function LoginScreen() {
           </Pressable>
 
           {loginError ? (
-            <View style={styles.loginErrorBox} testID="login-error" accessibilityRole="alert">
-              <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
-              <Text style={styles.loginErrorText}>{loginError}</Text>
+            <View testID="login-error" accessibilityRole="alert">
+              <View style={styles.loginErrorBox}>
+                <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
+                <Text style={styles.loginErrorText}>{loginError}</Text>
+              </View>
+              {loginError.toLowerCase().includes("no account") ? (
+                <Pressable
+                  style={styles.registerNowBtn}
+                  onPress={() => router.push("/(auth)/register")}
+                >
+                  <Ionicons name="person-add-outline" size={15} color={Colors.primary} />
+                  <Text style={styles.registerNowText}>Create an account</Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : null}
 
@@ -459,6 +470,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
     color: Colors.danger,
+  },
+  registerNowBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    alignSelf: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.primary + "15",
+    borderWidth: 1,
+    borderColor: Colors.primary + "40",
+  },
+  registerNowText: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.primary,
   },
   loginButton: {
     backgroundColor: Colors.primary,
