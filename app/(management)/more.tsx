@@ -195,12 +195,15 @@ export default function MoreScreen() {
     authCodes, 
     campers,
     checkIns,
+    users,
     addSession, 
     updateSession, 
     deleteSession, 
     createAuthCode, 
     updateAuthCode,
-    deleteAuthCode, 
+    deleteAuthCode,
+    updateUser,
+    deleteUser,
     isLoading, 
     refresh 
   } = useData();
@@ -225,6 +228,17 @@ export default function MoreScreen() {
   const [resetConfirmPassword, setResetConfirmPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [rosterSession, setRosterSession] = useState<Session | null>(null);
+
+  const [editingUser, setEditingUser] = useState<typeof users[0] | null>(null);
+  const [userEditName, setUserEditName] = useState("");
+  const [userEditEmail, setUserEditEmail] = useState("");
+  const [userEditRole, setUserEditRole] = useState<UserRole>("staff");
+  const [userEditLinkedCampers, setUserEditLinkedCampers] = useState<string[]>([]);
+  const [userPwdNew, setUserPwdNew] = useState("");
+  const [userPwdConfirm, setUserPwdConfirm] = useState("");
+  const [userResetCode, setUserResetCode] = useState("");
+  const [userActionLoading, setUserActionLoading] = useState(false);
+  const [userSheetTab, setUserSheetTab] = useState<"info" | "security">("info");
 
   const handleAddSession = async () => {
     if (!sessionName.trim() || !sessionStart.trim() || !sessionEnd.trim()) {
@@ -320,6 +334,110 @@ export default function MoreScreen() {
     } finally {
       setResetLoading(false);
     }
+  };
+
+  const openUserEdit = (u: typeof users[0]) => {
+    setEditingUser(u);
+    setUserEditName(u.name);
+    setUserEditEmail(u.email);
+    setUserEditRole(u.role as UserRole);
+    setUserEditLinkedCampers(u.linkedCamperIds || []);
+    setUserPwdNew("");
+    setUserPwdConfirm("");
+    setUserResetCode("");
+    setUserSheetTab("info");
+  };
+
+  const closeUserEdit = () => {
+    setEditingUser(null);
+    setUserPwdNew("");
+    setUserPwdConfirm("");
+    setUserResetCode("");
+  };
+
+  const handleSaveUser = async () => {
+    if (!editingUser) return;
+    if (!userEditName.trim()) { Alert.alert("Required", "Name cannot be empty."); return; }
+    setUserActionLoading(true);
+    try {
+      await updateUser(editingUser.id, {
+        name: userEditName.trim(),
+        email: userEditEmail.trim().toLowerCase(),
+        role: userEditRole,
+        linkedCamperIds: userEditRole === "parent" ? userEditLinkedCampers : [],
+      });
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Saved", "User info updated.");
+      closeUserEdit();
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to update user.");
+    } finally {
+      setUserActionLoading(false);
+    }
+  };
+
+  const handleUserResetPwd = async () => {
+    if (!editingUser) return;
+    if (!userPwdNew.trim() || userPwdNew.length < 6) { Alert.alert("Invalid", "Password must be at least 6 characters."); return; }
+    if (userPwdNew !== userPwdConfirm) { Alert.alert("Mismatch", "Passwords do not match."); return; }
+    setUserActionLoading(true);
+    try {
+      await adminResetPassword(editingUser.email, userPwdNew);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Done", `Password reset for ${editingUser.name}.`);
+      setUserPwdNew("");
+      setUserPwdConfirm("");
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to reset password.");
+    } finally {
+      setUserActionLoading(false);
+    }
+  };
+
+  const handleGenerateResetCode = async () => {
+    if (!editingUser) return;
+    setUserActionLoading(true);
+    try {
+      const { apiRequest } = await import("@/lib/query-client");
+      const res = await apiRequest("POST", `/api/users/${editingUser.id}/reset-code`);
+      const { code, expiresInMinutes } = await res.json();
+      setUserResetCode(code);
+      Alert.alert(
+        "Reset Code Generated",
+        `Share this one-time code with ${editingUser.name}:\n\n${code}\n\nThe user can enter this code on the login screen to set a new password. Expires in ${expiresInMinutes} minutes.`,
+        [{ text: "OK" }]
+      );
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to generate reset code.");
+    } finally {
+      setUserActionLoading(false);
+    }
+  };
+
+  const handleDeleteUser = (u: typeof users[0]) => {
+    if (u.id === user?.id) { Alert.alert("Not Allowed", "You cannot delete your own account."); return; }
+    Alert.alert(
+      "Delete User",
+      `Permanently delete ${u.name}'s account? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: async () => {
+          try {
+            await deleteUser(u.id);
+            closeUserEdit();
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch (err: any) {
+            Alert.alert("Error", err.message || "Failed to delete user.");
+          }
+        }},
+      ]
+    );
+  };
+
+  const ROLE_COLORS: Record<UserRole, string> = {
+    management: Colors.danger,
+    staff: Colors.primary,
+    parent: Colors.success,
   };
 
   const handleLogout = async () => {
@@ -478,23 +596,50 @@ export default function MoreScreen() {
 
         {activeTab === "users" && (
           <>
-            <Pressable
-              style={({ pressed }) => [
-                styles.addBtn,
-                { opacity: pressed ? 0.85 : 1 },
-              ]}
-              onPress={() => setShowResetModal(true)}
-            >
-              <Ionicons name="key" size={20} color="#fff" />
-              <Text style={styles.addBtnText}>Reset User Password</Text>
-            </Pressable>
-
-            <View style={styles.userInfoCard}>
-              <Ionicons name="information-circle-outline" size={20} color={Colors.primary} />
-              <Text style={styles.userInfoText}>
-                As a manager, you can reset any user's password without requiring their auth code.
-              </Text>
-            </View>
+            {users.length === 0 && (
+              <View style={styles.empty}>
+                <Ionicons name="people-outline" size={48} color={Colors.light.textMuted} />
+                <Text style={styles.emptyTitle}>No Users Yet</Text>
+                <Text style={styles.emptyText}>Registered users will appear here</Text>
+              </View>
+            )}
+            {users.map((u) => {
+              const initials = u.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+              const roleColor = ROLE_COLORS[u.role as UserRole] || Colors.light.textSecondary;
+              const linkedCamperNames = (u.linkedCamperIds || [])
+                .map((cid) => campers.find((c) => c.id === cid))
+                .filter(Boolean)
+                .map((c) => `${c!.firstName} ${c!.lastName}`)
+                .join(", ");
+              return (
+                <Pressable
+                  key={u.id}
+                  style={({ pressed }) => [styles.userCard, { opacity: pressed ? 0.85 : 1 }]}
+                  onPress={() => openUserEdit(u)}
+                >
+                  <View style={[styles.userAvatar, { backgroundColor: roleColor + "20" }]}>
+                    <Text style={[styles.userAvatarText, { color: roleColor }]}>{initials}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Text style={styles.userName}>{u.name}</Text>
+                      {u.id === user?.id && (
+                        <View style={[styles.rolePill, { backgroundColor: Colors.light.surfaceSecondary }]}>
+                          <Text style={[styles.rolePillText, { color: Colors.light.textMuted }]}>You</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.userEmail}>{u.email}</Text>
+                    {linkedCamperNames ? (
+                      <Text style={styles.userMeta} numberOfLines={1}>Linked: {linkedCamperNames}</Text>
+                    ) : null}
+                  </View>
+                  <View style={[styles.rolePill, { backgroundColor: roleColor + "15" }]}>
+                    <Text style={[styles.rolePillText, { color: roleColor }]}>{u.role}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
           </>
         )}
       </ScrollView>
@@ -576,6 +721,206 @@ export default function MoreScreen() {
                 )}
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={!!editingUser}
+        animationType="slide"
+        transparent
+        onRequestClose={closeUserEdit}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { maxHeight: "90%" }]}>
+            <View style={styles.modalHandle} />
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <Text style={styles.modalTitle}>{editingUser?.name}</Text>
+              {editingUser && editingUser.id !== user?.id && (
+                <Pressable
+                  onPress={() => handleDeleteUser(editingUser)}
+                  style={{ padding: 6 }}
+                >
+                  <Ionicons name="trash-outline" size={20} color={Colors.danger} />
+                </Pressable>
+              )}
+            </View>
+            <Text style={styles.modalSub}>{editingUser?.email}</Text>
+
+            <View style={[styles.tabs2, { marginVertical: 12 }]}>
+              {(["info", "security"] as const).map((t) => (
+                <Pressable
+                  key={t}
+                  style={[styles.tab2, userSheetTab === t && styles.tab2Active]}
+                  onPress={() => setUserSheetTab(t)}
+                >
+                  <Text style={[styles.tab2Text, userSheetTab === t && styles.tab2ActiveText]}>
+                    {t === "info" ? "Profile & Role" : "Security"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {userSheetTab === "info" && (
+                <View style={{ gap: 12 }}>
+                  <Text style={styles.fieldLabel}>Full Name</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={userEditName}
+                    onChangeText={setUserEditName}
+                    placeholder="Full name"
+                    placeholderTextColor={Colors.light.textMuted}
+                    autoCapitalize="words"
+                  />
+                  <Text style={styles.fieldLabel}>Email</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={userEditEmail}
+                    onChangeText={setUserEditEmail}
+                    placeholder="user@email.com"
+                    placeholderTextColor={Colors.light.textMuted}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    autoCorrect={false}
+                  />
+                  <Text style={styles.fieldLabel}>Role</Text>
+                  {(["management", "staff", "parent"] as UserRole[]).map((r) => (
+                    <Pressable
+                      key={r}
+                      style={[styles.roleOption, userEditRole === r && styles.roleOptionSelected]}
+                      onPress={() => setUserEditRole(r)}
+                    >
+                      <Ionicons
+                        name={r === "management" ? "shield-outline" : r === "staff" ? "people-outline" : "person-outline"}
+                        size={20}
+                        color={userEditRole === r ? Colors.primary : Colors.light.textMuted}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.roleName}>{r.charAt(0).toUpperCase() + r.slice(1)}</Text>
+                        <Text style={styles.roleDesc}>
+                          {r === "management" ? "Full access to all features" : r === "staff" ? "Check-in/out and camper list" : "View linked child's info"}
+                        </Text>
+                      </View>
+                      {userEditRole === r && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
+                    </Pressable>
+                  ))}
+                  {userEditRole === "parent" && (
+                    <>
+                      <Text style={styles.fieldLabel}>Linked Campers</Text>
+                      <View style={{ borderRadius: 12, borderWidth: 1, borderColor: Colors.light.border, overflow: "hidden" }}>
+                        {campers.length === 0 && (
+                          <Text style={{ padding: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted, fontSize: 13 }}>No campers available</Text>
+                        )}
+                        {campers.map((c) => {
+                          const isLinked = userEditLinkedCampers.includes(c.id);
+                          return (
+                            <Pressable
+                              key={c.id}
+                              style={[styles.camperSelectRow, isLinked && styles.camperSelectRowActive]}
+                              onPress={() => setUserEditLinkedCampers(prev =>
+                                isLinked ? prev.filter((id) => id !== c.id) : [...prev, c.id]
+                              )}
+                            >
+                              <Text style={styles.camperSelectName}>{c.firstName} {c.lastName}</Text>
+                              {isLinked && <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </>
+                  )}
+                  <View style={[styles.modalButtons, { marginTop: 4 }]}>
+                    <Pressable style={[styles.cancelBtn, { opacity: 1 }]} onPress={closeUserEdit}>
+                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.confirmBtn, { opacity: userActionLoading ? 0.7 : 1 }]}
+                      onPress={handleSaveUser}
+                      disabled={userActionLoading}
+                    >
+                      {userActionLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmBtnText}>Save Changes</Text>}
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+
+              {userSheetTab === "security" && (
+                <View style={{ gap: 12 }}>
+                  <View style={styles.securitySection}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <Ionicons name="lock-closed-outline" size={16} color={Colors.light.text} />
+                      <Text style={[styles.fieldLabel, { fontSize: 14 }]}>Set New Password</Text>
+                    </View>
+                    <TextInput
+                      style={styles.fieldInput}
+                      value={userPwdNew}
+                      onChangeText={setUserPwdNew}
+                      placeholder="New password (min 6 chars)"
+                      placeholderTextColor={Colors.light.textMuted}
+                      secureTextEntry
+                      autoCapitalize="none"
+                    />
+                    <TextInput
+                      style={[styles.fieldInput, { marginTop: 8 }]}
+                      value={userPwdConfirm}
+                      onChangeText={setUserPwdConfirm}
+                      placeholder="Confirm new password"
+                      placeholderTextColor={Colors.light.textMuted}
+                      secureTextEntry
+                      autoCapitalize="none"
+                    />
+                    <Pressable
+                      style={[styles.confirmBtn, { marginTop: 8, opacity: userActionLoading ? 0.7 : 1 }]}
+                      onPress={handleUserResetPwd}
+                      disabled={userActionLoading}
+                    >
+                      {userActionLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmBtnText}>Reset Password</Text>}
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.securitySection}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <Ionicons name="key-outline" size={16} color={Colors.light.text} />
+                      <Text style={[styles.fieldLabel, { fontSize: 14 }]}>One-Time Reset Code</Text>
+                    </View>
+                    <Text style={{ fontFamily: "Outfit_400Regular", fontSize: 13, color: Colors.light.textSecondary, marginBottom: 8, lineHeight: 18 }}>
+                      Generate a one-time code the user can enter at login to reset their own password. Expires in 60 minutes.
+                    </Text>
+                    {userResetCode ? (
+                      <View style={styles.resetCodeBox}>
+                        <Text style={styles.resetCodeText}>{userResetCode}</Text>
+                        <Text style={{ fontFamily: "Outfit_400Regular", fontSize: 12, color: Colors.light.textSecondary, marginTop: 4 }}>
+                          Share this code with the user. It expires in 60 min.
+                        </Text>
+                      </View>
+                    ) : null}
+                    <Pressable
+                      style={[styles.securityBtn, { opacity: userActionLoading ? 0.7 : 1 }]}
+                      onPress={handleGenerateResetCode}
+                      disabled={userActionLoading}
+                    >
+                      {userActionLoading ? <ActivityIndicator size="small" color={Colors.primary} /> : (
+                        <>
+                          <Ionicons name="refresh-outline" size={16} color={Colors.primary} />
+                          <Text style={[styles.confirmBtnText, { color: Colors.primary }]}>Generate Code</Text>
+                        </>
+                      )}
+                    </Pressable>
+                  </View>
+
+                  {editingUser && editingUser.id !== user?.id && (
+                    <Pressable
+                      style={[styles.securityBtn, { borderColor: Colors.danger + "40", backgroundColor: Colors.danger + "08" }]}
+                      onPress={() => handleDeleteUser(editingUser)}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                      <Text style={[styles.confirmBtnText, { color: Colors.danger }]}>Delete This Account</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1319,5 +1664,117 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: Colors.light.border,
+  },
+  userCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  userAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  userAvatarText: {
+    fontSize: 16,
+    fontFamily: "Outfit_700Bold",
+  },
+  userName: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+  },
+  userEmail: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    marginTop: 1,
+  },
+  userMeta: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textMuted,
+    marginTop: 1,
+  },
+  rolePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  rolePillText: {
+    fontSize: 12,
+    fontFamily: "Outfit_600SemiBold",
+    textTransform: "capitalize",
+  },
+  tabs2: {
+    flexDirection: "row",
+    backgroundColor: Colors.light.surfaceSecondary,
+    borderRadius: 10,
+    padding: 3,
+  },
+  tab2: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  tab2Active: {
+    backgroundColor: Colors.light.surface,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  tab2Text: {
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.light.textMuted,
+  },
+  tab2ActiveText: {
+    color: Colors.primary,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  securitySection: {
+    backgroundColor: Colors.light.surfaceSecondary,
+    borderRadius: 14,
+    padding: 14,
+  },
+  securityBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary + "40",
+    backgroundColor: Colors.primary + "08",
+  },
+  resetCodeBox: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    marginBottom: 8,
+  },
+  resetCodeText: {
+    fontSize: 24,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.light.text,
+    letterSpacing: 4,
   },
 });

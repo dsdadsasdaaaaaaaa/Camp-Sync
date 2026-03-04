@@ -604,6 +604,13 @@ export default function CamperDetailScreen() {
                           onPress: async () => {
                             try {
                               await checkOutCamper(activeCheckIn.id);
+                              if (camper.wristbandId) {
+                                await updateCamper(camper.id, {
+                                  wristbandId: null as any,
+                                  wristbandEncryptedData: null as any,
+                                  wristbandLastProgrammed: null as any,
+                                });
+                              }
                               await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                             } catch (err: any) {
                               Alert.alert("Error", err.message);

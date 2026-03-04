@@ -47,6 +47,8 @@ interface DataContextValue {
   resolvePendingUpdate: (updateId: string) => Promise<void>;
   getTodaySessions: () => Session[];
   canStaffCheckIn: () => boolean;
+  updateUser: (id: string, data: Partial<Pick<User, "name" | "email" | "role" | "linkedCamperIds">>) => Promise<User>;
+  deleteUser: (id: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextValue | null>(null);
@@ -329,6 +331,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setAuthCodes((prev) => prev.filter((c) => c.code !== code));
   }, []);
 
+  // ── Users ────────────────────────────────────────────────────────────────────
+
+  const updateUser = useCallback(
+    async (id: string, data: Partial<Pick<User, "name" | "email" | "role" | "linkedCamperIds">>) => {
+      const res = await apiRequest("PATCH", `/api/users/${id}`, data);
+      const updated: User = await res.json();
+      setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
+      return updated;
+    },
+    []
+  );
+
+  const deleteUser = useCallback(async (id: string) => {
+    await apiRequest("DELETE", `/api/users/${id}`);
+    setUsers((prev) => prev.filter((u) => u.id !== id));
+  }, []);
+
   // ── Pending Updates ────────────────────────────────────────────────────────────
 
   const resolvePendingUpdate = useCallback(
@@ -375,13 +394,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       resolvePendingUpdate,
       getTodaySessions,
       canStaffCheckIn,
+      updateUser,
+      deleteUser,
     }),
     [
       campers, sessions, checkIns, authCodes, pendingUpdates, users, isLoading,
       refresh, addCamper, updateCamper, deleteCamper, programWristband,
       addSession, updateSession, deleteSession, checkInCamper, checkOutCamper,
       getActiveCheckIn, createAuthCode, updateAuthCode, deleteAuthCode,
-      resolvePendingUpdate, getTodaySessions, canStaffCheckIn,
+      resolvePendingUpdate, getTodaySessions, canStaffCheckIn, updateUser, deleteUser,
     ]
   );
 

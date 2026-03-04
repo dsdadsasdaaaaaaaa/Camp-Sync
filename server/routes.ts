@@ -571,6 +571,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ── Users ───────────────────────────────────────────────────────────────────
 
+  // In-memory store for short-lived reset codes: token -> { userId, expiresAt }
+  const resetCodes = new Map<string, { userId: string; expiresAt: number }>();
+
   app.get("/api/users", async (req: Request, res: Response) => {
     try {
       const auth = await resolveUser(req);
@@ -588,6 +591,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error("Get users error:", err);
       return res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Forbidden" });
+      const { id } = req.params;
+      const { name, email, role, linkedCamperIds } = req.body;
+      const updates: Record<string, any> = {};
+      if (name !== undefined) updates.name = name.trim();
+      if (email !== undefined) {
+        const normalizedEmail = email.trim().toLowerCase();
+        const [existing] = await db.select().from(csUsers).where(eq(csUsers.email, normalizedEmail));
+        if (existing && existing.id !== id) return res.status(400).json({ message: "Email already in use by another account" });
+        updates.email = normalizedEmail;
+      }
+      if (role !== undefined) updates.role = role;
+      if (linkedCamperIds !== undefined) updates.linkedCamperIds = JSON.stringify(linkedCamperIds);
+      await db.update(csUsers).set(updates).where(eq(csUsers.id, id));
+      const [updated] = await db.select().from(csUsers).where(eq(csUsers.id, id));
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      return res.json({
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        role: updated.role,
+        linkedCamperIds: JSON.parse(updated.linkedCamperIds || "[]"),
+        authCode: updated.authCode,
+        createdAt: updated.createdAt.toISOString(),
+      });
+    } catch (err) {
+      console.error("Update user error:", err);
+      return res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Forbidden" });
+      if (auth.userId === req.params.id) return res.status(400).json({ message: "You cannot delete your own account" });
+      await db.delete(csUserSessions).where(eq(csUserSessions.userId, req.params.id));
+      await db.delete(csUsers).where(eq(csUsers.id, req.params.id));
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Delete user error:", err);
+      return res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  app.post("/api/users/:id/reset-code", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Forbidden" });
+      const [target] = await db.select().from(csUsers).where(eq(csUsers.id, req.params.id));
+      if (!target) return res.status(404).json({ message: "User not found" });
+      // Generate a 8-character alphanumeric code
+      const code = randomBytes(5).toString("hex").toUpperCase().slice(0, 8);
+      resetCodes.set(code, { userId: target.id, expiresAt: Date.now() + 60 * 60 * 1000 });
+      return res.json({ code, expiresInMinutes: 60 });
+    } catch (err) {
+      console.error("Reset code error:", err);
+      return res.status(500).json({ message: "Failed to generate reset code" });
+    }
+  });
+
+  app.post("/api/auth/use-reset-code", async (req: Request, res: Response) => {
+    try {
+      const { code, newPassword } = req.body;
+      if (!code || !newPassword) return res.status(400).json({ message: "Code and new password are required" });
+      if (newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
+      const entry = resetCodes.get(code.toUpperCase().trim());
+      if (!entry) return res.status(400).json({ message: "Invalid or expired reset code" });
+      if (Date.now() > entry.expiresAt) {
+        resetCodes.delete(code);
+        return res.status(400).json({ message: "Reset code has expired" });
+      }
+      const newHash = await hashPassword(newPassword.trim());
+      await db.update(csUsers).set({ passwordHash: newHash }).where(eq(csUsers.id, entry.userId));
+      await db.delete(csUserSessions).where(eq(csUserSessions.userId, entry.userId));
+      resetCodes.delete(code);
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Use reset code error:", err);
+      return res.status(500).json({ message: "Failed to use reset code" });
     }
   });
 
