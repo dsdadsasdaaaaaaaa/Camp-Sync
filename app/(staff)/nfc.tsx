@@ -12,11 +12,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 import NFCScanner from "@/components/NFCScanner";
+import { useData } from "@/contexts/DataContext";
 import type { WristbandPayload } from "@/types";
 
 export default function StaffNFCScreen() {
   const insets = useSafeAreaInsets();
+  const { campers, checkIns, checkOutCamper, updateCamper } = useData();
   const [scannerVisible, setScannerVisible] = useState(false);
+  const [writeScanVisible, setWriteScanVisible] = useState(false);
   const [result, setResult] = useState<WristbandPayload | null>(null);
 
   const handleStartScan = () => {
@@ -37,7 +40,7 @@ export default function StaffNFCScreen() {
       return;
     }
 
-    const activeCheckIn = getActiveCheckIn(camper.id);
+    const activeCheckIn = checkIns.find(ci => ci.camperId === camper.id && !ci.checkedOutAt);
     if (!activeCheckIn) {
       Alert.alert("Error", "Camper is not currently checked in.");
       return;
@@ -53,24 +56,24 @@ export default function StaffNFCScreen() {
     const camper = campers.find(c => c.id === result.camperId);
     if (!camper) return;
 
-    const activeCheckIn = getActiveCheckIn(camper.id);
+    const activeCheckIn = checkIns.find(ci => ci.camperId === camper.id && !ci.checkedOutAt);
     if (!activeCheckIn) return;
 
     try {
       await checkOutCamper(activeCheckIn.id);
-      // Clear wristband data in DB too
       await updateCamper(camper.id, {
         wristbandId: null as any,
         wristbandEncryptedData: null as any,
-        wristbandLastProgrammed: null as any
+        wristbandLastProgrammed: null as any,
       });
-      
       Alert.alert("Checked Out", `${camper.firstName} has been checked out and their wristband has been erased.`);
       setResult(null);
     } catch (err: any) {
       Alert.alert("Error", err.message || "Failed to complete check-out.");
     }
   };
+
+  const primaryContact = result?.medical?.emergencyContacts?.[0];
 
   return (
     <ScrollView
@@ -150,12 +153,22 @@ export default function StaffNFCScreen() {
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Emergency Contact</Text>
-            <Text style={styles.dataValue}>
-              {result.medical?.emergencyContact || "—"}
-            </Text>
-            <Text style={styles.dataValueSec}>
-              {result.medical?.emergencyPhone || "—"}
-            </Text>
+            {result.medical?.emergencyContacts?.length > 0 ? (
+              result.medical.emergencyContacts.map((ec, i) => (
+                <View key={i} style={i > 0 ? { marginTop: 8 } : undefined}>
+                  <Text style={styles.dataValue}>{ec.name || "—"}</Text>
+                  {ec.relationship ? (
+                    <Text style={styles.dataValueSec}>{ec.relationship}</Text>
+                  ) : null}
+                  <Text style={styles.dataValueSec}>{ec.phone || "—"}</Text>
+                  {ec.email ? (
+                    <Text style={styles.dataValueSec}>{ec.email}</Text>
+                  ) : null}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.dataValue}>—</Text>
+            )}
           </View>
 
           <View style={styles.dataSection}>
@@ -246,7 +259,7 @@ export default function StaffNFCScreen() {
         <NFCScanner
           visible={writeScanVisible}
           mode="write"
-          writePayload={{} as any} // Erase by writing empty
+          writePayload={{} as any}
           writeCamper={campers.find(c => c.id === result.camperId) as any}
           onWriteSuccess={handleEraseSuccess}
           onError={(msg) => {

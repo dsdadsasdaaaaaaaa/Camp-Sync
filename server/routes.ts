@@ -58,8 +58,7 @@ function decryptMedical(encrypted: string, iv: string, authTag: string): object 
       allergies: "",
       medications: "",
       conditions: "",
-      emergencyContact: "",
-      emergencyPhone: "",
+      emergencyContacts: [],
       doctorName: "",
       doctorPhone: "",
       insuranceProvider: "",
@@ -260,8 +259,9 @@ async function seedDemoUsers() {
       allergies: "Peanuts",
       medications: "EpiPen (carry at all times)",
       conditions: "None",
-      emergencyContact: "Demo Parent",
-      emergencyPhone: "555-0100",
+      emergencyContacts: [
+        { name: "Demo Parent", relationship: "Parent", phone: "555-0100", email: "parent@demo.com" },
+      ],
       doctorName: "Dr. Smith",
       doctorPhone: "555-0199",
       insuranceProvider: "Blue Shield Demo",
@@ -615,8 +615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 allergies: "",
                 medications: "",
                 conditions: "",
-                emergencyContact: "",
-                emergencyPhone: "",
+                emergencyContacts: [],
                 doctorName: "",
                 doctorPhone: "",
                 insuranceProvider: "",
@@ -651,8 +650,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         row.medicalEncrypted && row.medicalIv && row.medicalAuthTag
           ? decryptMedical(row.medicalEncrypted, row.medicalIv, row.medicalAuthTag)
           : {
-              allergies: "", medications: "", conditions: "", emergencyContact: "",
-              emergencyPhone: "", doctorName: "", doctorPhone: "", insuranceProvider: "",
+              allergies: "", medications: "", conditions: "", emergencyContacts: [],
+              doctorName: "", doctorPhone: "", insuranceProvider: "",
               bloodType: "Unknown", notes: "",
             };
 
@@ -675,8 +674,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const id = generateId();
       const medData = medical || {
-        allergies: "", medications: "", conditions: "", emergencyContact: "",
-        emergencyPhone: "", doctorName: "", doctorPhone: "", insuranceProvider: "",
+        allergies: "", medications: "", conditions: "", emergencyContacts: [],
+        doctorName: "", doctorPhone: "", insuranceProvider: "",
         bloodType: "Unknown", notes: "",
       };
       const { encrypted, iv, authTag } = encryptMedical(medData);

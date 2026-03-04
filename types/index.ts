@@ -11,12 +11,18 @@ export interface User {
   createdAt: string;
 }
 
+export interface EmergencyContact {
+  name: string;
+  relationship: string;
+  phone: string;
+  email: string;
+}
+
 export interface MedicalInfo {
   allergies: string;
   medications: string;
   conditions: string;
-  emergencyContact: string;
-  emergencyPhone: string;
+  emergencyContacts: EmergencyContact[];
   doctorName: string;
   doctorPhone: string;
   insuranceProvider: string;
@@ -66,9 +72,9 @@ export interface AuthCode {
   code: string;
   role: UserRole;
   linkedCamperId?: string;
-  maxUses: number; // 0 for infinite
+  maxUses: number;
   usedCount: number;
-  usedBy: string[]; // IDs of users who used it
+  usedBy: string[];
   createdAt: string;
   createdBy: string;
 }

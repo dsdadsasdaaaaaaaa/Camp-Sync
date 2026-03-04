@@ -21,7 +21,7 @@ import { isValidPhone, formatPhone } from "@/lib/validation";
 import Colors from "@/constants/colors";
 import NFCScanner from "@/components/NFCScanner";
 import DatePicker from "@/components/DatePicker";
-import type { Camper, MedicalInfo, WristbandPayload } from "@/types";
+import type { Camper, MedicalInfo, EmergencyContact, WristbandPayload } from "@/types";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"];
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -113,8 +113,7 @@ export default function CamperDetailScreen() {
       allergies: "",
       medications: "",
       conditions: "",
-      emergencyContact: "",
-      emergencyPhone: "",
+      emergencyContacts: [{ name: "", relationship: "", phone: "", email: "" }],
       doctorName: "",
       doctorPhone: "",
       insuranceProvider: "",
@@ -156,9 +155,11 @@ export default function CamperDetailScreen() {
       return;
     }
     const errors: Record<string, string> = {};
-    if (medical.emergencyPhone.trim() && !isValidPhone(medical.emergencyPhone)) {
-      errors.emergencyPhone = "Please enter a valid phone number";
-    }
+    (medical.emergencyContacts || []).forEach((ec, i) => {
+      if (ec.phone?.trim() && !isValidPhone(ec.phone)) {
+        errors[`emergencyPhone_${i}`] = "Please enter a valid phone number";
+      }
+    });
     if (medical.doctorPhone.trim() && !isValidPhone(medical.doctorPhone)) {
       errors.doctorPhone = "Please enter a valid phone number";
     }
@@ -410,8 +411,55 @@ export default function CamperDetailScreen() {
                     ))}
                   </View>
                 </View>
-                <EditField label="Emergency Contact" value={medical.emergencyContact} onChange={(v: string) => updateMedical("emergencyContact", v)} placeholder="Name" />
-                <EditField label="Emergency Phone" value={medical.emergencyPhone} onChange={(v: string) => updateMedical("emergencyPhone", v)} placeholder="Phone" keyboardType="phone-pad" error={fieldErrors.emergencyPhone} />
+                {(medical.emergencyContacts?.length ? medical.emergencyContacts : [{ name: "", relationship: "", phone: "", email: "" }]).map((ec, i) => (
+                  <View key={i} style={{ gap: 8 }}>
+                    {i > 0 && <View style={styles.divider} />}
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <Text style={[styles.fieldLabel, { color: Colors.light.textSecondary }]}>
+                        {i === 0 ? "Primary Contact" : `Contact ${i + 1}`}
+                      </Text>
+                      {i > 0 && (
+                        <Pressable onPress={() => {
+                          const updated = [...(medical.emergencyContacts || [])];
+                          updated.splice(i, 1);
+                          setMedical(prev => ({ ...prev, emergencyContacts: updated }));
+                        }}>
+                          <Ionicons name="close-circle" size={20} color={Colors.danger} />
+                        </Pressable>
+                      )}
+                    </View>
+                    <EditField label="Name" value={ec.name} onChange={(v: string) => {
+                      const updated = [...(medical.emergencyContacts || [])];
+                      updated[i] = { ...updated[i], name: v };
+                      setMedical(prev => ({ ...prev, emergencyContacts: updated }));
+                    }} placeholder="Contact name" />
+                    <EditField label="Relationship" value={ec.relationship} onChange={(v: string) => {
+                      const updated = [...(medical.emergencyContacts || [])];
+                      updated[i] = { ...updated[i], relationship: v };
+                      setMedical(prev => ({ ...prev, emergencyContacts: updated }));
+                    }} placeholder="e.g. Parent, Guardian" />
+                    <EditField label="Phone" value={ec.phone} onChange={(v: string) => {
+                      const updated = [...(medical.emergencyContacts || [])];
+                      updated[i] = { ...updated[i], phone: v };
+                      setMedical(prev => ({ ...prev, emergencyContacts: updated }));
+                    }} placeholder="(555) 000-0000" keyboardType="phone-pad" error={fieldErrors[`emergencyPhone_${i}`]} />
+                    <EditField label="Email" value={ec.email} onChange={(v: string) => {
+                      const updated = [...(medical.emergencyContacts || [])];
+                      updated[i] = { ...updated[i], email: v };
+                      setMedical(prev => ({ ...prev, emergencyContacts: updated }));
+                    }} placeholder="email@example.com" keyboardType="email-address" />
+                  </View>
+                ))}
+                <Pressable
+                  style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8 }}
+                  onPress={() => setMedical(prev => ({
+                    ...prev,
+                    emergencyContacts: [...(prev.emergencyContacts || []), { name: "", relationship: "", phone: "", email: "" }],
+                  }))}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+                  <Text style={{ fontSize: 14, fontFamily: "Outfit_600SemiBold", color: Colors.primary }}>Add Another Contact</Text>
+                </Pressable>
                 <EditField label="Allergies" value={medical.allergies} onChange={(v: string) => updateMedical("allergies", v)} placeholder="Allergies" multiline />
                 <EditField label="Medications" value={medical.medications} onChange={(v: string) => updateMedical("medications", v)} placeholder="Medications" multiline />
                 <EditField label="Medical Conditions" value={medical.conditions} onChange={(v: string) => updateMedical("conditions", v)} placeholder="Conditions" multiline />
@@ -427,8 +475,18 @@ export default function CamperDetailScreen() {
                   <Text style={styles.medicalHighlightLabel}>Blood Type</Text>
                   <Text style={styles.medicalHighlightValue}>{medical.bloodType}</Text>
                 </View>
-                <InfoField label="Emergency Contact" value={medical.emergencyContact} />
-                <InfoField label="Emergency Phone" value={medical.emergencyPhone} />
+                {(medical.emergencyContacts?.length ? medical.emergencyContacts : []).map((ec, i) => (
+                  <View key={i} style={{ gap: 4 }}>
+                    {i > 0 && <View style={styles.divider} />}
+                    <InfoField label={i === 0 ? "Emergency Contact" : `Contact ${i + 1}`} value={ec.name} />
+                    {ec.relationship ? <InfoField label="Relationship" value={ec.relationship} /> : null}
+                    <InfoField label="Phone" value={ec.phone} />
+                    {ec.email ? <InfoField label="Email" value={ec.email} /> : null}
+                  </View>
+                ))}
+                {!medical.emergencyContacts?.length && (
+                  <InfoField label="Emergency Contact" value="—" />
+                )}
                 <View style={styles.divider} />
                 <InfoField label="Allergies" value={medical.allergies} />
                 <InfoField label="Medications" value={medical.medications} />

@@ -76,14 +76,14 @@ function packPayload(data: {
     allergies?: string;
     medications?: string;
     conditions?: string;
-    emergencyContact?: string;
-    emergencyPhone?: string;
+    emergencyContacts?: Array<{ name?: string; phone?: string; relationship?: string; email?: string }>;
     bloodType?: string;
-    [key: string]: string | undefined;
+    [key: string]: any;
   };
   programmedAt: string;
   appVersion: string;
 }): object {
+  const primaryContact = data.medical.emergencyContacts?.[0];
   return {
     id: data.camperId,
     fn: trunc(data.firstName ?? "", FIELD_LIMITS.fn),
@@ -93,8 +93,8 @@ function packPayload(data: {
       al: trunc(data.medical.allergies ?? "", FIELD_LIMITS.al),
       md: trunc(data.medical.medications ?? "", FIELD_LIMITS.md),
       co: trunc(data.medical.conditions ?? "", FIELD_LIMITS.co),
-      ec: trunc(data.medical.emergencyContact ?? "", FIELD_LIMITS.ec),
-      ep: trunc(data.medical.emergencyPhone ?? "", FIELD_LIMITS.ep),
+      ec: trunc(primaryContact?.name ?? "", FIELD_LIMITS.ec),
+      ep: trunc(primaryContact?.phone ?? "", FIELD_LIMITS.ep),
       bt: trunc(data.medical.bloodType ?? "", FIELD_LIMITS.bt),
     },
     ts: data.programmedAt,
@@ -103,6 +103,9 @@ function packPayload(data: {
 }
 
 function unpackPayload(compact: any): object {
+  const primaryContact = compact.m?.ec
+    ? [{ name: compact.m.ec ?? "", phone: compact.m.ep ?? "", relationship: "", email: "" }]
+    : [];
   return {
     camperId: compact.id ?? "",
     firstName: compact.fn ?? "",
@@ -112,8 +115,7 @@ function unpackPayload(compact: any): object {
       allergies: compact.m?.al ?? "",
       medications: compact.m?.md ?? "",
       conditions: compact.m?.co ?? "",
-      emergencyContact: compact.m?.ec ?? "",
-      emergencyPhone: compact.m?.ep ?? "",
+      emergencyContacts: primaryContact,
       bloodType: compact.m?.bt ?? "",
       doctorName: "",
       doctorPhone: "",

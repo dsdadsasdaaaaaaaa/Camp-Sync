@@ -23,13 +23,13 @@ AES-256-GCM provides both **confidentiality** (data cannot be read without the k
 
 ---
 
-## 2. NFC Wristband Encryption (On-Device)
+## 2. NFC Wristband Encoding (On-Device)
 
-Each camper's wristband contains a small encrypted payload that can be read offline by any authorised device — no internet connection required.
+Each camper's wristband contains a small encoded payload that can be read offline by any authorised device — no internet connection required.
 
 | Property | Detail |
 |---|---|
-| **Algorithm** | XOR cipher with key `CAMPSYNC_NFC_SECRET_KEY_2024_v1`, output Base64-encoded |
+| **Algorithm** | XOR cipher with a fixed application key, output Base64-encoded |
 | **Purpose** | Lightweight obfuscation suitable for offline NFC tag reading |
 | **Tag size limit** | 540 bytes maximum |
 | **Payload format** | Compact JSON with abbreviated key names to minimise size |
@@ -40,13 +40,15 @@ Only the fields needed in an emergency are written to the tag:
 
 - First name, last name, date of birth
 - Allergies, medications, medical conditions
-- Emergency contact name and phone number
 - Blood type
+- **Primary emergency contact only** — name and phone number (the first entry in the emergency contacts list; additional contacts are server-side only)
 
 ### What is NOT stored on the wristband
 
 The following are kept on the server only and are never written to the NFC tag:
 
+- Additional emergency contacts (contact 2, 3, etc.)
+- Emergency contact email addresses
 - Doctor name and phone number
 - Insurance provider
 - Clinical notes
@@ -96,8 +98,8 @@ Every API request is authenticated and the caller's role is verified before any 
 | Role | What they can access |
 |---|---|
 | **Management** | Full access — campers, medical records, sessions, check-ins, users, and auth codes |
-| **Staff** | Can read camper names and cabin groups; can check campers in and out; cannot view medical details, manage users, or manage auth codes |
-| **Parent** | Can only see the specific camper(s) linked to their account — enforced server-side by filtering on `linked_camper_ids` |
+| **Staff** | Can read camper names and cabin groups; can check campers in and out; cannot view full medical details, manage users, or manage auth codes |
+| **Parent** | Can only see the specific camper(s) linked to their account — enforced server-side by filtering on `linked_camper_ids`; can update their child's medical information |
 
 Role is not trusted from the client. It is read from the database on every request after the session token is validated.
 
@@ -123,7 +125,7 @@ There is no open registration. A new account can only be created by entering a v
 |---|---|---|
 | `SESSION_SECRET` | Derives the AES-256 key used to encrypt all medical records | All existing encrypted medical records become permanently unreadable |
 
-The secret is stored as a server environment variable managed by Replit's secret store. It is never committed to source code or version control.
+The secret is stored as a server environment variable managed by Replit's secret store. It is never committed to source code or version control. In development, a fallback placeholder is used if the variable is not set — this placeholder is **not safe for production use**.
 
 ---
 
@@ -141,7 +143,7 @@ The secret is stored as a server environment variable managed by Replit's secret
 | Layer | Protection |
 |---|---|
 | Medical records at rest | AES-256-GCM encryption, unique IV per record, integrity-verified with auth tag |
-| NFC wristband data | XOR + Base64 obfuscation, emergency fields only, hard size limits |
+| NFC wristband data | XOR + Base64 obfuscation, emergency fields only, primary contact only, hard size limits |
 | Passwords | scrypt with random salt, timing-safe comparison |
 | Session tokens | 32-byte random, 7-day TTL, server-side invalidation on logout |
 | API access | Bearer token + role check on every request |

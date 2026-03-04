@@ -18,7 +18,7 @@ import * as Haptics from "expo-haptics";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
-import type { MedicalInfo } from "@/types";
+import type { MedicalInfo, EmergencyContact } from "@/types";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -56,11 +56,13 @@ function EditField({
         keyboardType={keyboardType || "default"}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
-        autoCapitalize={keyboardType === "phone-pad" ? "none" : "words"}
+        autoCapitalize={keyboardType === "phone-pad" || keyboardType === "email-address" ? "none" : "words"}
       />
     </View>
   );
 }
+
+const emptyContact = (): EmergencyContact => ({ name: "", relationship: "", phone: "", email: "" });
 
 export default function ParentChildDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -75,23 +77,28 @@ export default function ParentChildDetailScreen() {
   const activeCheckIn = camper ? getActiveCheckIn(camper.id) : undefined;
   const hasPending = pendingUpdates.some((p) => p.camperId === id && !p.resolved);
 
-  const [medical, setMedical] = useState<MedicalInfo>(
-    camper?.medical || {
-      allergies: "",
-      medications: "",
-      conditions: "",
-      emergencyContact: "",
-      emergencyPhone: "",
-      doctorName: "",
-      doctorPhone: "",
-      insuranceProvider: "",
-      bloodType: "Unknown",
-      notes: "",
-    }
-  );
+  const defaultMedical: MedicalInfo = {
+    allergies: "",
+    medications: "",
+    conditions: "",
+    emergencyContacts: [emptyContact()],
+    doctorName: "",
+    doctorPhone: "",
+    insuranceProvider: "",
+    bloodType: "Unknown",
+    notes: "",
+  };
+
+  const [medical, setMedical] = useState<MedicalInfo>(camper?.medical || defaultMedical);
 
   useEffect(() => {
-    if (camper) setMedical(camper.medical);
+    if (camper) {
+      const m = camper.medical;
+      setMedical({
+        ...m,
+        emergencyContacts: m.emergencyContacts?.length ? m.emergencyContacts : [emptyContact()],
+      });
+    }
   }, [camper]);
 
   if (!camper) {
@@ -108,12 +115,32 @@ export default function ParentChildDetailScreen() {
     .filter((ci) => ci.camperId === camper.id)
     .sort((a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime());
 
-  const updateMedical = (key: keyof MedicalInfo, value: string) =>
+  const updateMedical = (key: keyof MedicalInfo, value: any) =>
     setMedical((prev) => ({ ...prev, [key]: value }));
 
+  const updateContact = (i: number, field: keyof EmergencyContact, value: string) => {
+    setMedical(prev => {
+      const updated = [...(prev.emergencyContacts || [])];
+      updated[i] = { ...updated[i], [field]: value };
+      return { ...prev, emergencyContacts: updated };
+    });
+  };
+
+  const addContact = () => setMedical(prev => ({
+    ...prev,
+    emergencyContacts: [...(prev.emergencyContacts || []), emptyContact()],
+  }));
+
+  const removeContact = (i: number) => setMedical(prev => {
+    const updated = [...(prev.emergencyContacts || [])];
+    updated.splice(i, 1);
+    return { ...prev, emergencyContacts: updated };
+  });
+
   const handleSave = async () => {
-    if (!medical.emergencyContact.trim() || !medical.emergencyPhone.trim()) {
-      Alert.alert("Required", "Emergency contact information is required.");
+    const contacts = medical.emergencyContacts || [];
+    if (contacts.length === 0 || !contacts[0]?.name?.trim()) {
+      Alert.alert("Required", "At least one emergency contact with a name is required.");
       return;
     }
     setIsSaving(true);
@@ -231,17 +258,50 @@ export default function ParentChildDetailScreen() {
           <View style={styles.card}>
             {isEditing ? (
               <>
-                <EditField label="Emergency Contact Name" value={medical.emergencyContact} onChange={(v: string) => updateMedical("emergencyContact", v)} placeholder="Name" />
-                <EditField label="Emergency Phone" value={medical.emergencyPhone} onChange={(v: string) => updateMedical("emergencyPhone", v)} placeholder="Phone" keyboardType="phone-pad" />
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <Ionicons name="call-outline" size={16} color={Colors.danger} />
+                  <Text style={[styles.fieldLabel, { fontSize: 15 }]}>Emergency Contacts</Text>
+                </View>
+
+                {(medical.emergencyContacts?.length ? medical.emergencyContacts : [emptyContact()]).map((ec, i) => (
+                  <View key={i} style={{ gap: 10 }}>
+                    {i > 0 && <View style={styles.divider} />}
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <Text style={[styles.fieldLabel, { color: Colors.light.textSecondary, fontSize: 13 }]}>
+                        {i === 0 ? "Primary Contact" : `Contact ${i + 1}`}
+                      </Text>
+                      {i > 0 && (
+                        <Pressable onPress={() => removeContact(i)}>
+                          <Ionicons name="close-circle" size={20} color={Colors.danger} />
+                        </Pressable>
+                      )}
+                    </View>
+                    <EditField label="Name" value={ec.name} onChange={(v) => updateContact(i, "name", v)} placeholder="Full name" />
+                    <EditField label="Relationship" value={ec.relationship} onChange={(v) => updateContact(i, "relationship", v)} placeholder="e.g. Parent, Guardian, Uncle" />
+                    <EditField label="Phone" value={ec.phone} onChange={(v) => updateContact(i, "phone", v)} placeholder="(555) 000-0000" keyboardType="phone-pad" />
+                    <EditField label="Email" value={ec.email} onChange={(v) => updateContact(i, "email", v)} placeholder="email@example.com" keyboardType="email-address" />
+                  </View>
+                ))}
+
+                <Pressable
+                  style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}
+                  onPress={addContact}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+                  <Text style={{ fontSize: 14, fontFamily: "Outfit_600SemiBold", color: Colors.primary }}>
+                    Add Another Contact
+                  </Text>
+                </Pressable>
+
                 <View style={styles.divider} />
-                <EditField label="Allergies" value={medical.allergies} onChange={(v: string) => updateMedical("allergies", v)} placeholder="Allergies (or None)" multiline />
-                <EditField label="Medications" value={medical.medications} onChange={(v: string) => updateMedical("medications", v)} placeholder="Medications (or None)" multiline />
-                <EditField label="Medical Conditions" value={medical.conditions} onChange={(v: string) => updateMedical("conditions", v)} placeholder="Conditions (or None)" multiline />
+                <EditField label="Allergies" value={medical.allergies} onChange={(v) => updateMedical("allergies", v)} placeholder="Allergies (or None)" multiline />
+                <EditField label="Medications" value={medical.medications} onChange={(v) => updateMedical("medications", v)} placeholder="Medications (or None)" multiline />
+                <EditField label="Medical Conditions" value={medical.conditions} onChange={(v) => updateMedical("conditions", v)} placeholder="Conditions (or None)" multiline />
                 <View style={styles.divider} />
-                <EditField label="Doctor Name" value={medical.doctorName} onChange={(v: string) => updateMedical("doctorName", v)} placeholder="Doctor name" />
-                <EditField label="Doctor Phone" value={medical.doctorPhone} onChange={(v: string) => updateMedical("doctorPhone", v)} placeholder="Phone" keyboardType="phone-pad" />
-                <EditField label="Insurance Provider" value={medical.insuranceProvider} onChange={(v: string) => updateMedical("insuranceProvider", v)} placeholder="Provider" />
-                <EditField label="Additional Notes" value={medical.notes} onChange={(v: string) => updateMedical("notes", v)} placeholder="Any other notes" multiline />
+                <EditField label="Doctor Name" value={medical.doctorName} onChange={(v) => updateMedical("doctorName", v)} placeholder="Doctor name" />
+                <EditField label="Doctor Phone" value={medical.doctorPhone} onChange={(v) => updateMedical("doctorPhone", v)} placeholder="Phone" keyboardType="phone-pad" />
+                <EditField label="Insurance Provider" value={medical.insuranceProvider} onChange={(v) => updateMedical("insuranceProvider", v)} placeholder="Provider" />
+                <EditField label="Additional Notes" value={medical.notes} onChange={(v) => updateMedical("notes", v)} placeholder="Any other notes" multiline />
               </>
             ) : (
               <>
@@ -250,8 +310,41 @@ export default function ParentChildDetailScreen() {
                   <Text style={styles.bloodLabel}>Blood Type</Text>
                   <Text style={styles.bloodValue}>{medical.bloodType}</Text>
                 </View>
-                <InfoRow label="Emergency Contact" value={medical.emergencyContact} />
-                <InfoRow label="Emergency Phone" value={medical.emergencyPhone} />
+
+                <View style={{ gap: 4 }}>
+                  <Text style={[styles.infoLabel, { marginBottom: 4 }]}>Emergency Contacts</Text>
+                  {(medical.emergencyContacts?.length ? medical.emergencyContacts : []).map((ec, i) => (
+                    <View key={i} style={[styles.contactCard, i > 0 && { marginTop: 8 }]}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <View style={styles.contactIcon}>
+                          <Ionicons name="person" size={14} color={Colors.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.contactName}>{ec.name || "—"}</Text>
+                          {ec.relationship ? (
+                            <Text style={styles.contactDetail}>{ec.relationship}</Text>
+                          ) : null}
+                        </View>
+                      </View>
+                      {ec.phone ? (
+                        <View style={styles.contactDetailRow}>
+                          <Ionicons name="call-outline" size={14} color={Colors.light.textMuted} />
+                          <Text style={styles.contactDetail}>{ec.phone}</Text>
+                        </View>
+                      ) : null}
+                      {ec.email ? (
+                        <View style={styles.contactDetailRow}>
+                          <Ionicons name="mail-outline" size={14} color={Colors.light.textMuted} />
+                          <Text style={styles.contactDetail}>{ec.email}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  ))}
+                  {!medical.emergencyContacts?.length && (
+                    <Text style={styles.infoValue}>—</Text>
+                  )}
+                </View>
+
                 <View style={styles.divider} />
                 <InfoRow label="Allergies" value={medical.allergies} />
                 <InfoRow label="Medications" value={medical.medications} />
@@ -483,6 +576,37 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontFamily: "Outfit_700Bold",
     color: Colors.danger,
+  },
+  contactCard: {
+    backgroundColor: Colors.light.surfaceSecondary,
+    borderRadius: 12,
+    padding: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  contactIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.primary + "15",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  contactName: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+  },
+  contactDetailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  contactDetail: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
   },
   fieldGroup: { gap: 6 },
   fieldLabel: {

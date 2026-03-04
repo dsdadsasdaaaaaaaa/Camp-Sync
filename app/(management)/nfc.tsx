@@ -19,7 +19,7 @@ import type { Camper, WristbandPayload } from "@/types";
 type Screen = "home" | "selectCamper" | "readResult";
 
 export default function NFCScreen() {
-  const { campers, programWristband } = useData();
+  const { campers, checkIns, programWristband, checkOutCamper, updateCamper } = useData();
   const insets = useSafeAreaInsets();
   const [screen, setScreen] = useState<Screen>("home");
   const [readScanVisible, setReadScanVisible] = useState(false);
@@ -313,8 +313,18 @@ export default function NFCScreen() {
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Emergency Contact</Text>
-            <Text style={styles.dataValue}>{readResult.medical?.emergencyContact || "—"}</Text>
-            <Text style={styles.dataValueSec}>{readResult.medical?.emergencyPhone || "—"}</Text>
+            {readResult.medical?.emergencyContacts?.length > 0 ? (
+              readResult.medical.emergencyContacts.map((ec, i) => (
+                <View key={i} style={i > 0 ? { marginTop: 8 } : undefined}>
+                  <Text style={styles.dataValue}>{ec.name || "—"}</Text>
+                  {ec.relationship ? <Text style={styles.dataValueSec}>{ec.relationship}</Text> : null}
+                  <Text style={styles.dataValueSec}>{ec.phone || "—"}</Text>
+                  {ec.email ? <Text style={styles.dataValueSec}>{ec.email}</Text> : null}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.dataValue}>—</Text>
+            )}
           </View>
 
           <View style={styles.dataSection}>

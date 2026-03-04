@@ -131,14 +131,15 @@ export default function OfflineScannerScreen() {
             </View>
           ) : null}
 
-          {result.medical.emergencyContact ? (
+          {result.medical.emergencyContacts?.length > 0 ? (
             <>
               <View style={styles.divider} />
               <View style={styles.medRow}>
                 <Ionicons name="call" size={16} color={Colors.accent} />
                 <Text style={styles.medLabel}>Emergency</Text>
                 <Text style={styles.medValue}>
-                  {result.medical.emergencyContact} — {result.medical.emergencyPhone}
+                  {result.medical.emergencyContacts[0].name}
+                  {result.medical.emergencyContacts[0].phone ? ` — ${result.medical.emergencyContacts[0].phone}` : ""}
                 </Text>
               </View>
             </>

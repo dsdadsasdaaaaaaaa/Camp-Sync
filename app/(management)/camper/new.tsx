@@ -19,7 +19,7 @@ import { useData } from "@/contexts/DataContext";
 import { isValidPhone, formatPhone } from "@/lib/validation";
 import Colors from "@/constants/colors";
 import DatePicker from "@/components/DatePicker";
-import type { MedicalInfo } from "@/types";
+import type { MedicalInfo, EmergencyContact } from "@/types";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"];
 
@@ -57,12 +57,14 @@ function InputField({
         keyboardType={keyboardType || "default"}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
-        autoCapitalize={keyboardType === "email-address" ? "none" : "words"}
+        autoCapitalize={keyboardType === "email-address" || keyboardType === "phone-pad" ? "none" : "words"}
       />
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 }
+
+const emptyContact = (): EmergencyContact => ({ name: "", relationship: "", phone: "", email: "" });
 
 export default function NewCamperScreen() {
   const { addCamper } = useData();
@@ -78,8 +80,7 @@ export default function NewCamperScreen() {
     allergies: "",
     medications: "",
     conditions: "",
-    emergencyContact: "",
-    emergencyPhone: "",
+    emergencyContacts: [emptyContact()],
     doctorName: "",
     doctorPhone: "",
     insuranceProvider: "",
@@ -88,19 +89,33 @@ export default function NewCamperScreen() {
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const updateMedical = (key: keyof MedicalInfo, value: string) => {
+  const updateMedical = (key: keyof MedicalInfo, value: any) => {
     setMedical((prev) => ({ ...prev, [key]: value }));
-    if (fieldErrors[key]) {
-      setFieldErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
+    if (fieldErrors[key as string]) {
+      setFieldErrors((prev) => { const n = { ...prev }; delete n[key as string]; return n; });
     }
   };
 
-  const handlePhoneBlur = (field: string, value: string) => {
-    if (value.trim() && isValidPhone(value)) {
-      const formatted = formatPhone(value);
-      updateMedical(field as keyof MedicalInfo, formatted);
-    }
+  const updateContact = (i: number, field: keyof EmergencyContact, value: string) => {
+    setMedical(prev => {
+      const updated = [...prev.emergencyContacts];
+      updated[i] = { ...updated[i], [field]: value };
+      return { ...prev, emergencyContacts: updated };
+    });
+    const key = `${field}_${i}`;
+    if (fieldErrors[key]) setFieldErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
   };
+
+  const addContact = () => setMedical(prev => ({
+    ...prev,
+    emergencyContacts: [...prev.emergencyContacts, emptyContact()],
+  }));
+
+  const removeContact = (i: number) => setMedical(prev => {
+    const updated = [...prev.emergencyContacts];
+    updated.splice(i, 1);
+    return { ...prev, emergencyContacts: updated };
+  });
 
   const handleSave = async () => {
     const errors: Record<string, string> = {};
@@ -108,18 +123,16 @@ export default function NewCamperScreen() {
       Alert.alert("Missing Info", "First name and last name are required.");
       return;
     }
-    if (!medical.emergencyContact.trim() || !medical.emergencyPhone.trim()) {
-      if (!medical.emergencyPhone.trim()) errors.emergencyPhone = "Emergency phone is required";
-      Alert.alert(
-        "Missing Emergency Contact",
-        "Emergency contact information is required for safety."
-      );
-      setFieldErrors(errors);
+    const contacts = medical.emergencyContacts || [];
+    if (contacts.length === 0 || !contacts[0]?.name?.trim()) {
+      Alert.alert("Missing Emergency Contact", "At least one emergency contact with a name is required.");
       return;
     }
-    if (medical.emergencyPhone.trim() && !isValidPhone(medical.emergencyPhone)) {
-      errors.emergencyPhone = "Please enter a valid phone number";
-    }
+    contacts.forEach((ec, i) => {
+      if (ec.phone?.trim() && !isValidPhone(ec.phone)) {
+        errors[`phone_${i}`] = "Please enter a valid phone number";
+      }
+    });
     if (medical.doctorPhone.trim() && !isValidPhone(medical.doctorPhone)) {
       errors.doctorPhone = "Please enter a valid phone number";
     }
@@ -191,12 +204,7 @@ export default function NewCamperScreen() {
             size={16}
             color={section === "basic" ? Colors.primary : Colors.light.textMuted}
           />
-          <Text
-            style={[
-              styles.tabText,
-              section === "basic" && styles.activeTabText,
-            ]}
-          >
+          <Text style={[styles.tabText, section === "basic" && styles.activeTabText]}>
             Basic Info
           </Text>
         </Pressable>
@@ -207,44 +215,22 @@ export default function NewCamperScreen() {
           <Ionicons
             name="medical-outline"
             size={16}
-            color={
-              section === "medical" ? Colors.primary : Colors.light.textMuted
-            }
+            color={section === "medical" ? Colors.primary : Colors.light.textMuted}
           />
-          <Text
-            style={[
-              styles.tabText,
-              section === "medical" && styles.activeTabText,
-            ]}
-          >
+          <Text style={[styles.tabText, section === "medical" && styles.activeTabText]}>
             Medical Info
           </Text>
         </Pressable>
       </View>
 
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + 40 },
-        ]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         keyboardShouldPersistTaps="handled"
       >
         {section === "basic" ? (
           <View style={styles.card}>
-            <InputField
-              label="First Name"
-              value={firstName}
-              onChange={setFirstName}
-              placeholder="Jane"
-              required
-            />
-            <InputField
-              label="Last Name"
-              value={lastName}
-              onChange={setLastName}
-              placeholder="Smith"
-              required
-            />
+            <InputField label="First Name" value={firstName} onChange={setFirstName} placeholder="Jane" required />
+            <InputField label="Last Name" value={lastName} onChange={setLastName} placeholder="Smith" required />
             <DatePicker
               mode="single"
               label="Date of Birth"
@@ -253,35 +239,68 @@ export default function NewCamperScreen() {
               placeholder="Select date of birth"
               maxDate={new Date().toISOString().split("T")[0]}
             />
-            <InputField
-              label="Cabin / Group"
-              value={cabinGroup}
-              onChange={setCabinGroup}
-              placeholder="e.g. Cabin 4 - Blue Jay"
-            />
+            <InputField label="Cabin / Group" value={cabinGroup} onChange={setCabinGroup} placeholder="e.g. Cabin 4 - Blue Jay" />
           </View>
         ) : (
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
               <Ionicons name="call-outline" size={16} color={Colors.danger} />
-              <Text style={styles.sectionHeaderText}>Emergency Contact</Text>
+              <Text style={styles.sectionHeaderText}>Emergency Contacts</Text>
             </View>
-            <InputField
-              label="Contact Name"
-              value={medical.emergencyContact}
-              onChange={(v: string) => updateMedical("emergencyContact", v)}
-              placeholder="Parent or Guardian Name"
-              required
-            />
-            <InputField
-              label="Contact Phone"
-              value={medical.emergencyPhone}
-              onChange={(v: string) => updateMedical("emergencyPhone", v)}
-              placeholder="(555) 000-0000"
-              keyboardType="phone-pad"
-              required
-              error={fieldErrors.emergencyPhone}
-            />
+
+            {medical.emergencyContacts.map((ec, i) => (
+              <View key={i} style={{ gap: 10 }}>
+                {i > 0 && <View style={styles.divider} />}
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={[styles.fieldLabel, { color: Colors.light.textSecondary }]}>
+                    {i === 0 ? "Primary Contact" : `Contact ${i + 1}`}
+                  </Text>
+                  {i > 0 && (
+                    <Pressable onPress={() => removeContact(i)}>
+                      <Ionicons name="close-circle" size={20} color={Colors.danger} />
+                    </Pressable>
+                  )}
+                </View>
+                <InputField
+                  label="Name"
+                  value={ec.name}
+                  onChange={(v) => updateContact(i, "name", v)}
+                  placeholder="Full name"
+                  required={i === 0}
+                />
+                <InputField
+                  label="Relationship"
+                  value={ec.relationship}
+                  onChange={(v) => updateContact(i, "relationship", v)}
+                  placeholder="e.g. Parent, Guardian, Aunt"
+                />
+                <InputField
+                  label="Phone"
+                  value={ec.phone}
+                  onChange={(v) => updateContact(i, "phone", v)}
+                  placeholder="(555) 000-0000"
+                  keyboardType="phone-pad"
+                  error={fieldErrors[`phone_${i}`]}
+                />
+                <InputField
+                  label="Email"
+                  value={ec.email}
+                  onChange={(v) => updateContact(i, "email", v)}
+                  placeholder="email@example.com"
+                  keyboardType="email-address"
+                />
+              </View>
+            ))}
+
+            <Pressable
+              style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8 }}
+              onPress={addContact}
+            >
+              <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+              <Text style={{ fontSize: 14, fontFamily: "Outfit_600SemiBold", color: Colors.primary }}>
+                Add Another Contact
+              </Text>
+            </Pressable>
 
             <View style={[styles.sectionHeader, { marginTop: 8 }]}>
               <Ionicons name="medkit-outline" size={16} color={Colors.danger} />
@@ -294,18 +313,10 @@ export default function NewCamperScreen() {
                 {BLOOD_TYPES.map((bt) => (
                   <Pressable
                     key={bt}
-                    style={[
-                      styles.bloodTypeOption,
-                      medical.bloodType === bt && styles.bloodTypeSelected,
-                    ]}
+                    style={[styles.bloodTypeOption, medical.bloodType === bt && styles.bloodTypeSelected]}
                     onPress={() => updateMedical("bloodType", bt)}
                   >
-                    <Text
-                      style={[
-                        styles.bloodTypeText,
-                        medical.bloodType === bt && styles.bloodTypeSelectedText,
-                      ]}
-                    >
+                    <Text style={[styles.bloodTypeText, medical.bloodType === bt && styles.bloodTypeSelectedText]}>
                       {bt}
                     </Text>
                   </Pressable>
@@ -313,59 +324,18 @@ export default function NewCamperScreen() {
               </View>
             </View>
 
-            <InputField
-              label="Allergies"
-              value={medical.allergies}
-              onChange={(v: string) => updateMedical("allergies", v)}
-              placeholder="e.g. Peanuts, Penicillin (or None)"
-              multiline
-            />
-            <InputField
-              label="Medications"
-              value={medical.medications}
-              onChange={(v: string) => updateMedical("medications", v)}
-              placeholder="e.g. EpiPen, Inhaler (or None)"
-              multiline
-            />
-            <InputField
-              label="Medical Conditions"
-              value={medical.conditions}
-              onChange={(v: string) => updateMedical("conditions", v)}
-              placeholder="e.g. Asthma, Diabetes (or None)"
-              multiline
-            />
+            <InputField label="Allergies" value={medical.allergies} onChange={(v) => updateMedical("allergies", v)} placeholder="e.g. Peanuts, Penicillin (or None)" multiline />
+            <InputField label="Medications" value={medical.medications} onChange={(v) => updateMedical("medications", v)} placeholder="e.g. EpiPen, Inhaler (or None)" multiline />
+            <InputField label="Medical Conditions" value={medical.conditions} onChange={(v) => updateMedical("conditions", v)} placeholder="e.g. Asthma, Diabetes (or None)" multiline />
 
             <View style={[styles.sectionHeader, { marginTop: 8 }]}>
               <Ionicons name="business-outline" size={16} color={Colors.primary} />
               <Text style={styles.sectionHeaderText}>Doctor & Insurance</Text>
             </View>
-            <InputField
-              label="Doctor Name"
-              value={medical.doctorName}
-              onChange={(v: string) => updateMedical("doctorName", v)}
-              placeholder="Dr. Name"
-            />
-            <InputField
-              label="Doctor Phone"
-              value={medical.doctorPhone}
-              onChange={(v: string) => updateMedical("doctorPhone", v)}
-              placeholder="(555) 000-0000"
-              keyboardType="phone-pad"
-              error={fieldErrors.doctorPhone}
-            />
-            <InputField
-              label="Insurance Provider"
-              value={medical.insuranceProvider}
-              onChange={(v: string) => updateMedical("insuranceProvider", v)}
-              placeholder="e.g. BlueCross BlueShield"
-            />
-            <InputField
-              label="Additional Notes"
-              value={medical.notes}
-              onChange={(v: string) => updateMedical("notes", v)}
-              placeholder="Any other important medical information..."
-              multiline
-            />
+            <InputField label="Doctor Name" value={medical.doctorName} onChange={(v) => updateMedical("doctorName", v)} placeholder="Dr. Name" />
+            <InputField label="Doctor Phone" value={medical.doctorPhone} onChange={(v) => updateMedical("doctorPhone", v)} placeholder="(555) 000-0000" keyboardType="phone-pad" error={fieldErrors.doctorPhone} />
+            <InputField label="Insurance Provider" value={medical.insuranceProvider} onChange={(v) => updateMedical("insuranceProvider", v)} placeholder="e.g. BlueCross BlueShield" />
+            <InputField label="Additional Notes" value={medical.notes} onChange={(v) => updateMedical("notes", v)} placeholder="Any other important medical information..." multiline />
           </View>
         )}
       </ScrollView>
@@ -466,6 +436,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Outfit_700Bold",
     color: Colors.light.text,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.light.border,
   },
   fieldGroup: {
     gap: 6,

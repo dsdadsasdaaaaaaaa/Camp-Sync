@@ -235,8 +235,18 @@ function EmergencyLookupModal({
                 <Text style={styles.medSectionTitle}>Emergency Contact</Text>
               </View>
               <View style={styles.medCard}>
-                <MedicalInfoRow icon="person-outline" label="Contact Name" value={selectedCamper.medical.emergencyContact} />
-                <MedicalInfoRow icon="call-outline" label="Contact Phone" value={selectedCamper.medical.emergencyPhone} />
+                {selectedCamper.medical.emergencyContacts?.length > 0 ? (
+                  selectedCamper.medical.emergencyContacts.map((ec, i) => (
+                    <View key={i}>
+                      <MedicalInfoRow icon="person-outline" label={i === 0 ? "Contact Name" : `Contact ${i + 1}`} value={ec.name} />
+                      {ec.relationship ? <MedicalInfoRow icon="people-outline" label="Relationship" value={ec.relationship} /> : null}
+                      <MedicalInfoRow icon="call-outline" label="Phone" value={ec.phone} />
+                      {ec.email ? <MedicalInfoRow icon="mail-outline" label="Email" value={ec.email} /> : null}
+                    </View>
+                  ))
+                ) : (
+                  <MedicalInfoRow icon="person-outline" label="Contact" value="None on file" />
+                )}
               </View>
             </View>
 
