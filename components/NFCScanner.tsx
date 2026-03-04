@@ -12,7 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
-import { readNFCTag, writeNFCTag, isNFCSimulated, isNFCSupported } from "@/lib/nfc";
+import { readNFCTag, writeNFCTag, eraseNFCTag, isNFCSupported } from "@/lib/nfc";
 import type { WristbandPayload, Camper } from "@/types";
 
 interface NFCScannerReadProps {
@@ -33,7 +33,16 @@ interface NFCScannerWriteProps {
   onCancel: () => void;
 }
 
-type NFCScannerProps = NFCScannerReadProps | NFCScannerWriteProps;
+interface NFCScannerEraseProps {
+  visible: boolean;
+  mode: "erase";
+  camperName: string;
+  onEraseSuccess: () => void;
+  onError: (message: string) => void;
+  onCancel: () => void;
+}
+
+type NFCScannerProps = NFCScannerReadProps | NFCScannerWriteProps | NFCScannerEraseProps;
 
 function PulseRings({ active }: { active: boolean }) {
   const ring1 = useRef(new Animated.Value(0)).current;
@@ -149,7 +158,7 @@ export default function NFCScanner(props: NFCScannerProps) {
               (props as NFCScannerReadProps).onPayloadRead(payload);
             }
           }, 500);
-        } else {
+        } else if (mode === "write") {
           const writeProps = props as NFCScannerWriteProps;
           await writeNFCTag(writeProps.writePayload);
           if (cancelled) return;
@@ -157,6 +166,14 @@ export default function NFCScanner(props: NFCScannerProps) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           setTimeout(() => {
             if (!cancelled) writeProps.onWriteSuccess();
+          }, 800);
+        } else if (mode === "erase") {
+          await eraseNFCTag();
+          if (cancelled) return;
+          setStatus("success");
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setTimeout(() => {
+            if (!cancelled) (props as NFCScannerEraseProps).onEraseSuccess();
           }, 800);
         }
       } catch (err: any) {
@@ -178,10 +195,39 @@ export default function NFCScanner(props: NFCScannerProps) {
     return () => { cancelled = true; };
   }, [visible]);
 
-  const subtitle =
-    mode === "write"
-      ? `Hold iPhone near ${(props as NFCScannerWriteProps).writeCamper?.firstName}'s wristband to program`
-      : "Hold iPhone near a CampSync wristband";
+  const getSubtitle = () => {
+    if (mode === "write") {
+      return `Hold iPhone near ${(props as NFCScannerWriteProps).writeCamper?.firstName}'s wristband to program`;
+    }
+    if (mode === "erase") {
+      return `Hold iPhone near ${(props as NFCScannerEraseProps).camperName}'s wristband to erase`;
+    }
+    return "Hold iPhone near a CampSync wristband";
+  };
+
+  const getTitle = () => {
+    if (mode === "write") return "Program Wristband";
+    if (mode === "erase") return "Erase Wristband";
+    return "Ready to Scan";
+  };
+
+  const getSuccessTitle = () => {
+    if (mode === "write") return "Wristband Programmed!";
+    if (mode === "erase") return "Wristband Erased!";
+    return "Tag Read Successfully!";
+  };
+
+  const getSuccessSubtitle = () => {
+    if (mode === "write") return "Encrypted camper data written to wristband";
+    if (mode === "erase") return "Wristband data has been cleared";
+    return "Decrypting camper data...";
+  };
+
+  const getHint = () => {
+    if (mode === "write") return "Hold near a blank NFC wristband tag";
+    if (mode === "erase") return "Hold near the wristband to clear its data";
+    return "The iOS NFC reader will activate automatically";
+  };
 
   return (
     <Modal
@@ -215,15 +261,9 @@ export default function NFCScanner(props: NFCScannerProps) {
           {status === "scanning" && (
             <View style={scanStyles.content}>
               <PulseRings active={true} />
-              <Text style={scanStyles.title}>
-                {mode === "write" ? "Program Wristband" : "Ready to Scan"}
-              </Text>
-              <Text style={scanStyles.subtitle}>{subtitle}</Text>
-              <Text style={scanStyles.hint}>
-                {mode === "write"
-                  ? "Hold near a blank NFC wristband tag"
-                  : "The iOS NFC reader will activate automatically"}
-              </Text>
+              <Text style={scanStyles.title}>{getTitle()}</Text>
+              <Text style={scanStyles.subtitle}>{getSubtitle()}</Text>
+              <Text style={scanStyles.hint}>{getHint()}</Text>
               <Pressable
                 style={({ pressed }) => [scanStyles.cancelBtn, { opacity: pressed ? 0.8 : 1, marginTop: 8 }]}
                 onPress={onCancel}
@@ -239,12 +279,10 @@ export default function NFCScanner(props: NFCScannerProps) {
                 <Ionicons name="checkmark-circle" size={52} color={Colors.success} />
               </View>
               <Text style={[scanStyles.title, { color: Colors.success }]}>
-                {mode === "write" ? "Wristband Programmed!" : "Tag Read Successfully!"}
+                {getSuccessTitle()}
               </Text>
               <Text style={scanStyles.subtitle}>
-                {mode === "write"
-                  ? "Encrypted camper data written to wristband"
-                  : "Decrypting camper data..."}
+                {getSuccessSubtitle()}
               </Text>
               <ActivityIndicator color={Colors.primary} style={{ marginTop: 8 }} />
             </View>

@@ -19,7 +19,7 @@ export default function StaffNFCScreen() {
   const insets = useSafeAreaInsets();
   const { campers, checkIns, checkOutCamper, updateCamper } = useData();
   const [scannerVisible, setScannerVisible] = useState(false);
-  const [writeScanVisible, setWriteScanVisible] = useState(false);
+  const [eraseScanVisible, setEraseScanVisible] = useState(false);
   const [result, setResult] = useState<WristbandPayload | null>(null);
 
   const handleStartScan = () => {
@@ -46,12 +46,11 @@ export default function StaffNFCScreen() {
       return;
     }
 
-    setScannerVisible(false);
-    setWriteScanVisible(true);
+    setEraseScanVisible(true);
   };
 
   const handleEraseSuccess = async () => {
-    setWriteScanVisible(false);
+    setEraseScanVisible(false);
     if (!result) return;
     const camper = campers.find(c => c.id === result.camperId);
     if (!camper) return;
@@ -72,8 +71,6 @@ export default function StaffNFCScreen() {
       Alert.alert("Error", err.message || "Failed to complete check-out.");
     }
   };
-
-  const primaryContact = result?.medical?.emergencyContacts?.[0];
 
   return (
     <ScrollView
@@ -154,7 +151,7 @@ export default function StaffNFCScreen() {
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Emergency Contact</Text>
             {result.medical?.emergencyContacts?.length > 0 ? (
-              result.medical.emergencyContacts.map((ec, i) => (
+              result.medical.emergencyContacts.map((ec: any, i: number) => (
                 <View key={i} style={i > 0 ? { marginTop: 8 } : undefined}>
                   <Text style={styles.dataValue}>{ec.name || "—"}</Text>
                   {ec.relationship ? (
@@ -255,18 +252,17 @@ export default function StaffNFCScreen() {
         />
       )}
 
-      {writeScanVisible && result && (
+      {eraseScanVisible && result && (
         <NFCScanner
-          visible={writeScanVisible}
-          mode="write"
-          writePayload={{} as any}
-          writeCamper={campers.find(c => c.id === result.camperId) as any}
-          onWriteSuccess={handleEraseSuccess}
+          visible={eraseScanVisible}
+          mode="erase"
+          camperName={result.firstName}
+          onEraseSuccess={handleEraseSuccess}
           onError={(msg) => {
-            setWriteScanVisible(false);
+            setEraseScanVisible(false);
             Alert.alert("Erase Error", msg);
           }}
-          onCancel={() => setWriteScanVisible(false)}
+          onCancel={() => setEraseScanVisible(false)}
         />
       )}
     </ScrollView>
@@ -458,7 +454,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textMuted,
-    fontStyle: "italic",
+    fontStyle: "italic" as const,
   },
   programmedAt: {
     fontSize: 12,

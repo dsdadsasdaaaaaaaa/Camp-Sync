@@ -83,8 +83,10 @@ The app uses **Expo Router** with file-based routing. The route structure reflec
 - Real Apple Core NFC integration via `react-native-nfc-manager` in `lib/nfc.native.ts` (Metro auto-selects `.native.ts` for native, `.ts` for web)
 - Web stub at `lib/nfc.ts` reports NFC as unsupported (no native module imports)
 - NFC tags store `CAMPSYNC:` prefix + XOR+Base64 encrypted `WristbandPayload` as NDEF text records
-- `NFCScanner` component (`components/NFCScanner.tsx`) handles read and write modes with native iOS NFC overlay, pulse animation, and success/error states
+- `NFCScanner` component (`components/NFCScanner.tsx`) handles read, write, and erase modes with native iOS NFC overlay, pulse animation, and success/error states
 - Wristband programming in camper detail uses real NFCScanner in write mode
+- Checkout flow: scan wristband (read) → confirm camper → erase wristband (erase mode) → check out in DB → unlink wristband
+- Management NFC home screen has three options: Program, Scan, and Check Out
 - The management portal tracks "pending wristband updates" when camper data changes after wristband programming
 - NFC permissions configured in `app.json`: iOS NFCReaderUsageDescription + NDEF entitlements, Android NFC permission
 
