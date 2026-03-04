@@ -111,7 +111,7 @@ Every API request is authenticated and the caller's role is verified before any 
 | Role | What they can access |
 |---|---|
 | **Management** | Full access — campers, medical records, sessions, check-ins, users, and auth codes |
-| **Staff** | Can read camper profiles (including medical data from NFC wristbands offline) and check campers in and out; cannot manage users, auth codes, or program new wristbands |
+| **Staff** | Can read camper profiles and full medical records (including via NFC wristband offline scan); can check campers in and out by list or wristband; cannot manage users, invite codes, or program new wristbands |
 | **Parent** | Can only see the specific camper(s) linked to their account — enforced server-side by filtering on `linked_camper_ids`; can update their child's medical information |
 
 Role is not trusted from the client. It is read from the database on every request after the session token is validated.
