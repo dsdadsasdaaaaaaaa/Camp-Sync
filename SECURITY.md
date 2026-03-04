@@ -89,6 +89,19 @@ After a successful login, the server issues a session token that the app present
 | **Client storage (iOS / Android)** | Expo SecureStore — backed by the device's hardware-protected keychain (iOS Keychain / Android Keystore) |
 | **Client storage (web)** | Browser `localStorage` |
 
+### Admin One-Time Reset Codes
+
+Management users can generate a short-lived recovery code for any account without knowing the user's current password.
+
+| Property | Detail |
+|---|---|
+| **Format** | 8 alphanumeric characters |
+| **Expiry** | 60 minutes from generation |
+| **Usage** | Single-use — consumed immediately on first use |
+| **Purpose** | Allows a manager to hand a code to a user verbally or on paper so they can set a new password themselves |
+| **Server storage** | Held in-memory (lost on server restart); not persisted to the database |
+| **Endpoint** | `POST /api/auth/use-reset-code` — accepts the code and a new password; validates expiry and single-use constraint before applying the change |
+
 ---
 
 ## 5. Role-Based Access Control
@@ -98,7 +111,7 @@ Every API request is authenticated and the caller's role is verified before any 
 | Role | What they can access |
 |---|---|
 | **Management** | Full access — campers, medical records, sessions, check-ins, users, and auth codes |
-| **Staff** | Can read camper names and cabin groups; can check campers in and out; cannot view full medical details, manage users, or manage auth codes |
+| **Staff** | Can read camper profiles (including medical data from NFC wristbands offline) and check campers in and out; cannot manage users, auth codes, or program new wristbands |
 | **Parent** | Can only see the specific camper(s) linked to their account — enforced server-side by filtering on `linked_camper_ids`; can update their child's medical information |
 
 Role is not trusted from the client. It is read from the database on every request after the session token is validated.
