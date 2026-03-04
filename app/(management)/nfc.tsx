@@ -182,8 +182,8 @@ export default function NFCScreen() {
       ]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.headerTitle}>NFC Wristband</Text>
-      <Text style={styles.headerSub}>Program, scan, or check out wristbands</Text>
+      <Text style={styles.headerTitle}>Check In / Out</Text>
+      <Text style={styles.headerSub}>Scan or check out camper wristbands</Text>
 
       {screen === "home" && (
         <>
@@ -198,42 +198,39 @@ export default function NFCScreen() {
               <View style={[styles.modeIcon, { backgroundColor: Colors.primary + "15" }]}>
                 <Ionicons name="create" size={28} color={Colors.primary} />
               </View>
-              <Text style={styles.modeTitle}>Program</Text>
-              <Text style={styles.modeSub}>Write camper data to wristband</Text>
+              <Text style={styles.modeTitle}>Check In</Text>
+              <Text style={styles.modeSub}>Program & check in camper</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [
                 styles.modeCard,
-                { opacity: pressed ? 0.85 : 1, borderColor: Colors.accent + "40" },
+                { opacity: pressed ? 0.85 : 1, borderColor: Colors.danger + "40" },
               ]}
-              onPress={handleStartRead}
+              onPress={handleStartCheckoutScan}
             >
-              <View style={[styles.modeIcon, { backgroundColor: Colors.accent + "15" }]}>
-                <Ionicons name="radio" size={28} color={Colors.accent} />
+              <View style={[styles.modeIcon, { backgroundColor: Colors.danger + "15" }]}>
+                <Ionicons name="log-out" size={28} color={Colors.danger} />
               </View>
-              <Text style={styles.modeTitle}>Scan</Text>
-              <Text style={styles.modeSub}>Read wristband data offline</Text>
+              <Text style={styles.modeTitle}>Check Out</Text>
+              <Text style={styles.modeSub}>Scan to check out & erase</Text>
             </Pressable>
           </View>
 
           <Pressable
             style={({ pressed }) => [
-              styles.checkoutCard,
+              styles.scanOnlyCard,
               { opacity: pressed ? 0.85 : 1 },
             ]}
-            onPress={handleStartCheckoutScan}
+            onPress={handleStartRead}
           >
             <View style={styles.checkoutCardLeft}>
-              <View style={[styles.modeIcon, { backgroundColor: Colors.danger + "15" }]}>
-                <Ionicons name="log-out" size={28} color={Colors.danger} />
+              <View style={[styles.modeIcon, { backgroundColor: Colors.accent + "15" }]}>
+                <Ionicons name="radio" size={28} color={Colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.checkoutCardTitle}>Check Out</Text>
-                <Text style={styles.checkoutCardSub}>Scan wristband to check out camper and erase tag</Text>
+                <Text style={styles.checkoutCardTitle}>Scan Only</Text>
+                <Text style={styles.checkoutCardSub}>Read wristband data offline without changes</Text>
               </View>
-            </View>
-            <View style={styles.checkoutBadge}>
-              <Text style={styles.checkoutBadgeText}>{checkedInCount} checked in</Text>
             </View>
           </Pressable>
 
@@ -272,7 +269,7 @@ export default function NFCScreen() {
 
       {screen === "selectCamper" && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Select Camper</Text>
+          <Text style={styles.cardTitle}>Check In Camper</Text>
           <Text style={styles.cardSub}>
             Their encrypted data will be written directly onto the NFC wristband
           </Text>
@@ -338,7 +335,7 @@ export default function NFCScreen() {
               disabled={!selectedCamper}
             >
               <Ionicons name="radio" size={18} color="#fff" />
-              <Text style={styles.primaryBtnText}>Program Wristband</Text>
+              <Text style={styles.primaryBtnText}>Check In Camper</Text>
             </Pressable>
           </View>
         </View>
@@ -620,6 +617,19 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     textAlign: "center",
+  },
+  scanOnlyCard: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: Colors.accent + "30",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    gap: 10,
   },
   checkoutCard: {
     backgroundColor: Colors.light.surface,

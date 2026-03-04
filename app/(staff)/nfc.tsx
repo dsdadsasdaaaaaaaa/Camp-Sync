@@ -15,24 +15,44 @@ import NFCScanner from "@/components/NFCScanner";
 import { useData } from "@/contexts/DataContext";
 import type { WristbandPayload } from "@/types";
 
+type Screen = "home" | "readResult" | "checkoutResult";
+
 export default function StaffNFCScreen() {
   const insets = useSafeAreaInsets();
   const { campers, checkIns, checkOutCamper, updateCamper } = useData();
+  const [screen, setScreen] = useState<Screen>("home");
   const [scannerVisible, setScannerVisible] = useState(false);
+  const [checkoutScanVisible, setCheckoutScanVisible] = useState(false);
   const [eraseScanVisible, setEraseScanVisible] = useState(false);
   const [result, setResult] = useState<WristbandPayload | null>(null);
+
+  const checkedInCount = campers.filter((c) => {
+    return checkIns.some(ci => ci.camperId === c.id && !ci.checkedOutAt);
+  }).length;
 
   const handleStartScan = () => {
     setResult(null);
     setScannerVisible(true);
   };
 
+  const handleStartCheckoutScan = () => {
+    setResult(null);
+    setCheckoutScanVisible(true);
+  };
+
   const handlePayloadRead = (payload: WristbandPayload) => {
     setScannerVisible(false);
     setResult(payload);
+    setScreen("readResult");
   };
 
-  const handleCheckOut = async () => {
+  const handleCheckoutPayloadRead = (payload: WristbandPayload) => {
+    setCheckoutScanVisible(false);
+    setResult(payload);
+    setScreen("checkoutResult");
+  };
+
+  const handleCheckOutFromRead = async () => {
     if (!result) return;
     const camper = campers.find(c => c.id === result.camperId);
     if (!camper) {
@@ -66,10 +86,22 @@ export default function StaffNFCScreen() {
         wristbandLastProgrammed: null as any,
       });
       Alert.alert("Checked Out", `${camper.firstName} has been checked out and their wristband has been erased.`);
-      setResult(null);
+      resetAll();
     } catch (err: any) {
       Alert.alert("Error", err.message || "Failed to complete check-out.");
     }
+  };
+
+  const resetAll = () => {
+    setScreen("home");
+    setResult(null);
+    setScannerVisible(false);
+    setCheckoutScanVisible(false);
+    setEraseScanVisible(false);
+  };
+
+  const getCamperCheckInStatus = (camperId: string) => {
+    return checkIns.some(ci => ci.camperId === camperId && !ci.checkedOutAt);
   };
 
   return (
@@ -83,43 +115,60 @@ export default function StaffNFCScreen() {
         },
       ]}
     >
-      <Text style={styles.title}>Scan Wristband</Text>
+      <Text style={styles.title}>Wristband Management</Text>
       <Text style={styles.subtitle}>
-        Tap a camper's NFC wristband to view their medical info instantly
+        Scan wristbands to view medical info or check out campers
       </Text>
 
-      <View style={styles.infoCard}>
-        <Ionicons name="cloud-offline" size={18} color={Colors.primary} />
-        <Text style={styles.infoText}>
-          Works offline — all data is stored encrypted on the wristband tag itself.
-        </Text>
-      </View>
+      {screen === "home" && (
+        <>
+          <View style={styles.modeGrid}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.modeCard,
+                { opacity: pressed ? 0.85 : 1, borderColor: Colors.accent + "40" },
+              ]}
+              onPress={handleStartScan}
+            >
+              <View style={[styles.modeIcon, { backgroundColor: Colors.accent + "15" }]}>
+                <Ionicons name="radio" size={28} color={Colors.accent} />
+              </View>
+              <Text style={styles.modeTitle}>Scan</Text>
+              <Text style={styles.modeSub}>Read wristband data offline</Text>
+            </Pressable>
 
-      {!result ? (
-        <View style={styles.scanPrompt}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.scanButton,
-              { transform: [{ scale: pressed ? 0.95 : 1 }] },
-            ]}
-            onPress={handleStartScan}
-          >
-            <View style={styles.scanButtonInner}>
-              <Ionicons name="radio" size={52} color={Colors.accent} />
-            </View>
-          </Pressable>
-          <Text style={styles.scanTitle}>Tap to Scan</Text>
-          <Text style={styles.scanSub}>
-            Hold a CampSync wristband near your iPhone to read the encrypted camper data
-          </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.modeCard,
+                { opacity: pressed ? 0.85 : 1, borderColor: Colors.danger + "40" },
+              ]}
+              onPress={handleStartCheckoutScan}
+            >
+              <View style={[styles.modeIcon, { backgroundColor: Colors.danger + "15" }]}>
+                <Ionicons name="log-out" size={28} color={Colors.danger} />
+              </View>
+              <Text style={styles.modeTitle}>Check Out</Text>
+              <Text style={styles.modeSub}>Scan to check out & erase</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.infoCard}>
+            <Ionicons name="cloud-offline" size={18} color={Colors.primary} />
+            <Text style={styles.infoText}>
+              All camper data is encrypted on the tag. {checkedInCount} campers currently checked in.
+            </Text>
+          </View>
+
           <View style={styles.instructionCard}>
             <Ionicons name="information-circle-outline" size={16} color={Colors.light.textSecondary} />
             <Text style={styles.instructionText}>
-              Staff can read and check out wristbands. Contact management to program new wristbands.
+              Staff can read and check out wristbands during designated times. Contact management to program new wristbands.
             </Text>
           </View>
-        </View>
-      ) : (
+        </>
+      )}
+
+      {screen === "readResult" && result && (
         <View style={styles.card}>
           <View style={styles.successHeader}>
             <View style={styles.successIcon}>
@@ -219,7 +268,7 @@ export default function StaffNFCScreen() {
                 styles.checkOutBtn,
                 { opacity: pressed ? 0.85 : 1 },
               ]}
-              onPress={handleCheckOut}
+              onPress={handleCheckOutFromRead}
             >
               <Ionicons name="log-out" size={18} color="#fff" />
               <Text style={styles.checkOutText}>Check Out Camper</Text>
@@ -235,6 +284,63 @@ export default function StaffNFCScreen() {
               <Ionicons name="radio" size={18} color={Colors.light.textSecondary} />
               <Text style={[styles.scanAgainText, { color: Colors.light.textSecondary }]}>Scan Another Wristband</Text>
             </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
+              onPress={resetAll}
+            >
+              <Text style={styles.cancelBtnText}>Done</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {screen === "checkoutResult" && result && (
+        <View style={styles.card}>
+          <View style={styles.successHeader}>
+            <View style={[styles.successIcon, { backgroundColor: Colors.danger + "15" }]}>
+              <Ionicons name="log-out" size={32} color={Colors.danger} />
+            </View>
+            <Text style={[styles.successTitle, { color: Colors.danger }]}>Check Out</Text>
+            <Text style={styles.offlineLabel}>Confirm checkout and erase wristband</Text>
+          </View>
+
+          <View style={styles.camperBanner}>
+            <Text style={styles.camperBannerName}>
+              {result.firstName} {result.lastName}
+            </Text>
+            <Text style={styles.camperBannerDob}>DOB: {result.dateOfBirth || "—"}</Text>
+          </View>
+
+          <View style={styles.instructionCard}>
+            <Ionicons name="information-circle" size={18} color={Colors.light.textSecondary} />
+            <Text style={styles.instructionText}>
+              This will check out the camper and erase their wristband data.
+            </Text>
+          </View>
+
+          <View style={{ gap: 10 }}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.checkOutBtn,
+                !getCamperCheckInStatus(result.camperId) && styles.disabledBtn,
+                { opacity: pressed ? 0.85 : 1 },
+              ]}
+              onPress={handleCheckOutFromRead}
+              disabled={!getCamperCheckInStatus(result.camperId)}
+            >
+              <Ionicons name="log-out" size={18} color="#fff" />
+              <Text style={styles.checkOutText}>
+                {getCamperCheckInStatus(result.camperId) ? "Erase & Check Out" : "Not Checked In"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
+              onPress={resetAll}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </Pressable>
           </View>
         </View>
       )}
@@ -249,6 +355,19 @@ export default function StaffNFCScreen() {
             Alert.alert("Scan Error", msg);
           }}
           onCancel={() => setScannerVisible(false)}
+        />
+      )}
+
+      {checkoutScanVisible && (
+        <NFCScanner
+          visible={checkoutScanVisible}
+          mode="read"
+          onPayloadRead={handleCheckoutPayloadRead}
+          onError={(msg) => {
+            setCheckoutScanVisible(false);
+            Alert.alert("Scan Error", msg);
+          }}
+          onCancel={() => setCheckoutScanVisible(false)}
         />
       )}
 
@@ -285,6 +404,43 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     marginTop: -8,
   },
+  modeGrid: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modeCard: {
+    flex: 1,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1.5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  modeIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modeTitle: {
+    fontSize: 16,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.light.text,
+    textAlign: "center",
+  },
+  modeSub: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.textSecondary,
+    textAlign: "center",
+  },
   infoCard: {
     flexDirection: "row",
     gap: 10,
@@ -300,44 +456,6 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
     lineHeight: 18,
-  },
-  scanPrompt: {
-    alignItems: "center",
-    paddingVertical: 24,
-    gap: 16,
-  },
-  scanButton: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: Colors.accent + "10",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: Colors.accent + "30",
-  },
-  scanButtonInner: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: Colors.accent + "15",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: Colors.accent + "40",
-  },
-  scanTitle: {
-    fontSize: 22,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-  },
-  scanSub: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    textAlign: "center",
-    lineHeight: 20,
-    paddingHorizontal: 20,
   },
   instructionCard: {
     flexDirection: "row",
@@ -490,5 +608,24 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
+  },
+  cancelBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.light.surfaceSecondary,
+    borderRadius: 14,
+    height: 52,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  cancelBtnText: {
+    fontSize: 16,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.textSecondary,
+  },
+  disabledBtn: {
+    backgroundColor: Colors.light.textMuted,
   },
 });
