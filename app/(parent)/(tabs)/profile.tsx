@@ -1,22 +1,32 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Pressable,
+  TextInput,
   Platform,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiRequest } from "@/lib/query-client";
 import Colors from "@/constants/colors";
 
 export default function ParentProfileScreen() {
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
 
   const handleLogout = async () => {
     if (Platform.OS === "web") {
@@ -31,6 +41,38 @@ export default function ParentProfileScreen() {
         router.replace("/(auth)/login");
       }},
     ]);
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert("Missing Fields", "Please fill in all password fields.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      Alert.alert("Too Short", "New password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert("Mismatch", "New passwords do not match.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await apiRequest("POST", "/api/auth/change-password", {
+        currentPassword,
+        newPassword,
+      });
+      Alert.alert("Password Changed", "Your password has been updated successfully.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowPasswordSection(false);
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to change password.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -96,6 +138,99 @@ export default function ParentProfileScreen() {
       </View>
 
       <Pressable
+        style={({ pressed }) => [styles.changePasswordToggle, { opacity: pressed ? 0.85 : 1 }]}
+        onPress={() => setShowPasswordSection((v) => !v)}
+      >
+        <View style={styles.changePasswordLeft}>
+          <Ionicons name="key-outline" size={18} color={Colors.primary} />
+          <Text style={styles.changePasswordText}>Change Password</Text>
+        </View>
+        <Ionicons
+          name={showPasswordSection ? "chevron-up" : "chevron-down"}
+          size={18}
+          color={Colors.light.textSecondary}
+        />
+      </Pressable>
+
+      {showPasswordSection && (
+        <View style={styles.passwordCard}>
+          <View style={styles.passwordField}>
+            <Text style={styles.fieldLabel}>Current Password</Text>
+            <View style={styles.passwordInputRow}>
+              <TextInput
+                style={styles.passwordInput}
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                placeholder="Enter current password"
+                placeholderTextColor={Colors.light.textMuted}
+                secureTextEntry={!showCurrent}
+                autoCapitalize="none"
+              />
+              <Pressable onPress={() => setShowCurrent((v) => !v)}>
+                <Ionicons
+                  name={showCurrent ? "eye-off-outline" : "eye-outline"}
+                  size={18}
+                  color={Colors.light.textMuted}
+                />
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.passwordField}>
+            <Text style={styles.fieldLabel}>New Password</Text>
+            <View style={styles.passwordInputRow}>
+              <TextInput
+                style={styles.passwordInput}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="At least 8 characters"
+                placeholderTextColor={Colors.light.textMuted}
+                secureTextEntry={!showNew}
+                autoCapitalize="none"
+              />
+              <Pressable onPress={() => setShowNew((v) => !v)}>
+                <Ionicons
+                  name={showNew ? "eye-off-outline" : "eye-outline"}
+                  size={18}
+                  color={Colors.light.textMuted}
+                />
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.passwordField}>
+            <Text style={styles.fieldLabel}>Confirm New Password</Text>
+            <View style={styles.passwordInputRow}>
+              <TextInput
+                style={styles.passwordInput}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Repeat new password"
+                placeholderTextColor={Colors.light.textMuted}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.savePasswordBtn, { opacity: pressed ? 0.85 : 1 }]}
+            onPress={handleChangePassword}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="checkmark" size={18} color="#fff" />
+                <Text style={styles.savePasswordText}>Update Password</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
+      )}
+
+      <Pressable
         style={({ pressed }) => [
           styles.logoutButton,
           { opacity: pressed ? 0.85 : 1 },
@@ -112,7 +247,7 @@ export default function ParentProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    gap: 20,
+    gap: 16,
   },
   title: {
     fontSize: 28,
@@ -220,6 +355,76 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.text,
+  },
+  changePasswordToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: Colors.light.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  changePasswordLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  changePasswordText: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+  },
+  passwordCard: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary + "30",
+    gap: 14,
+  },
+  passwordField: {
+    gap: 6,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  passwordInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.light.surfaceSecondary,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 46,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    gap: 8,
+  },
+  passwordInput: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: "Outfit_400Regular",
+    color: Colors.light.text,
+  },
+  savePasswordBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    height: 50,
+    marginTop: 4,
+  },
+  savePasswordText: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+    color: "#fff",
   },
   logoutButton: {
     flexDirection: "row",

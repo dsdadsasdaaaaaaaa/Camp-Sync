@@ -110,7 +110,7 @@ Every API request is authenticated and the caller's role is verified before any 
 
 | Role | What they can access |
 |---|---|
-| **Management** | Full access — campers, medical records, sessions, check-ins, users, and auth codes |
+| **Management** | Full access — campers, medical records, sessions, check-ins, users, auth codes, and AI assistant |
 | **Staff** | Can read camper profiles and full medical records (including via NFC wristband offline scan); can check campers in and out by list or wristband; cannot manage users, invite codes, or program new wristbands |
 | **Parent** | Can only see the specific camper(s) linked to their account — enforced server-side by filtering on `linked_camper_ids`; can update their child's medical information |
 
@@ -142,7 +142,30 @@ The secret is stored as a server environment variable managed by Replit's secret
 
 ---
 
-## 8. Data Isolation
+## 8. AI Assistant Security
+
+The AI assistant (`POST /api/ai/query`) is available to management-role users only and is designed so that sensitive data never leaves the server.
+
+- The client sends only a natural-language question (plain text).
+- The server fetches all camper and medical records, decrypts them in memory, and constructs a context payload that is sent directly to the AI model server-side.
+- The client receives only a plain-text answer — no raw medical records, no encrypted blobs.
+- A role check (`management` only) is enforced before any data is fetched or any AI call is made; a `403` is returned immediately for all other roles.
+- Medical data used in the AI context is held in server memory only for the duration of the request and is not logged or persisted.
+
+---
+
+## 9. Change Password
+
+All users (management, staff, and parent) can change their own password from the account screen.
+
+- The current password is verified with `timingSafeEqual()` before the new password is accepted.
+- The new password is hashed with scrypt (see Section 3) before being stored.
+- A minimum length of 8 characters is enforced server-side regardless of client-side validation.
+- Endpoint: `POST /api/auth/change-password` — requires a valid session token.
+
+---
+
+## 10. Data Isolation
 
 - All database tables are namespaced with a `cs_` prefix.
 - Parent users receive only their linked camper's data — filtering is applied server-side before any response is sent; the client cannot bypass it.
@@ -158,7 +181,9 @@ The secret is stored as a server environment variable managed by Replit's secret
 | Medical records at rest | AES-256-GCM encryption, unique IV per record, integrity-verified with auth tag |
 | NFC wristband data | XOR + Base64 obfuscation, emergency fields only, primary contact only, hard size limits |
 | Passwords | scrypt with random salt, timing-safe comparison |
+| Password changes | Current password verified with timing-safe comparison before accepting new password |
 | Session tokens | 32-byte random, 7-day TTL, server-side invalidation on logout |
 | API access | Bearer token + role check on every request |
 | New account creation | Invite codes only, role-specific, audit-logged |
 | Parent data access | Server-enforced filtering to linked campers only |
+| AI assistant | Management-only; all data processed server-side; client receives text only |

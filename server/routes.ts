@@ -11,6 +11,7 @@ import {
   csPendingUpdates,
 } from "@shared/schema";
 import { eq, and, gt, isNull } from "drizzle-orm";
+import OpenAI from "openai";
 import {
   randomBytes,
   scrypt,
@@ -1069,6 +1070,185 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error("Resolve pending update error:", err);
       return res.status(500).json({ message: "Failed to resolve update" });
+    }
+  });
+
+  // ─── AI Assistant (management only) ──────────────────────────────────────────
+
+  const openai = new OpenAI({
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  });
+
+  app.post("/api/ai/query", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") {
+        return res.status(403).json({ message: "AI assistant is only available to management" });
+      }
+
+      const { question } = req.body;
+      if (!question || typeof question !== "string" || question.trim().length === 0) {
+        return res.status(400).json({ message: "question is required" });
+      }
+
+      // Fetch full data server-side — AI gets everything; client never sends medical data
+      const [camperRows, checkInRows, sessionRows] = await Promise.all([
+        db.select().from(csCampers),
+        db.select().from(csCheckIns),
+        db.select().from(csCampSessions),
+      ]);
+
+      // Decrypt all camper medical records for AI context
+      const campersForAI = camperRows.map((row) => {
+        const medical =
+          row.medicalEncrypted && row.medicalIv && row.medicalAuthTag
+            ? decryptMedical(row.medicalEncrypted, row.medicalIv, row.medicalAuthTag)
+            : {};
+        return {
+          id: row.id,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          dateOfBirth: row.dateOfBirth,
+          cabinGroup: row.cabinGroup,
+          wristbandId: row.wristbandId ?? null,
+          medical,
+        };
+      });
+
+      const today = new Date().toISOString().split("T")[0];
+
+      const checkedInNow = checkInRows
+        .filter((ci) => !ci.checkedOutAt)
+        .map((ci) => {
+          const camper = campersForAI.find((c) => c.id === ci.camperId);
+          return camper ? `${camper.firstName} ${camper.lastName} (cabin: ${camper.cabinGroup || "unassigned"})` : ci.camperId;
+        });
+
+      const todaySessions = sessionRows
+        .filter((s) => {
+          const dates: string[] = JSON.parse(s.authorizedDates || "[]");
+          return s.isActive && dates.includes(today);
+        })
+        .map((s) => s.name);
+
+      const systemPrompt = `You are CampSync AI, a secure assistant for camp management staff. You have full access to all camper data.
+
+TODAY: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+
+ACTIVE SESSIONS TODAY: ${todaySessions.length > 0 ? todaySessions.join(", ") : "None scheduled"}
+
+CURRENTLY CHECKED IN (${checkedInNow.length} campers):
+${checkedInNow.length > 0 ? checkedInNow.join("\n") : "No campers currently checked in"}
+
+ALL CAMPERS (${campersForAI.length} total):
+${campersForAI.map((c) => {
+  const med = c.medical as any;
+  const parts = [
+    `Name: ${c.firstName} ${c.lastName}`,
+    `DOB: ${c.dateOfBirth}`,
+    `Cabin: ${c.cabinGroup || "unassigned"}`,
+    `Wristband: ${c.wristbandId ? "programmed" : "none"}`,
+  ];
+  if (med.allergies && med.allergies.toLowerCase() !== "none") parts.push(`Allergies: ${med.allergies}`);
+  if (med.medications && med.medications.toLowerCase() !== "none") parts.push(`Medications: ${med.medications}`);
+  if (med.conditions && med.conditions.toLowerCase() !== "none") parts.push(`Conditions: ${med.conditions}`);
+  if (med.bloodType && med.bloodType !== "Unknown") parts.push(`Blood type: ${med.bloodType}`);
+  if (med.emergencyContacts && med.emergencyContacts.length > 0) {
+    const ec = med.emergencyContacts[0];
+    if (ec.name) parts.push(`Emergency contact: ${ec.name} (${ec.phone || "no phone"})`);
+  }
+  if (med.doctorName) parts.push(`Doctor: ${med.doctorName} ${med.doctorPhone ? `(${med.doctorPhone})` : ""}`);
+  if (med.insuranceProvider) parts.push(`Insurance: ${med.insuranceProvider}`);
+  if (med.notes && med.notes.toLowerCase() !== "none") parts.push(`Notes: ${med.notes}`);
+  return parts.join(" | ");
+}).join("\n")}
+
+CHECK-IN HISTORY (last 30 days):
+${checkInRows
+  .filter((ci) => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return new Date(ci.checkedInAt) >= thirtyDaysAgo;
+  })
+  .map((ci) => {
+    const camper = campersForAI.find((c) => c.id === ci.camperId);
+    const name = camper ? `${camper.firstName} ${camper.lastName}` : "Unknown";
+    const checkIn = new Date(ci.checkedInAt).toLocaleString();
+    const checkOut = ci.checkedOutAt ? new Date(ci.checkedOutAt).toLocaleString() : "still checked in";
+    return `${name}: in ${checkIn}, out ${checkOut}`;
+  })
+  .join("\n") || "No check-in history in the last 30 days"}
+
+RULES:
+- You have access to real sensitive medical and personal data. Handle all responses with care.
+- Never suggest sharing this data with unauthorized parties.
+- Be concise, helpful, and accurate. Use bullet points for lists.
+- If asked about something outside camp management, politely redirect to camp-related topics.`;
+
+      // Stream the response
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      const stream = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question.trim() },
+        ],
+        stream: true,
+        max_completion_tokens: 1024,
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || "";
+        if (content) {
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      }
+
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } catch (err) {
+      console.error("AI query error:", err);
+      if (res.headersSent) {
+        res.write(`data: ${JSON.stringify({ error: "AI query failed" })}\n\n`);
+        res.end();
+      } else {
+        return res.status(500).json({ message: "AI query failed" });
+      }
+    }
+  });
+
+  // ─── Change Password ──────────────────────────────────────────────────────────
+
+  app.post("/api/auth/change-password", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth) return res.status(401).json({ message: "Unauthorized" });
+
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "currentPassword and newPassword are required" });
+      }
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "New password must be at least 8 characters" });
+      }
+
+      const [user] = await db.select().from(csUsers).where(eq(csUsers.id, auth.userId));
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const valid = await verifyPassword(currentPassword, user.passwordHash);
+      if (!valid) return res.status(400).json({ message: "Current password is incorrect" });
+
+      const newHash = await hashPassword(newPassword);
+      await db.update(csUsers).set({ passwordHash: newHash }).where(eq(csUsers.id, auth.userId));
+
+      return res.json({ message: "Password changed successfully" });
+    } catch (err) {
+      console.error("Change password error:", err);
+      return res.status(500).json({ message: "Failed to change password" });
     }
   });
 
