@@ -11,12 +11,9 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Constants, { ExecutionEnvironment } from "expo-constants";
 import Colors from "@/constants/colors";
 import { readNFCTag, writeNFCTag, eraseNFCTag, isNFCSupported } from "@/lib/nfc";
 import type { WristbandPayload, Camper } from "@/types";
-
-const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 interface NFCScannerReadProps {
   visible: boolean;
@@ -121,6 +118,26 @@ export default function NFCScanner(props: NFCScannerProps) {
   const { visible, mode, onCancel } = props;
   const [status, setStatus] = useState<"scanning" | "success" | "error" | "unsupported">("scanning");
   const [errorMsg, setErrorMsg] = useState("");
+  const [scanAttempt, setScanAttempt] = useState(0);
+
+  const retry = () => {
+    setStatus("scanning");
+    setErrorMsg("");
+    setScanAttempt((n) => n + 1);
+  };
+
+  // Extract a human-readable message from any thrown value
+  const extractError = (err: any): string => {
+    if (!err) return "NFC operation failed.";
+    if (typeof err === "string") return err || "NFC operation failed.";
+    if (err.message) return err.message;
+    // Some native errors serialize differently
+    try {
+      const str = JSON.stringify(err);
+      if (str && str !== "{}") return str;
+    } catch {}
+    return String(err) || "NFC operation failed.";
+  };
 
   useEffect(() => {
     if (!visible) {
@@ -140,6 +157,7 @@ export default function NFCScanner(props: NFCScannerProps) {
       setStatus("scanning");
       try {
         const supported = await isNFCSupported();
+        if (cancelled) return;
         if (!supported) {
           setStatus("unsupported");
           return;
@@ -181,8 +199,14 @@ export default function NFCScanner(props: NFCScannerProps) {
         }
       } catch (err: any) {
         if (cancelled) return;
-        const msg = err?.message || "NFC operation failed.";
-        if (msg.includes("cancelled") || msg.includes("cancel") || msg.includes("UserCancel")) {
+        const msg = extractError(err);
+        if (
+          msg.includes("UserCancel") ||
+          msg.includes("cancelled") ||
+          msg.includes("cancel") ||
+          msg.includes("invalidated") ||
+          msg.includes("session") && msg.includes("ended")
+        ) {
           onCancel();
           return;
         }
@@ -196,7 +220,7 @@ export default function NFCScanner(props: NFCScannerProps) {
     doScan();
 
     return () => { cancelled = true; };
-  }, [visible]);
+  }, [visible, scanAttempt]);
 
   const getSubtitle = () => {
     if (mode === "write") {
@@ -302,10 +326,7 @@ export default function NFCScanner(props: NFCScannerProps) {
               <Text style={scanStyles.subtitle}>{errorMsg}</Text>
               <Pressable
                 style={({ pressed }) => [scanStyles.retryBtn, { opacity: pressed ? 0.85 : 1 }]}
-                onPress={() => {
-                  setStatus("scanning");
-                  setErrorMsg("");
-                }}
+                onPress={retry}
               >
                 <Ionicons name="refresh" size={18} color="#fff" />
                 <Text style={scanStyles.retryBtnText}>Try Again</Text>
