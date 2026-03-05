@@ -301,6 +301,7 @@ export default function StaffCheckInScreen() {
     getTodaySessions,
     checkInCamper,
     checkOutCamper,
+    updateCamper,
     getActiveCheckIn,
     isLoading,
     refresh,
@@ -309,6 +310,10 @@ export default function StaffCheckInScreen() {
   const [search, setSearch] = useState("");
   const [nfcScanVisible, setNfcScanVisible] = useState(false);
   const [emergencyLookupVisible, setEmergencyLookupVisible] = useState(false);
+
+  // Wristband-erase checkout state
+  const [eraseTarget, setEraseTarget] = useState<{ camper: Camper; checkInId: string } | null>(null);
+  const [eraseVisible, setEraseVisible] = useState(false);
 
   const todaySessions = getTodaySessions();
   const activeSession = todaySessions[0];
@@ -363,24 +368,65 @@ export default function StaffCheckInScreen() {
   };
 
   const handleCheckOut = async (camper: Camper, checkInId: string) => {
-    Alert.alert(
-      "Confirm Check-out",
-      `Check out ${camper.firstName} ${camper.lastName}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Check Out",
-          onPress: async () => {
-            try {
-              await checkOutCamper(checkInId);
-              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } catch (err: any) {
-              Alert.alert("Error", err.message);
-            }
+    if (camper.wristbandId) {
+      // Camper has a wristband — require NFC erase first
+      Alert.alert(
+        "Check Out",
+        `Check out ${camper.firstName} ${camper.lastName}? You'll need to scan their wristband to erase it.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Continue",
+            onPress: () => {
+              setEraseTarget({ camper, checkInId });
+              setEraseVisible(true);
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    } else {
+      // No wristband — direct checkout
+      Alert.alert(
+        "Confirm Check-out",
+        `Check out ${camper.firstName} ${camper.lastName}?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Check Out",
+            onPress: async () => {
+              try {
+                await checkOutCamper(checkInId);
+                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              } catch (err: any) {
+                Alert.alert("Error", err.message);
+              }
+            },
+          },
+        ]
+      );
+    }
+  };
+
+  const handleEraseSuccess = async () => {
+    setEraseVisible(false);
+    if (!eraseTarget) return;
+    const { camper, checkInId } = eraseTarget;
+    try {
+      await checkOutCamper(checkInId);
+      await updateCamper(camper.id, {
+        wristbandId: null as any,
+        wristbandEncryptedData: null as any,
+        wristbandLastProgrammed: null as any,
+      });
+      setEraseTarget(null);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "Checked Out",
+        `${camper.firstName} ${camper.lastName} has been checked out and their wristband has been erased. Their parent has been notified.`
+      );
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to complete check-out.");
+    }
   };
 
   const handleNfcPayload = (payload: WristbandPayload) => {
@@ -521,6 +567,23 @@ export default function StaffCheckInScreen() {
             Alert.alert("NFC Error", msg);
           }}
           onCancel={() => setNfcScanVisible(false)}
+        />
+      )}
+
+      {eraseVisible && eraseTarget && (
+        <NFCScanner
+          visible={eraseVisible}
+          mode="erase"
+          camperName={eraseTarget.camper.firstName}
+          onEraseSuccess={handleEraseSuccess}
+          onError={(msg) => {
+            setEraseVisible(false);
+            Alert.alert("Wristband Error", msg);
+          }}
+          onCancel={() => {
+            setEraseVisible(false);
+            setEraseTarget(null);
+          }}
         />
       )}
 
@@ -682,9 +745,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    height: 46,
-    borderRadius: 12,
+    gap: 6,
+    borderRadius: 10,
+    height: 44,
   },
   checkinButton: {
     backgroundColor: Colors.primary,
@@ -693,14 +756,27 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.danger,
   },
   actionButtonText: {
-    color: "#fff",
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
+    color: "#fff",
+  },
+  headerActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  emergencyButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.danger + "15",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Colors.danger + "30",
   },
   empty: {
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 80,
+    paddingTop: 60,
     gap: 12,
   },
   emptyTitle: {
@@ -714,19 +790,6 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     textAlign: "center",
   },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  emergencyButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.danger + "15",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   modalContainer: {
     flex: 1,
     backgroundColor: Colors.light.background,
@@ -735,30 +798,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
   modalTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontFamily: "Outfit_700Bold",
+    fontSize: 17,
+    fontFamily: "Outfit_600SemiBold",
     color: Colors.light.text,
-    textAlign: "center",
   },
   modalBackBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
   modalCloseBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.light.surfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -770,10 +828,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 46,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
     marginHorizontal: 20,
     marginVertical: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
   },
   modalSearchInput: {
     flex: 1,
@@ -785,33 +843,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: Colors.light.surface,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
   },
   emAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
   emAllergyBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: Colors.danger + "15",
     alignItems: "center",
     justifyContent: "center",
   },
   medSection: {
-    marginTop: 20,
+    marginBottom: 20,
   },
   medSectionHeader: {
     flexDirection: "row",
@@ -826,14 +878,11 @@ const styles = StyleSheet.create({
   },
   medCard: {
     backgroundColor: Colors.light.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 16,
-    gap: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
   },
   medRow: {
     flexDirection: "row",
@@ -850,23 +899,23 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   medLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: "Outfit_500Medium",
     color: Colors.light.textMuted,
-    marginBottom: 2,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   medValue: {
     fontSize: 15,
     fontFamily: "Outfit_500Medium",
     color: Colors.light.text,
-    lineHeight: 20,
+    marginTop: 2,
   },
   medNoData: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textMuted,
-    textAlign: "center",
-    paddingVertical: 8,
+    fontStyle: "italic",
   },
   medNotesText: {
     fontSize: 14,
