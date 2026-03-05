@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -169,6 +170,7 @@ export default function MoreScreen() {
   const { user, logout, adminResetPassword } = useAuth();
   const { sessions, authCodes, campers, checkIns, users, addSession, updateSession, deleteSession, createAuthCode, updateAuthCode, deleteAuthCode, updateUser, deleteUser, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
 
   const [activeTab, setActiveTab] = useState<Tab>("sessions");
 
@@ -458,7 +460,7 @@ export default function MoreScreen() {
             />
           )}
 
-          <View style={[styles.aiInputContainer, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 16), paddingHorizontal: 16 }]}>
+          <View style={[styles.aiInputContainer, { paddingBottom: (Platform.OS === "web" ? insets.bottom + 34 : tabBarHeight), paddingHorizontal: 16 }]}>
             <View style={styles.aiInputRow}>
               <TextInput
                 style={styles.aiInput}
