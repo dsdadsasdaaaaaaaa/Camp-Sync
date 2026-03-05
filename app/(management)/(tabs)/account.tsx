@@ -18,8 +18,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/query-client";
 import Colors from "@/constants/colors";
 
+import { useTheme } from "@/app/_layout";
+
 export default function StaffAccountScreen() {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme, useSystem, setUseSystem } = useTheme();
   const insets = useSafeAreaInsets();
   const isManagement = user?.role === "management";
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -117,6 +120,30 @@ export default function StaffAccountScreen() {
       </View>
 
       <View style={styles.infoCard}>
+        <View style={styles.infoRow}>
+          <Ionicons name="moon-outline" size={18} color={Colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.infoText}>Dark Mode</Text>
+            <Text style={styles.infoSubText}>Manually override system theme</Text>
+          </View>
+          <View style={styles.toggleRow}>
+            <Pressable
+              onPress={() => setUseSystem(!useSystem)}
+              style={[styles.miniToggle, useSystem && styles.miniToggleActive]}
+            >
+              <Text style={[styles.miniToggleText, useSystem && styles.miniToggleTextActive]}>System</Text>
+            </Pressable>
+            {!useSystem && (
+              <Pressable
+                onPress={() => toggleTheme(!isDark)}
+                style={[styles.miniToggle, isDark && styles.miniToggleActive]}
+              >
+                <Text style={[styles.miniToggleText, isDark && styles.miniToggleTextActive]}>Dark</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+        <View style={styles.divider} />
         <View style={styles.infoRow}>
           <Ionicons name="shield-checkmark-outline" size={18} color={Colors.primary} />
           <Text style={styles.infoText}>All check-in data is encrypted and synced securely</Text>
@@ -307,9 +334,37 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.text,
+  },
+  infoSubText: {
+    fontSize: 12,
     fontFamily: "Outfit_400Regular",
     color: Colors.light.textSecondary,
-    lineHeight: 20,
+  },
+  toggleRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  miniToggle: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.surfaceSecondary,
+  },
+  miniToggleActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  miniToggleText: {
+    fontSize: 12,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.light.textSecondary,
+  },
+  miniToggleTextActive: {
+    color: "#fff",
   },
   divider: {
     height: 1,

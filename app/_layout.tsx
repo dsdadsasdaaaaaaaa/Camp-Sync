@@ -1,8 +1,9 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
-import { View } from "react-native";
+import React, { useEffect, useState, createContext, useContext } from "react";
+import { View, useColorScheme } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -20,19 +21,67 @@ import {
 
 SplashScreen.preventAutoHideAsync();
 
+export const ThemeContext = createContext<{
+  isDark: boolean;
+  toggleTheme: (v: boolean) => void;
+  useSystem: boolean;
+  setUseSystem: (v: boolean) => void;
+}>({
+  isDark: false,
+  toggleTheme: () => {},
+  useSystem: true,
+  setUseSystem: () => {},
+});
+
+export const useTheme = () => useContext(ThemeContext);
+
 function RootLayoutNav() {
+  const systemScheme = useColorScheme();
+  const [isDark, setIsDark] = useState(systemScheme === "dark");
+  const [useSystem, setUseSystem] = useState(true);
+
+  useEffect(() => {
+    AsyncStorage.getItem("theme_settings").then((val) => {
+      if (val) {
+        const { isDark: savedDark, useSystem: savedSystem } = JSON.parse(val);
+        setUseSystem(savedSystem);
+        if (!savedSystem) setIsDark(savedDark);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (useSystem) {
+      setIsDark(systemScheme === "dark");
+    }
+  }, [systemScheme, useSystem]);
+
+  const handleToggleTheme = (dark: boolean) => {
+    setIsDark(dark);
+    setUseSystem(false);
+    AsyncStorage.setItem("theme_settings", JSON.stringify({ isDark: dark, useSystem: false }));
+  };
+
+  const handleSetUseSystem = (system: boolean) => {
+    setUseSystem(system);
+    if (system) setIsDark(systemScheme === "dark");
+    AsyncStorage.setItem("theme_settings", JSON.stringify({ isDark, useSystem: system }));
+  };
+
   return (
-    <View style={{ flex: 1 }}>
-      <OfflineBanner />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(offline)" />
-        <Stack.Screen name="(management)" />
-        <Stack.Screen name="(staff)" />
-        <Stack.Screen name="(parent)" />
-      </Stack>
-    </View>
+    <ThemeContext.Provider value={{ isDark, toggleTheme: handleToggleTheme, useSystem, setUseSystem: handleSetUseSystem }}>
+      <View style={{ flex: 1 }}>
+        <OfflineBanner />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(offline)" />
+          <Stack.Screen name="(management)" />
+          <Stack.Screen name="(staff)" />
+          <Stack.Screen name="(parent)" />
+        </Stack>
+      </View>
+    </ThemeContext.Provider>
   );
 }
 
