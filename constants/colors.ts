@@ -1,8 +1,8 @@
-const primary = "#2563EB";
-const accent = "#3B82F6";
-const danger = "#EF4444";
-const warning = "#F59E0B";
-const success = "#10B981";
+const primary = "#1A6B3A";
+const accent = "#4CAF7D";
+const danger = "#E53E3E";
+const warning = "#F6A623";
+const success = "#38A169";
 
 export default {
   primary,
@@ -11,29 +11,29 @@ export default {
   warning,
   success,
   light: {
-    text: "#1F2937",
-    textSecondary: "#4B5563",
-    textMuted: "#9CA3AF",
-    background: "#F9FAFB",
+    text: "#1A2E22",
+    textSecondary: "#5A7868",
+    textMuted: "#8FA89A",
+    background: "#F4F8F5",
     surface: "#FFFFFF",
-    surfaceSecondary: "#F3F4F6",
-    border: "#E5E7EB",
+    surfaceSecondary: "#EEF5F1",
+    border: "#D1E4D8",
     tint: primary,
-    tabIconDefault: "#9CA3AF",
+    tabIconDefault: "#8FA89A",
     tabIconSelected: primary,
     card: "#FFFFFF",
   },
   dark: {
-    text: "#F9FAFB",
-    textSecondary: "#D1D5DB",
-    textMuted: "#6B7280",
-    background: "#111827",
-    surface: "#1F2937",
-    surfaceSecondary: "#374151",
-    border: "#374151",
+    text: "#E8F5EE",
+    textSecondary: "#9DC4AE",
+    textMuted: "#5A7868",
+    background: "#0D2018",
+    surface: "#142A1E",
+    surfaceSecondary: "#1C3828",
+    border: "#2A4835",
     tint: accent,
-    tabIconDefault: "#6B7280",
+    tabIconDefault: "#5A7868",
     tabIconSelected: accent,
-    card: "#1F2937",
+    card: "#142A1E",
   },
 };
