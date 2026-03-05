@@ -87,8 +87,8 @@ The app uses **Expo Router** with file-based routing. The route structure reflec
 - Checkout flow: scan wristband (read) → confirm camper → erase wristband (erase mode) → check out in DB → unlink wristband
 - Management NFC home screen has three options: Program, Scan, and Check Out
 - The management portal tracks "pending wristband updates" when camper data changes after wristband programming
-- NFC permissions configured in `app.json`: iOS NFCReaderUsageDescription + both NDEF and TAG entitlements, Android NFC permission
-- `react-native-nfc-manager` config plugin registered in app.json plugins array with `includeNdefEntitlement: true`
+- NFC permissions configured in `app.json`: iOS NFCReaderUsageDescription + TAG entitlement only (NDEF entitlement is disallowed by Apple with iOS 26 SDK), Android NFC permission
+- `react-native-nfc-manager` config plugin registered in app.json plugins array with `includeNdefEntitlement: false`
 - `ensureStarted()` tracks NFC manager state; only silently ignores "already started" errors — all other init failures propagate with descriptive messages
 - `requestTechnology` failures wrapped with "Could not start NFC session:" prefix for clear error reporting
 - **CRITICAL NFC patterns**: `requestTechnology([NfcTech.Ndef])` (array); `Ndef.text.decodePayload(record.payload as any)` (no Uint8Array wrapping); `writeNdefMessage([])` for erase
