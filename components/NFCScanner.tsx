@@ -11,9 +11,12 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import Colors from "@/constants/colors";
 import { readNFCTag, writeNFCTag, eraseNFCTag, isNFCSupported } from "@/lib/nfc";
 import type { WristbandPayload, Camper } from "@/types";
+
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 interface NFCScannerReadProps {
   visible: boolean;
@@ -126,7 +129,7 @@ export default function NFCScanner(props: NFCScannerProps) {
       return;
     }
 
-    if (Platform.OS === "web") {
+    if (Platform.OS === "web" || isExpoGo) {
       setStatus("unsupported");
       return;
     }
