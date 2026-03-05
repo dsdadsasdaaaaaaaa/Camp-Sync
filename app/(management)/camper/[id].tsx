@@ -19,6 +19,7 @@ import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { isValidPhone, formatPhone } from "@/lib/validation";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 import NFCScanner from "@/components/NFCScanner";
 import DatePicker from "@/components/DatePicker";
 import type { Camper, MedicalInfo, EmergencyContact, WristbandPayload } from "@/types";
@@ -62,6 +63,7 @@ function EditField({
   multiline?: boolean;
   error?: string;
 }) {
+  const colors = useColors();
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -70,7 +72,7 @@ function EditField({
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor={Colors.light.textMuted}
+        placeholderTextColor={colors.textMuted}
         keyboardType={keyboardType || "default"}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
@@ -86,6 +88,7 @@ export default function CamperDetailScreen() {
   const { campers, checkIns, sessions, pendingUpdates, updateCamper, programWristband, createAuthCode, getActiveCheckIn, checkInCamper, checkOutCamper, resolvePendingUpdate } = useData();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [section, setSection] = useState<"basic" | "medical" | "status" | "history">("basic");
@@ -247,7 +250,7 @@ export default function CamperDetailScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View
@@ -257,7 +260,7 @@ export default function CamperDetailScreen() {
         ]}
       >
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={22} color={Colors.light.text} />
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </Pressable>
         <View style={{ flex: 1, alignItems: "center" }}>
           <Text style={styles.headerTitle} numberOfLines={1}>
@@ -279,10 +282,10 @@ export default function CamperDetailScreen() {
             </Pressable>
           ) : (
             <Pressable
-              style={[styles.editButton, { backgroundColor: Colors.light.surfaceSecondary }]}
+              style={[styles.editButton, { backgroundColor: colors.surfaceSecondary }]}
               onPress={() => setIsEditing(true)}
             >
-              <Text style={[styles.editButtonText, { color: Colors.light.text }]}>Edit</Text>
+              <Text style={[styles.editButtonText, { color: colors.text }]}>Edit</Text>
             </Pressable>
           )
         )}
@@ -365,7 +368,7 @@ export default function CamperDetailScreen() {
                         : "No wristband assigned yet"}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={Colors.light.textMuted} />
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [
@@ -381,7 +384,7 @@ export default function CamperDetailScreen() {
                     <Text style={styles.actionTitle}>Generate Parent Code</Text>
                     <Text style={styles.actionSub}>Create code for parent registration</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={Colors.light.textMuted} />
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </Pressable>
               </>
             )}
@@ -415,7 +418,7 @@ export default function CamperDetailScreen() {
                   <View key={i} style={{ gap: 8 }}>
                     {i > 0 && <View style={styles.divider} />}
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                      <Text style={[styles.fieldLabel, { color: Colors.light.textSecondary }]}>
+                      <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
                         {i === 0 ? "Primary Contact" : `Contact ${i + 1}`}
                       </Text>
                       {i > 0 && (
@@ -513,7 +516,7 @@ export default function CamperDetailScreen() {
             <View style={styles.card}>
               {camperHistory.length === 0 ? (
                 <View style={{ alignItems: "center", paddingVertical: 32, gap: 8 }}>
-                  <Ionicons name="calendar-outline" size={40} color={Colors.light.textMuted} />
+                  <Ionicons name="calendar-outline" size={40} color={colors.textMuted} />
                   <Text style={[styles.infoLabel, { textAlign: "center" }]}>No attendance history yet</Text>
                   <Text style={[styles.infoValue, { textAlign: "center", fontSize: 13 }]}>Check-ins will appear here once recorded</Text>
                 </View>
@@ -544,11 +547,11 @@ export default function CamperDetailScreen() {
                         </View>
                         <View style={[
                           styles.historyBadge,
-                          { backgroundColor: ci.checkedOutAt ? Colors.light.surfaceSecondary : Colors.success + "20" },
+                          { backgroundColor: ci.checkedOutAt ? colors.surfaceSecondary : Colors.success + "20" },
                         ]}>
                           <Text style={[
                             styles.historyBadgeText,
-                            { color: ci.checkedOutAt ? Colors.light.textSecondary : Colors.success },
+                            { color: ci.checkedOutAt ? colors.textSecondary : Colors.success },
                           ]}>
                             {ci.checkedOutAt ? "Complete" : "Active"}
                           </Text>
@@ -576,7 +579,7 @@ export default function CamperDetailScreen() {
 
             <View style={styles.card}>
               <View style={styles.statusRow}>
-                <View style={[styles.statusDot, { backgroundColor: activeCheckIn ? Colors.success : Colors.light.textMuted }]} />
+                <View style={[styles.statusDot, { backgroundColor: activeCheckIn ? Colors.success : colors.textMuted }]} />
                 <Text style={styles.statusLabel}>
                   {activeCheckIn ? "Currently Checked In" : "Not at Camp"}
                 </Text>
@@ -691,13 +694,13 @@ export default function CamperDetailScreen() {
                       <View
                         style={[
                           styles.historyBadge,
-                          { backgroundColor: ci.checkedOutAt ? Colors.light.surfaceSecondary : Colors.success + "20" },
+                          { backgroundColor: ci.checkedOutAt ? colors.surfaceSecondary : Colors.success + "20" },
                         ]}
                       >
                         <Text
                           style={[
                             styles.historyBadgeText,
-                            { color: ci.checkedOutAt ? Colors.light.textSecondary : Colors.success },
+                            { color: ci.checkedOutAt ? colors.textSecondary : Colors.success },
                           ]}
                         >
                           {ci.checkedOutAt ? "Complete" : "Active"}
@@ -743,21 +746,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
     gap: 12,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   editButton: {
     backgroundColor: Colors.primary,
@@ -775,7 +778,7 @@ const styles = StyleSheet.create({
   tabs: {
     flexDirection: "row",
     marginHorizontal: 20,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 12,
     padding: 4,
     marginBottom: 12,
@@ -790,7 +793,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   activeTab: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
@@ -800,7 +803,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
   activeTabText: {
     color: Colors.primary,
@@ -817,7 +820,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   card: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 20,
     padding: 20,
     gap: 12,
@@ -836,37 +839,37 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 13,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     flex: 1,
   },
   infoValue: {
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.text,
+    color: "#111111",
     flex: 2,
     textAlign: "right",
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.light.border,
+    backgroundColor: "#E5E7EB",
     marginVertical: 2,
   },
   fieldGroup: { gap: 6 },
   fieldLabel: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   fieldInput: {
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: Colors.light.text,
+    color: "#111111",
   },
   fieldInputError: {
     borderColor: Colors.danger,
@@ -891,8 +894,8 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: Colors.light.surfaceSecondary,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F3F4F6",
   },
   bloodTypeSelected: {
     backgroundColor: Colors.primary,
@@ -901,7 +904,7 @@ const styles = StyleSheet.create({
   bloodTypeText: {
     fontSize: 12,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   bloodTypeSelectedText: { color: "#fff" },
   medicalHighlight: {
@@ -915,7 +918,7 @@ const styles = StyleSheet.create({
   medicalHighlightLabel: {
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     flex: 1,
   },
   medicalHighlightValue: {
@@ -938,12 +941,12 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   actionSub: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     marginTop: 2,
   },
   pendingBanner: {
@@ -965,7 +968,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   statusRow: {
     flexDirection: "row",
@@ -981,7 +984,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   checkInBtn: {
     flexDirection: "row",
@@ -1035,22 +1038,22 @@ const styles = StyleSheet.create({
   historySessionName: {
     fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   historyDate: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   historyTime: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   historyBy: {
     fontSize: 11,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
     marginTop: 2,
   },
   historyBadge: {

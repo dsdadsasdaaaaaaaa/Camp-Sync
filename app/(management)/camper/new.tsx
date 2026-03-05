@@ -18,6 +18,7 @@ import * as Haptics from "expo-haptics";
 import { useData } from "@/contexts/DataContext";
 import { isValidPhone, formatPhone } from "@/lib/validation";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 import DatePicker from "@/components/DatePicker";
 import type { MedicalInfo, EmergencyContact } from "@/types";
 
@@ -42,6 +43,7 @@ function InputField({
   required?: boolean;
   error?: string;
 }) {
+  const colors = useColors();
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>
@@ -53,7 +55,7 @@ function InputField({
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor={Colors.light.textMuted}
+        placeholderTextColor={colors.textMuted}
         keyboardType={keyboardType || "default"}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
@@ -69,6 +71,7 @@ const emptyContact = (): EmergencyContact => ({ name: "", relationship: "", phon
 export default function NewCamperScreen() {
   const { addCamper } = useData();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [isLoading, setIsLoading] = useState(false);
   const [section, setSection] = useState<"basic" | "medical">("basic");
 
@@ -163,7 +166,7 @@ export default function NewCamperScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View
@@ -175,7 +178,7 @@ export default function NewCamperScreen() {
         ]}
       >
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={22} color={Colors.light.text} />
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>New Camper</Text>
         <Pressable
@@ -202,7 +205,7 @@ export default function NewCamperScreen() {
           <Ionicons
             name="person-outline"
             size={16}
-            color={section === "basic" ? Colors.primary : Colors.light.textMuted}
+            color={section === "basic" ? Colors.primary : colors.textMuted}
           />
           <Text style={[styles.tabText, section === "basic" && styles.activeTabText]}>
             Basic Info
@@ -215,7 +218,7 @@ export default function NewCamperScreen() {
           <Ionicons
             name="medical-outline"
             size={16}
-            color={section === "medical" ? Colors.primary : Colors.light.textMuted}
+            color={section === "medical" ? Colors.primary : colors.textMuted}
           />
           <Text style={[styles.tabText, section === "medical" && styles.activeTabText]}>
             Medical Info
@@ -252,7 +255,7 @@ export default function NewCamperScreen() {
               <View key={i} style={{ gap: 10 }}>
                 {i > 0 && <View style={styles.divider} />}
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text style={[styles.fieldLabel, { color: Colors.light.textSecondary }]}>
+                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
                     {i === 0 ? "Primary Contact" : `Contact ${i + 1}`}
                   </Text>
                   {i > 0 && (
@@ -350,20 +353,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   saveButton: {
     backgroundColor: Colors.primary,
@@ -381,7 +384,7 @@ const styles = StyleSheet.create({
   tabs: {
     flexDirection: "row",
     marginHorizontal: 20,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 12,
     padding: 4,
     marginBottom: 12,
@@ -396,7 +399,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   activeTab: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
@@ -406,7 +409,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
   activeTabText: {
     color: Colors.primary,
@@ -416,7 +419,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   card: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 20,
     padding: 20,
     gap: 14,
@@ -435,11 +438,11 @@ const styles = StyleSheet.create({
   sectionHeaderText: {
     fontSize: 14,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.light.border,
+    backgroundColor: "#E5E7EB",
   },
   fieldGroup: {
     gap: 6,
@@ -447,18 +450,18 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   fieldInput: {
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: Colors.light.text,
+    color: "#111111",
   },
   fieldInputError: {
     borderColor: Colors.danger,
@@ -483,8 +486,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: Colors.light.surfaceSecondary,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F3F4F6",
   },
   bloodTypeSelected: {
     backgroundColor: Colors.primary,
@@ -493,7 +496,7 @@ const styles = StyleSheet.create({
   bloodTypeText: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   bloodTypeSelectedText: {
     color: "#fff",

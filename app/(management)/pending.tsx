@@ -16,6 +16,7 @@ import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 import type { PendingWristbandUpdate } from "@/types";
 
 function PendingCard({
@@ -29,6 +30,7 @@ function PendingCard({
   onUpdate: () => void;
   onViewCamper: () => void;
 }) {
+  const colors = useColors();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleUpdate = async () => {
@@ -62,7 +64,7 @@ function PendingCard({
       </View>
 
       <View style={styles.infoRow}>
-        <Ionicons name="radio-outline" size={16} color={Colors.light.textMuted} />
+        <Ionicons name="radio-outline" size={16} color={colors.textMuted} />
         <Text style={styles.infoText}>
           The wristband was programmed before the latest info update. Reprogram to sync.
         </Text>
@@ -76,7 +78,7 @@ function PendingCard({
           ]}
           onPress={onViewCamper}
         >
-          <Ionicons name="person-outline" size={16} color={Colors.light.textSecondary} />
+          <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
           <Text style={styles.viewButtonText}>View Camper</Text>
         </Pressable>
         <Pressable
@@ -134,6 +136,7 @@ export default function PendingUpdatesScreen() {
   const { pendingUpdates, campers, resolvePendingUpdate, isLoading, refresh } =
     useData();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [showResolved, setShowResolved] = useState(false);
 
   const unresolved = pendingUpdates.filter((p) => !p.resolved);
@@ -142,7 +145,7 @@ export default function PendingUpdatesScreen() {
   const displayed = showResolved ? resolved : unresolved;
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.light.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View
         style={[
           styles.header,
@@ -222,7 +225,7 @@ export default function PendingUpdatesScreen() {
             <Ionicons
               name={showResolved ? "checkmark-circle-outline" : "radio-outline"}
               size={52}
-              color={Colors.light.textMuted}
+              color={colors.textMuted}
             />
             <Text style={styles.emptyTitle}>
               {showResolved ? "No resolved updates" : "All wristbands up to date"}
@@ -243,22 +246,22 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
     gap: 8,
   },
   headerTitle: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   headerSub: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   toggleRow: {
     flexDirection: "row",
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 12,
     padding: 4,
     marginTop: 4,
@@ -270,7 +273,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   toggleBtnActive: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
@@ -280,7 +283,7 @@ const styles = StyleSheet.create({
   toggleBtnText: {
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
   toggleBtnActiveText: {
     color: Colors.primary,
@@ -292,7 +295,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 20,
     padding: 16,
     gap: 14,
@@ -330,18 +333,18 @@ const styles = StyleSheet.create({
   camperName: {
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   requestedBy: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     marginTop: 2,
   },
   timeAgo: {
     fontSize: 11,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
     marginTop: 1,
   },
   warningBadge: {
@@ -361,7 +364,7 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: "row",
     gap: 8,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 10,
     padding: 10,
   },
@@ -369,7 +372,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     lineHeight: 18,
   },
   buttonRow: {
@@ -380,18 +383,18 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: 12,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
   },
   viewButtonText: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   updateButton: {
     flex: 1.5,
@@ -417,12 +420,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   emptyText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     textAlign: "center",
     paddingHorizontal: 20,
     lineHeight: 20,

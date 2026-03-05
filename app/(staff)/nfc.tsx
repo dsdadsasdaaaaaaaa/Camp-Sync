@@ -336,30 +336,30 @@ export default function StaffNFCScreen() {
       )}
 
       {screen === "confirmCheckout" && checkoutCamper && (
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <View style={styles.successHeader}>
             <View style={[styles.successIcon, { backgroundColor: Colors.danger + "15" }]}>
               <Ionicons name="log-out" size={32} color={Colors.danger} />
             </View>
             <Text style={[styles.successTitle, { color: Colors.danger }]}>Check Out</Text>
-            <Text style={styles.offlineLabel}>
+            <Text style={[styles.offlineLabel, { color: colors.textMuted }]}>
               {checkoutCamper.wristbandId ? "Confirm — wristband will be erased" : "Confirm check-out"}
             </Text>
           </View>
 
-          <View style={styles.camperBanner}>
-            <Text style={styles.camperBannerName}>
+          <View style={[styles.camperBanner, { backgroundColor: colors.surfaceSecondary }]}>
+            <Text style={[styles.camperBannerName, { color: colors.text }]}>
               {checkoutCamper.firstName} {checkoutCamper.lastName}
             </Text>
             {checkoutCamper.cabinGroup ? (
-              <Text style={styles.camperBannerDob}>{checkoutCamper.cabinGroup}</Text>
+              <Text style={[styles.camperBannerDob, { color: colors.textSecondary }]}>{checkoutCamper.cabinGroup}</Text>
             ) : null}
           </View>
 
           {checkoutCamper.wristbandId ? (
-            <View style={styles.instructionCard}>
+            <View style={[styles.instructionCard, { backgroundColor: colors.surface }]}>
               <Ionicons name="radio" size={18} color={Colors.primary} />
-              <Text style={styles.instructionText}>
+              <Text style={[styles.instructionText, { color: colors.textMuted }]}>
                 Hold their iPhone near the wristband to erase it. This confirms the check-out and notifies their parent.
               </Text>
             </View>
@@ -427,10 +427,10 @@ export default function StaffNFCScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setCheckoutPickerVisible(false)}
       >
-        <View style={[styles.modalContainer, { paddingTop: Platform.OS === "web" ? 67 : insets.top + 10 }]}>
-          <View style={styles.modalHeader}>
+        <View style={[styles.modalContainer, { paddingTop: Platform.OS === "web" ? 67 : insets.top + 10, backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
             <View style={{ width: 36 }} />
-            <Text style={styles.modalTitle}>Select Camper to Check Out</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Camper to Check Out</Text>
             <Pressable
               onPress={() => setCheckoutPickerVisible(false)}
               style={styles.modalCloseBtn}
@@ -439,10 +439,10 @@ export default function StaffNFCScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.modalSearchContainer}>
+          <View style={[styles.modalSearchContainer, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
             <Ionicons name="search-outline" size={18} color={colors.textMuted} />
             <TextInput
-              style={styles.modalSearchInput}
+              style={[styles.modalSearchInput, { color: colors.text }]}
               placeholder="Search by name or cabin..."
               placeholderTextColor={colors.textMuted}
               value={checkoutSearch}
@@ -472,9 +472,9 @@ export default function StaffNFCScreen() {
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.camperRowName}>{item.firstName} {item.lastName}</Text>
+                  <Text style={[styles.camperRowName, { color: colors.text }]}>{item.firstName} {item.lastName}</Text>
                   <View style={styles.camperRowMeta}>
-                    <Text style={styles.camperRowCabin}>{item.cabinGroup || "No cabin"}</Text>
+                    <Text style={[styles.camperRowCabin, { color: colors.textSecondary }]}>{item.cabinGroup || "No cabin"}</Text>
                     {item.wristbandId ? (
                       <View style={styles.wristbandBadge}>
                         <Ionicons name="radio" size={10} color={Colors.accent} />
@@ -489,10 +489,10 @@ export default function StaffNFCScreen() {
             ListEmptyComponent={
               <View style={styles.emptyPicker}>
                 <Ionicons name="people-outline" size={44} color={colors.textMuted} />
-                <Text style={styles.emptyPickerTitle}>
+                <Text style={[styles.emptyPickerTitle, { color: colors.text }]}>
                   {checkedInCount === 0 ? "No campers checked in" : "No campers found"}
                 </Text>
-                <Text style={styles.emptyPickerSub}>
+                <Text style={[styles.emptyPickerSub, { color: colors.textSecondary }]}>
                   {checkedInCount === 0
                     ? "Check in campers first before checking out"
                     : "Try a different search term"}

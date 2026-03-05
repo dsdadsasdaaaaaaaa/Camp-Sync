@@ -221,10 +221,10 @@ export default function StaffAccountScreen() {
         onPress={handleLogout}
       >
         <Ionicons name="log-out-outline" size={18} color={Colors.danger} />
-        <Text style={styles.signOutText}>Sign Out</Text>
+        <Text style={[styles.signOutText, { color: Colors.danger }]}>Sign Out</Text>
       </Pressable>
 
-      <Text style={styles.version}>CampSync v1.0</Text>
+      <Text style={[styles.version, { color: colors.textMuted }]}>CampSync v1.0</Text>
     </ScrollView>
   );
 }

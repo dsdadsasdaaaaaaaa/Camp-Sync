@@ -115,37 +115,37 @@ export default function ParentProfileScreen() {
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Your Role</Text>
+      <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Your Role</Text>
         <View style={styles.roleRow}>
           <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-          <Text style={styles.roleCapability}>View linked children's info</Text>
+          <Text style={[styles.roleCapability, { color: colors.textSecondary }]}>View linked children's info</Text>
         </View>
         <View style={styles.roleRow}>
           <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-          <Text style={styles.roleCapability}>Edit medical & emergency info</Text>
+          <Text style={[styles.roleCapability, { color: colors.textSecondary }]}>Edit medical & emergency info</Text>
         </View>
         <View style={styles.roleRow}>
           <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-          <Text style={styles.roleCapability}>See check-in/out status in real time</Text>
+          <Text style={[styles.roleCapability, { color: colors.textSecondary }]}>See check-in/out status in real time</Text>
         </View>
         <View style={styles.roleRow}>
           <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-          <Text style={styles.roleCapability}>View full check-in history</Text>
+          <Text style={[styles.roleCapability, { color: colors.textSecondary }]}>View full check-in history</Text>
         </View>
         <View style={[styles.roleRow, { opacity: 0.5 }]}>
           <Ionicons name="close-circle" size={18} color={Colors.danger} />
-          <Text style={styles.roleCapability}>Check-in/out campers (staff only)</Text>
+          <Text style={[styles.roleCapability, { color: colors.textSecondary }]}>Check-in/out campers (staff only)</Text>
         </View>
       </View>
 
       <Pressable
-        style={({ pressed }) => [styles.changePasswordToggle, { opacity: pressed ? 0.85 : 1 }]}
+        style={({ pressed }) => [styles.changePasswordToggle, { opacity: pressed ? 0.85 : 1, backgroundColor: colors.surface }]}
         onPress={() => setShowPasswordSection((v) => !v)}
       >
         <View style={styles.changePasswordLeft}>
           <Ionicons name="key-outline" size={18} color={Colors.primary} />
-          <Text style={styles.changePasswordText}>Change Password</Text>
+          <Text style={[styles.changePasswordText, { color: colors.text }]}>Change Password</Text>
         </View>
         <Ionicons
           name={showPasswordSection ? "chevron-up" : "chevron-down"}
@@ -155,12 +155,12 @@ export default function ParentProfileScreen() {
       </Pressable>
 
       {showPasswordSection && (
-        <View style={styles.passwordCard}>
+        <View style={[styles.passwordCard, { backgroundColor: colors.surface }]}>
           <View style={styles.passwordField}>
-            <Text style={styles.fieldLabel}>Current Password</Text>
-            <View style={styles.passwordInputRow}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Current Password</Text>
+            <View style={[styles.passwordInputRow, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, { color: colors.text }]}
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
                 placeholder="Enter current password"
@@ -179,10 +179,10 @@ export default function ParentProfileScreen() {
           </View>
 
           <View style={styles.passwordField}>
-            <Text style={styles.fieldLabel}>New Password</Text>
-            <View style={styles.passwordInputRow}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>New Password</Text>
+            <View style={[styles.passwordInputRow, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, { color: colors.text }]}
                 value={newPassword}
                 onChangeText={setNewPassword}
                 placeholder="At least 8 characters"
@@ -240,7 +240,7 @@ export default function ParentProfileScreen() {
         onPress={handleLogout}
       >
         <Ionicons name="log-out-outline" size={20} color={Colors.danger} />
-        <Text style={styles.logoutText}>Sign Out</Text>
+        <Text style={[styles.logoutText, { color: Colors.danger }]}>Sign Out</Text>
       </Pressable>
     </ScrollView>
   );

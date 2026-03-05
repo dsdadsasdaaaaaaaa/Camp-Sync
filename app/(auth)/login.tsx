@@ -20,12 +20,14 @@ import * as Haptics from "expo-haptics";
 import { useAuth } from "@/contexts/AuthContext";
 import { isValidEmail } from "@/lib/validation";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 
 const logo = require("@/assets/images/campsync-logo.png");
 
 export default function LoginScreen() {
   const { login, resetPassword } = useAuth();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -174,7 +176,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={0}
     >
@@ -207,13 +209,13 @@ export default function LoginScreen() {
               <Ionicons
                 name="mail-outline"
                 size={18}
-                color={emailError ? Colors.danger : Colors.light.textMuted}
+                color={emailError ? Colors.danger : colors.textMuted}
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="your@email.com"
-                placeholderTextColor={Colors.light.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={email}
                 onChangeText={handleEmailChange}
                 autoCapitalize="none"
@@ -232,13 +234,13 @@ export default function LoginScreen() {
               <Ionicons
                 name="lock-closed-outline"
                 size={18}
-                color={passwordError ? Colors.danger : Colors.light.textMuted}
+                color={passwordError ? Colors.danger : colors.textMuted}
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Your password"
-                placeholderTextColor={Colors.light.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={password}
                 onChangeText={handlePasswordChange}
                 secureTextEntry={!showPassword}
@@ -253,7 +255,7 @@ export default function LoginScreen() {
                 <Ionicons
                   name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={18}
-                  color={Colors.light.textMuted}
+                  color={colors.textMuted}
                 />
               </Pressable>
             </View>
@@ -384,13 +386,13 @@ export default function LoginScreen() {
                     </Text>
                     <Text style={styles.fieldLabel}>Email Address</Text>
                     <View style={styles.modalInputRow}>
-                      <Ionicons name="mail-outline" size={18} color={Colors.light.textMuted} style={styles.inputIcon} />
+                      <Ionicons name="mail-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
                       <TextInput
                         style={styles.modalFieldInput}
                         value={forgotEmail}
                         onChangeText={setForgotEmail}
                         placeholder="your@email.com"
-                        placeholderTextColor={Colors.light.textMuted}
+                        placeholderTextColor={colors.textMuted}
                         autoCapitalize="none"
                         keyboardType="email-address"
                         autoCorrect={false}
@@ -398,42 +400,42 @@ export default function LoginScreen() {
                     </View>
                     <Text style={styles.fieldLabel}>Auth Code</Text>
                     <View style={styles.modalInputRow}>
-                      <Ionicons name="key-outline" size={18} color={Colors.light.textMuted} style={styles.inputIcon} />
+                      <Ionicons name="key-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
                       <TextInput
                         style={styles.modalFieldInput}
                         value={forgotAuthCode}
                         onChangeText={setForgotAuthCode}
                         placeholder="Code used during registration"
-                        placeholderTextColor={Colors.light.textMuted}
+                        placeholderTextColor={colors.textMuted}
                         autoCapitalize="characters"
                         autoCorrect={false}
                       />
                     </View>
                     <Text style={styles.fieldLabel}>New Password</Text>
                     <View style={styles.modalInputRow}>
-                      <Ionicons name="lock-closed-outline" size={18} color={Colors.light.textMuted} style={styles.inputIcon} />
+                      <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
                       <TextInput
                         style={styles.modalFieldInput}
                         value={forgotNewPassword}
                         onChangeText={setForgotNewPassword}
                         placeholder="New password"
-                        placeholderTextColor={Colors.light.textMuted}
+                        placeholderTextColor={colors.textMuted}
                         secureTextEntry={!showForgotPassword}
                         autoCapitalize="none"
                       />
                       <Pressable onPress={() => setShowForgotPassword(!showForgotPassword)} style={styles.eyeButton}>
-                        <Ionicons name={showForgotPassword ? "eye-off-outline" : "eye-outline"} size={18} color={Colors.light.textMuted} />
+                        <Ionicons name={showForgotPassword ? "eye-off-outline" : "eye-outline"} size={18} color={colors.textMuted} />
                       </Pressable>
                     </View>
                     <Text style={styles.fieldLabel}>Confirm Password</Text>
                     <View style={styles.modalInputRow}>
-                      <Ionicons name="lock-closed-outline" size={18} color={Colors.light.textMuted} style={styles.inputIcon} />
+                      <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
                       <TextInput
                         style={styles.modalFieldInput}
                         value={forgotConfirmPassword}
                         onChangeText={setForgotConfirmPassword}
                         placeholder="Confirm new password"
-                        placeholderTextColor={Colors.light.textMuted}
+                        placeholderTextColor={colors.textMuted}
                         secureTextEntry={!showForgotPassword}
                         autoCapitalize="none"
                       />
@@ -461,13 +463,13 @@ export default function LoginScreen() {
                     </Text>
                     <Text style={styles.fieldLabel}>Reset Code</Text>
                     <View style={styles.modalInputRow}>
-                      <Ionicons name="key-outline" size={18} color={Colors.light.textMuted} style={styles.inputIcon} />
+                      <Ionicons name="key-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
                       <TextInput
                         style={[styles.modalFieldInput, { letterSpacing: 3, fontFamily: "Outfit_700Bold" }]}
                         value={resetCode}
                         onChangeText={(t) => setResetCode(t.toUpperCase())}
                         placeholder="XXXXXXXX"
-                        placeholderTextColor={Colors.light.textMuted}
+                        placeholderTextColor={colors.textMuted}
                         autoCapitalize="characters"
                         autoCorrect={false}
                         maxLength={8}
@@ -475,26 +477,26 @@ export default function LoginScreen() {
                     </View>
                     <Text style={styles.fieldLabel}>New Password</Text>
                     <View style={styles.modalInputRow}>
-                      <Ionicons name="lock-closed-outline" size={18} color={Colors.light.textMuted} style={styles.inputIcon} />
+                      <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
                       <TextInput
                         style={styles.modalFieldInput}
                         value={resetCodeNewPwd}
                         onChangeText={setResetCodeNewPwd}
                         placeholder="New password (min 6 chars)"
-                        placeholderTextColor={Colors.light.textMuted}
+                        placeholderTextColor={colors.textMuted}
                         secureTextEntry
                         autoCapitalize="none"
                       />
                     </View>
                     <Text style={styles.fieldLabel}>Confirm Password</Text>
                     <View style={styles.modalInputRow}>
-                      <Ionicons name="lock-closed-outline" size={18} color={Colors.light.textMuted} style={styles.inputIcon} />
+                      <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
                       <TextInput
                         style={styles.modalFieldInput}
                         value={resetCodeConfirmPwd}
                         onChangeText={setResetCodeConfirmPwd}
                         placeholder="Confirm new password"
-                        placeholderTextColor={Colors.light.textMuted}
+                        placeholderTextColor={colors.textMuted}
                         secureTextEntry
                         autoCapitalize="none"
                       />
@@ -544,10 +546,10 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   card: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 24,
     padding: 24,
     gap: 20,
@@ -560,12 +562,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   subtitle: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     marginTop: -12,
   },
   inputGroup: {
@@ -574,15 +576,15 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
     paddingHorizontal: 14,
     height: 52,
   },
@@ -593,7 +595,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: Colors.light.text,
+    color: "#111111",
   },
   eyeButton: {
     padding: 4,
@@ -663,7 +665,7 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   footerLink: {
     fontSize: 14,
@@ -685,7 +687,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalSheet: {
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -695,7 +697,7 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 40,
     height: 5,
-    backgroundColor: Colors.light.border,
+    backgroundColor: "#E5E7EB",
     borderRadius: 2.5,
     alignSelf: "center",
     marginBottom: 16,
@@ -703,28 +705,28 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   modalSub: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     marginBottom: 20,
     lineHeight: 20,
   },
   fieldLabel: {
     fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
     marginBottom: 8,
   },
   modalInputRow: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
     paddingHorizontal: 14,
     height: 48,
     marginBottom: 16,
@@ -733,7 +735,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: Colors.light.text,
+    color: "#111111",
   },
   modalButtons: {
     flexDirection: "row" as const,
@@ -746,12 +748,12 @@ const styles = StyleSheet.create({
     alignItems: "center" as const,
     justifyContent: "center" as const,
     borderRadius: 14,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
   },
   cancelBtnText: {
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   confirmBtn: {
     flex: 2,
@@ -778,12 +780,12 @@ const styles = StyleSheet.create({
   demoLine: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.light.border,
+    backgroundColor: "#E5E7EB",
   },
   demoSeparatorText: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
   demoButtons: {
     flexDirection: "row",
@@ -814,7 +816,7 @@ const styles = StyleSheet.create({
   },
   modeSwitcher: {
     flexDirection: "row",
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 10,
     padding: 3,
     marginVertical: 12,
@@ -826,7 +828,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   modeBtnActive: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
@@ -836,7 +838,7 @@ const styles = StyleSheet.create({
   modeBtnText: {
     fontSize: 13,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
   modeBtnTextActive: {
     color: Colors.primary,

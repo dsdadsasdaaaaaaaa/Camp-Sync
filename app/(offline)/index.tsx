@@ -12,11 +12,13 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 import NFCScanner from "@/components/NFCScanner";
 import type { WristbandPayload } from "@/types";
 
 export default function OfflineScannerScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [scannerVisible, setScannerVisible] = useState(false);
   const [result, setResult] = useState<WristbandPayload | null>(null);
 
@@ -32,7 +34,7 @@ export default function OfflineScannerScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[
         styles.container,
         {
@@ -178,7 +180,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: Colors.light.textMuted,
+    backgroundColor: "#999999",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -203,12 +205,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   subtitle: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     lineHeight: 20,
     marginTop: -8,
   },
@@ -226,7 +228,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     lineHeight: 18,
   },
   scanArea: {
@@ -251,18 +253,18 @@ const styles = StyleSheet.create({
   scanTitle: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   scanSub: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     textAlign: "center",
     lineHeight: 20,
     paddingHorizontal: 20,
   },
   resultCard: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 20,
     padding: 20,
     gap: 12,
@@ -293,16 +295,16 @@ const styles = StyleSheet.create({
   resultName: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   resultDob: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.light.border,
+    backgroundColor: "#E5E7EB",
   },
   medRow: {
     flexDirection: "row",
@@ -313,13 +315,13 @@ const styles = StyleSheet.create({
     width: 80,
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   medValue: {
     flex: 1,
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.text,
+    color: "#111111",
   },
   scanAgainBtn: {
     flexDirection: "row",

@@ -15,6 +15,7 @@ import { router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 
 function StatCard({
   icon,
@@ -275,12 +276,12 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   name: {
     fontSize: 26,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
     marginTop: 2,
   },
   roleBadge: {
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
@@ -325,7 +326,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   statsGrid: {
     flexDirection: "row",
@@ -335,7 +336,7 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     minWidth: "44%",
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 16,
     padding: 16,
     gap: 8,
@@ -355,12 +356,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   statLabel: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   actionsGrid: {
     flexDirection: "row",
@@ -370,7 +371,7 @@ const styles = StyleSheet.create({
   actionCard: {
     flex: 1,
     minWidth: "44%",
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 16,
     padding: 16,
     alignItems: "center",
@@ -391,11 +392,11 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
     textAlign: "center",
   },
   card: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 16,
     padding: 16,
     gap: 0,
@@ -427,12 +428,12 @@ const styles = StyleSheet.create({
   checkInName: {
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   checkInTime: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     marginTop: 2,
   },
   checkInBadge: {
@@ -448,6 +449,6 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: Colors.light.border,
+    backgroundColor: "#E5E7EB",
   },
 });

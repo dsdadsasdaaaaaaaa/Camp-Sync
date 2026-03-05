@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 import NFCScanner from "@/components/NFCScanner";
 import type { Camper, WristbandPayload } from "@/types";
 
@@ -23,6 +24,7 @@ type Screen = "home" | "selectCamper" | "readResult" | "confirmCheckout";
 export default function NFCScreen() {
   const { campers, checkIns, programWristband, checkOutCamper, updateCamper } = useData();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [screen, setScreen] = useState<Screen>("home");
   const [readScanVisible, setReadScanVisible] = useState(false);
   const [writeScanVisible, setWriteScanVisible] = useState(false);
@@ -194,7 +196,7 @@ export default function NFCScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[
         styles.container,
         { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20), paddingBottom: insets.bottom + 100 },
@@ -286,7 +288,7 @@ export default function NFCScreen() {
           <TextInput
             style={styles.input}
             placeholder="Search campers..."
-            placeholderTextColor={Colors.light.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={camperSearch}
             onChangeText={setCamperSearch}
           />
@@ -360,7 +362,7 @@ export default function NFCScreen() {
           </View>
 
           <View style={styles.checkoutInfo}>
-            <Ionicons name="information-circle" size={18} color={Colors.light.textSecondary} />
+            <Ionicons name="information-circle" size={18} color={colors.textSecondary} />
             <Text style={styles.checkoutInfoText}>
               {checkoutCamper.wristbandId
                 ? "Scan and erase the wristband to check this camper out. Their parent will be notified automatically."
@@ -461,7 +463,7 @@ export default function NFCScreen() {
 
           <View style={[styles.dataSection, { borderBottomWidth: 0 }]}>
             <View style={styles.serverNote}>
-              <Ionicons name="cloud-outline" size={13} color={Colors.light.textMuted} />
+              <Ionicons name="cloud-outline" size={13} color={colors.textMuted} />
               <Text style={styles.serverNoteText}>Doctor, insurance &amp; notes are stored in server records only</Text>
             </View>
           </View>
@@ -481,11 +483,11 @@ export default function NFCScreen() {
               </Pressable>
             )}
             <Pressable
-              style={({ pressed }) => [styles.primaryBtn, { opacity: pressed ? 0.85 : 1, backgroundColor: Colors.light.surfaceSecondary, borderWidth: 1, borderColor: Colors.light.border }]}
+              style={({ pressed }) => [styles.primaryBtn, { opacity: pressed ? 0.85 : 1, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border }]}
               onPress={() => setReadScanVisible(true)}
             >
-              <Ionicons name="radio" size={18} color={Colors.light.textSecondary} />
-              <Text style={[styles.primaryBtnText, { color: Colors.light.textSecondary }]}>Scan Another</Text>
+              <Ionicons name="radio" size={18} color={colors.textSecondary} />
+              <Text style={[styles.primaryBtnText, { color: colors.textSecondary }]}>Scan Another</Text>
             </Pressable>
             <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={resetAll}>
               <Text style={styles.cancelBtnText}>Done</Text>
@@ -544,7 +546,7 @@ export default function NFCScreen() {
             <TextInput
               style={styles.input}
               placeholder="Search by name or cabin..."
-              placeholderTextColor={Colors.light.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={checkoutSearch}
               onChangeText={setCheckoutSearch}
               autoFocus
@@ -552,7 +554,7 @@ export default function NFCScreen() {
 
             {checkedInCampers.length === 0 ? (
               <View style={styles.emptyPicker}>
-                <Ionicons name="people-outline" size={36} color={Colors.light.textMuted} />
+                <Ionicons name="people-outline" size={36} color={colors.textMuted} />
                 <Text style={styles.emptyPickerText}>No campers are currently checked in</Text>
               </View>
             ) : (
@@ -582,7 +584,7 @@ export default function NFCScreen() {
                         <Text style={[styles.activeBadgeText, { color: Colors.warning }]}>Manual</Text>
                       </View>
                     )}
-                    <Ionicons name="chevron-forward" size={16} color={Colors.light.textMuted} />
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                   </Pressable>
                 ))}
                 {filteredCheckoutCampers.length === 0 && checkoutSearch.length > 0 && (
@@ -606,76 +608,76 @@ export default function NFCScreen() {
 
 const styles = StyleSheet.create({
   container: { paddingHorizontal: 20, gap: 16 },
-  headerTitle: { fontSize: 28, fontFamily: "Outfit_700Bold", color: Colors.light.text },
-  headerSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginTop: -8 },
+  headerTitle: { fontSize: 28, fontFamily: "Outfit_700Bold", color: "#111111" },
+  headerSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: "#666666", marginTop: -8 },
   modeGrid: { flexDirection: "row", gap: 12 },
-  modeCard: { flex: 1, backgroundColor: Colors.light.surface, borderRadius: 20, padding: 20, alignItems: "center", gap: 10, borderWidth: 1.5, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  modeCard: { flex: 1, backgroundColor: "#F9FAFB", borderRadius: 20, padding: 20, alignItems: "center", gap: 10, borderWidth: 1.5, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   modeIcon: { width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  modeTitle: { fontSize: 16, fontFamily: "Outfit_700Bold", color: Colors.light.text, textAlign: "center" },
-  modeSub: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, textAlign: "center" },
-  scanOnlyCard: { backgroundColor: Colors.light.surface, borderRadius: 20, padding: 16, borderWidth: 1.5, borderColor: Colors.accent + "30", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, gap: 10 },
+  modeTitle: { fontSize: 16, fontFamily: "Outfit_700Bold", color: "#111111", textAlign: "center" },
+  modeSub: { fontSize: 12, fontFamily: "Outfit_400Regular", color: "#666666", textAlign: "center" },
+  scanOnlyCard: { backgroundColor: "#F9FAFB", borderRadius: 20, padding: 16, borderWidth: 1.5, borderColor: Colors.accent + "30", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, gap: 10 },
   checkoutCardLeft: { flexDirection: "row", alignItems: "center", gap: 14 },
-  checkoutCardTitle: { fontSize: 16, fontFamily: "Outfit_700Bold", color: Colors.light.text },
-  checkoutCardSub: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginTop: 2 },
-  statsCard: { backgroundColor: Colors.light.surface, borderRadius: 16, padding: 16, gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  checkoutCardTitle: { fontSize: 16, fontFamily: "Outfit_700Bold", color: "#111111" },
+  checkoutCardSub: { fontSize: 12, fontFamily: "Outfit_400Regular", color: "#666666", marginTop: 2 },
+  statsCard: { backgroundColor: "#F9FAFB", borderRadius: 16, padding: 16, gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   statRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   statIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  statLabel: { fontSize: 13, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary },
-  statValue: { fontSize: 16, fontFamily: "Outfit_700Bold", color: Colors.light.text },
+  statLabel: { fontSize: 13, fontFamily: "Outfit_400Regular", color: "#666666" },
+  statValue: { fontSize: 16, fontFamily: "Outfit_700Bold", color: "#111111" },
   offlineCard: { flexDirection: "row", gap: 12, backgroundColor: Colors.primary + "08", borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.primary + "20" },
   offlineTitle: { fontSize: 14, fontFamily: "Outfit_700Bold", color: Colors.primary, marginBottom: 4 },
-  offlineText: { fontSize: 13, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, lineHeight: 18 },
-  card: { backgroundColor: Colors.light.surface, borderRadius: 20, padding: 20, gap: 14, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-  cardTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", color: Colors.light.text },
-  cardSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginTop: -6 },
-  input: { backgroundColor: Colors.light.surfaceSecondary, borderRadius: 12, borderWidth: 1, borderColor: Colors.light.border, paddingHorizontal: 14, height: 50, fontFamily: "Outfit_400Regular", fontSize: 15, color: Colors.light.text },
-  camperOption: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: Colors.light.border },
+  offlineText: { fontSize: 13, fontFamily: "Outfit_400Regular", color: "#666666", lineHeight: 18 },
+  card: { backgroundColor: "#F9FAFB", borderRadius: 20, padding: 20, gap: 14, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  cardTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", color: "#111111" },
+  cardSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: "#666666", marginTop: -6 },
+  input: { backgroundColor: "#F3F4F6", borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 14, height: 50, fontFamily: "Outfit_400Regular", fontSize: 15, color: "#111111" },
+  camperOption: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB" },
   camperOptionSelected: { borderColor: Colors.primary, backgroundColor: Colors.primary + "08" },
   camperAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary + "20", alignItems: "center", justifyContent: "center" },
   camperInitial: { fontSize: 16, fontFamily: "Outfit_700Bold", color: Colors.primary },
-  camperName: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: Colors.light.text },
-  camperSub: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary },
+  camperName: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: "#111111" },
+  camperSub: { fontSize: 12, fontFamily: "Outfit_400Regular", color: "#666666" },
   activeBadge: { backgroundColor: Colors.success + "15", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   activeBadgeText: { fontSize: 11, fontFamily: "Outfit_600SemiBold", color: Colors.success },
   buttonRow: { flexDirection: "row", gap: 10, marginTop: 4 },
-  cancelBtn: { flex: 1, height: 50, borderRadius: 12, backgroundColor: Colors.light.surfaceSecondary, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.light.border },
-  cancelBtnText: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: Colors.light.textSecondary },
+  cancelBtn: { flex: 1, height: 50, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#E5E7EB" },
+  cancelBtnText: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: "#666666" },
   primaryBtn: { flex: 2, height: 50, borderRadius: 12, backgroundColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   primaryBtnText: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: "#fff" },
-  disabledBtn: { backgroundColor: Colors.light.textMuted },
+  disabledBtn: { backgroundColor: "#999999" },
   successHeader: { alignItems: "center", gap: 8 },
   successIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.success + "15", alignItems: "center", justifyContent: "center" },
   successTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", color: Colors.success },
-  successSub: { fontSize: 13, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, textAlign: "center" },
+  successSub: { fontSize: 13, fontFamily: "Outfit_400Regular", color: "#666666", textAlign: "center" },
   camperBanner: { backgroundColor: Colors.primary + "10", borderRadius: 14, padding: 16 },
   camperBannerName: { fontSize: 22, fontFamily: "Outfit_700Bold", color: Colors.primary },
-  camperBannerDob: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginTop: 4 },
+  camperBannerDob: { fontSize: 14, fontFamily: "Outfit_400Regular", color: "#666666", marginTop: 4 },
   statusPill: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   statusDot: { width: 7, height: 7, borderRadius: 3.5 },
   statusPillText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
-  checkoutInfo: { flexDirection: "row", gap: 10, backgroundColor: Colors.light.surfaceSecondary, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: Colors.light.border },
-  checkoutInfoText: { flex: 1, fontSize: 13, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, lineHeight: 18 },
+  checkoutInfo: { flexDirection: "row", gap: 10, backgroundColor: "#F3F4F6", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#E5E7EB" },
+  checkoutInfoText: { flex: 1, fontSize: 13, fontFamily: "Outfit_400Regular", color: "#666666", lineHeight: 18 },
   checkOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.danger, borderRadius: 14, height: 52 },
   checkOutBtnText: { color: "#fff", fontSize: 16, fontFamily: "Outfit_600SemiBold" },
   overrideBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 14, height: 52, borderWidth: 1.5, borderColor: Colors.warning + "60", backgroundColor: Colors.warning + "10" },
   overrideBtnText: { fontSize: 16, fontFamily: "Outfit_600SemiBold", color: Colors.warning },
   bloodHighlight: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: Colors.danger + "10", borderRadius: 14, padding: 14 },
-  bloodLabel: { fontSize: 12, fontFamily: "Outfit_500Medium", color: Colors.light.textSecondary },
+  bloodLabel: { fontSize: 12, fontFamily: "Outfit_500Medium", color: "#666666" },
   bloodValue: { fontSize: 26, fontFamily: "Outfit_700Bold", color: Colors.danger },
-  dataSection: { gap: 4, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: Colors.light.border },
-  dataSectionTitle: { fontSize: 11, fontFamily: "Outfit_700Bold", color: Colors.light.textMuted, textTransform: "uppercase", letterSpacing: 0.8 },
-  dataValue: { fontSize: 15, fontFamily: "Outfit_500Medium", color: Colors.light.text },
-  dataValueSec: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary },
-  programmedAt: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted, textAlign: "center" },
+  dataSection: { gap: 4, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
+  dataSectionTitle: { fontSize: 11, fontFamily: "Outfit_700Bold", color: "#999999", textTransform: "uppercase", letterSpacing: 0.8 },
+  dataValue: { fontSize: 15, fontFamily: "Outfit_500Medium", color: "#111111" },
+  dataValueSec: { fontSize: 14, fontFamily: "Outfit_400Regular", color: "#666666" },
+  programmedAt: { fontSize: 12, fontFamily: "Outfit_400Regular", color: "#999999", textAlign: "center" },
   serverNote: { flexDirection: "row" as const, alignItems: "center" as const, gap: 6 },
-  serverNoteText: { flex: 1, fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted, fontStyle: "italic" as const },
+  serverNoteText: { flex: 1, fontSize: 12, fontFamily: "Outfit_400Regular", color: "#999999", fontStyle: "italic" as const },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: Colors.light.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingTop: 12, maxHeight: "85%" },
-  modalHandle: { width: 40, height: 5, backgroundColor: Colors.light.border, borderRadius: 2.5, alignSelf: "center", marginBottom: 16 },
-  modalTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", color: Colors.light.text, marginBottom: 4 },
-  modalSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginBottom: 16 },
-  pickerRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.light.border },
+  modalSheet: { backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingTop: 12, maxHeight: "85%" },
+  modalHandle: { width: 40, height: 5, backgroundColor: "#E5E7EB", borderRadius: 2.5, alignSelf: "center", marginBottom: 16 },
+  modalTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", color: "#111111", marginBottom: 4 },
+  modalSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: "#666666", marginBottom: 16 },
+  pickerRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   emptyPicker: { alignItems: "center", paddingVertical: 32, gap: 12 },
-  emptyPickerText: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted },
+  emptyPickerText: { fontSize: 14, fontFamily: "Outfit_400Regular", color: "#999999" },
 });

@@ -3,9 +3,11 @@ import { router } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 
 export default function IndexScreen() {
   const { user, isLoading, offlineMode } = useAuth();
+  const colors = useColors();
 
   useEffect(() => {
     if (isLoading) return;
@@ -26,7 +28,7 @@ export default function IndexScreen() {
     <View
       style={{
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: colors.background,
         alignItems: "center",
         justifyContent: "center",
       }}

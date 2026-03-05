@@ -18,6 +18,7 @@ import * as Haptics from "expo-haptics";
 import { useAuth } from "@/contexts/AuthContext";
 import { isValidEmail } from "@/lib/validation";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 
 const DEMO_CODES = [
   { code: "DEMO-ADMIN", role: "Management", color: Colors.primary },
@@ -50,6 +51,7 @@ function Field({
   testID?: string;
   error?: string;
 }) {
+  const colors = useColors();
   return (
     <View style={styles.inputGroup}>
       <Text style={styles.label}>{label}</Text>
@@ -57,13 +59,13 @@ function Field({
         <Ionicons
           name={icon}
           size={18}
-          color={error ? Colors.danger : Colors.light.textMuted}
+          color={error ? Colors.danger : colors.textMuted}
           style={styles.inputIcon}
         />
         <TextInput
           style={styles.input}
           placeholder={placeholder}
-          placeholderTextColor={Colors.light.textMuted}
+          placeholderTextColor={colors.textMuted}
           value={value}
           onChangeText={onChange}
           secureTextEntry={secure}
@@ -83,6 +85,7 @@ function Field({
 export default function RegisterScreen() {
   const { register } = useAuth();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -134,7 +137,7 @@ export default function RegisterScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={0}
     >
@@ -150,7 +153,7 @@ export default function RegisterScreen() {
       >
         <View style={styles.topBar}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color={Colors.light.text} />
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
           </Pressable>
         </View>
 
@@ -198,7 +201,7 @@ export default function RegisterScreen() {
                 <Ionicons
                   name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={18}
-                  color={Colors.light.textMuted}
+                  color={colors.textMuted}
                 />
               </Pressable>
             }
@@ -231,7 +234,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Enter your auth code"
-                placeholderTextColor={Colors.light.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={authCode}
                 onChangeText={setAuthCode}
                 autoCapitalize="characters"
@@ -244,7 +247,7 @@ export default function RegisterScreen() {
 
           <View style={styles.demoSection}>
             <View style={styles.demoHeader}>
-              <Ionicons name="flask-outline" size={16} color={Colors.light.textMuted} />
+              <Ionicons name="flask-outline" size={16} color={colors.textMuted} />
               <Text style={styles.demoTitle}>Demo Codes (tap to use)</Text>
             </View>
             <View style={styles.demoCodesRow}>
@@ -328,7 +331,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -338,16 +341,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   subtitle: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     lineHeight: 20,
   },
   card: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 24,
     padding: 24,
     gap: 16,
@@ -363,20 +366,20 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   codeHint: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
     paddingHorizontal: 14,
     height: 52,
   },
@@ -387,7 +390,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: Colors.light.text,
+    color: "#111111",
   },
   eyeButton: {
     padding: 4,
@@ -403,16 +406,16 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.light.border,
+    backgroundColor: "#E5E7EB",
     marginVertical: 4,
   },
   demoSection: {
     gap: 10,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
   },
   demoHeader: {
     flexDirection: "row",
@@ -422,7 +425,7 @@ const styles = StyleSheet.create({
   demoTitle: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
   demoCodesRow: {
     flexDirection: "row",
@@ -446,7 +449,7 @@ const styles = StyleSheet.create({
   demoRoleText: {
     fontSize: 10,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
   registerButton: {
     backgroundColor: Colors.primary,
@@ -470,7 +473,7 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   footerLink: {
     fontSize: 14,

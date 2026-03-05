@@ -18,6 +18,7 @@ import * as Haptics from "expo-haptics";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 import type { MedicalInfo, EmergencyContact } from "@/types";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -44,6 +45,7 @@ function EditField({
   keyboardType?: any;
   multiline?: boolean;
 }) {
+  const colors = useColors();
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -52,7 +54,7 @@ function EditField({
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor={Colors.light.textMuted}
+        placeholderTextColor={colors.textMuted}
         keyboardType={keyboardType || "default"}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
@@ -69,6 +71,7 @@ export default function ParentChildDetailScreen() {
   const { campers, checkIns, pendingUpdates, updateCamper, getActiveCheckIn } = useData();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [section, setSection] = useState<"info" | "medical" | "history">("info");
@@ -104,7 +107,7 @@ export default function ParentChildDetailScreen() {
   if (!camper) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <Text style={{ fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary }}>
+        <Text style={{ fontFamily: "Outfit_400Regular", color: colors.textSecondary }}>
           Child not found
         </Text>
       </View>
@@ -164,7 +167,7 @@ export default function ParentChildDetailScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View
@@ -174,16 +177,16 @@ export default function ParentChildDetailScreen() {
         ]}
       >
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={22} color={Colors.light.text} />
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </Pressable>
         <View style={{ flex: 1, alignItems: "center" }}>
           <Text style={styles.headerTitle}>{camper.firstName} {camper.lastName}</Text>
           <View style={[
             styles.statusPill,
-            { backgroundColor: activeCheckIn ? Colors.success + "20" : Colors.light.surfaceSecondary }
+            { backgroundColor: activeCheckIn ? Colors.success + "20" : colors.surfaceSecondary }
           ]}>
-            <View style={[styles.statusDot, { backgroundColor: activeCheckIn ? Colors.success : Colors.light.textMuted }]} />
-            <Text style={[styles.statusText, { color: activeCheckIn ? Colors.success : Colors.light.textSecondary }]}>
+            <View style={[styles.statusDot, { backgroundColor: activeCheckIn ? Colors.success : colors.textMuted }]} />
+            <Text style={[styles.statusText, { color: activeCheckIn ? Colors.success : colors.textSecondary }]}>
               {activeCheckIn ? "At Camp" : "Not Present"}
             </Text>
           </View>
@@ -202,10 +205,10 @@ export default function ParentChildDetailScreen() {
           </Pressable>
         ) : (
           <Pressable
-            style={[styles.saveBtn, { backgroundColor: Colors.light.surfaceSecondary }]}
+            style={[styles.saveBtn, { backgroundColor: colors.surfaceSecondary }]}
             onPress={() => setIsEditing(true)}
           >
-            <Text style={[styles.saveBtnText, { color: Colors.light.text }]}>Edit</Text>
+            <Text style={[styles.saveBtnText, { color: colors.text }]}>Edit</Text>
           </Pressable>
         )}
       </View>
@@ -267,7 +270,7 @@ export default function ParentChildDetailScreen() {
                   <View key={i} style={{ gap: 10 }}>
                     {i > 0 && <View style={styles.divider} />}
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                      <Text style={[styles.fieldLabel, { color: Colors.light.textSecondary, fontSize: 13 }]}>
+                      <Text style={[styles.fieldLabel, { color: colors.textSecondary, fontSize: 13 }]}>
                         {i === 0 ? "Primary Contact" : `Contact ${i + 1}`}
                       </Text>
                       {i > 0 && (
@@ -328,13 +331,13 @@ export default function ParentChildDetailScreen() {
                       </View>
                       {ec.phone ? (
                         <View style={styles.contactDetailRow}>
-                          <Ionicons name="call-outline" size={14} color={Colors.light.textMuted} />
+                          <Ionicons name="call-outline" size={14} color={colors.textMuted} />
                           <Text style={styles.contactDetail}>{ec.phone}</Text>
                         </View>
                       ) : null}
                       {ec.email ? (
                         <View style={styles.contactDetailRow}>
-                          <Ionicons name="mail-outline" size={14} color={Colors.light.textMuted} />
+                          <Ionicons name="mail-outline" size={14} color={colors.textMuted} />
                           <Text style={styles.contactDetail}>{ec.email}</Text>
                         </View>
                       ) : null}
@@ -377,12 +380,12 @@ export default function ParentChildDetailScreen() {
                   <View style={styles.historyRow}>
                     <View style={[
                       styles.historyIcon,
-                      { backgroundColor: ci.checkedOutAt ? Colors.light.surfaceSecondary : Colors.success + "20" }
+                      { backgroundColor: ci.checkedOutAt ? colors.surfaceSecondary : Colors.success + "20" }
                     ]}>
                       <Ionicons
                         name={ci.checkedOutAt ? "checkmark-done" : "enter"}
                         size={16}
-                        color={ci.checkedOutAt ? Colors.light.textSecondary : Colors.success}
+                        color={ci.checkedOutAt ? colors.textSecondary : Colors.success}
                       />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -422,21 +425,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingBottom: 12,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
     gap: 10,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
     fontSize: 17,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   statusPill: {
     flexDirection: "row",
@@ -491,7 +494,7 @@ const styles = StyleSheet.create({
   tabs: {
     flexDirection: "row",
     marginHorizontal: 20,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 12,
     padding: 4,
     marginBottom: 12,
@@ -504,7 +507,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   activeTab: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
@@ -514,7 +517,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
   activeTabText: {
     color: Colors.primary,
@@ -525,7 +528,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   card: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 20,
     padding: 20,
     gap: 12,
@@ -544,19 +547,19 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 13,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     flex: 1,
   },
   infoValue: {
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.text,
+    color: "#111111",
     flex: 2,
     textAlign: "right",
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.light.border,
+    backgroundColor: "#E5E7EB",
   },
   bloodHighlight: {
     flexDirection: "row",
@@ -569,7 +572,7 @@ const styles = StyleSheet.create({
   bloodLabel: {
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     flex: 1,
   },
   bloodValue: {
@@ -578,12 +581,12 @@ const styles = StyleSheet.create({
     color: Colors.danger,
   },
   contactCard: {
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 12,
     padding: 12,
     gap: 6,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
   },
   contactIcon: {
     width: 28,
@@ -596,7 +599,7 @@ const styles = StyleSheet.create({
   contactName: {
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   contactDetailRow: {
     flexDirection: "row",
@@ -606,24 +609,24 @@ const styles = StyleSheet.create({
   contactDetail: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   fieldGroup: { gap: 6 },
   fieldLabel: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   fieldInput: {
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: Colors.light.text,
+    color: "#111111",
   },
   multilineInput: {
     height: 80,
@@ -644,18 +647,18 @@ const styles = StyleSheet.create({
   historyDate: {
     fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   historyTime: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     marginTop: 2,
   },
   historyStaff: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
     marginTop: 2,
   },
 });

@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { fetch } from "expo/fetch";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 import { getApiUrl } from "@/lib/query-client";
 import { getToken } from "@/lib/auth-token";
 
@@ -56,6 +57,7 @@ function MessageBubble({ message }: { message: Message }) {
 
 export default function AIAssistantScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -169,7 +171,7 @@ export default function AIAssistantScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={0}
     >
@@ -193,7 +195,7 @@ export default function AIAssistantScreen() {
             onPress={clearChat}
             style={({ pressed }) => [styles.clearBtn, { opacity: pressed ? 0.7 : 1 }]}
           >
-            <Ionicons name="trash-outline" size={18} color={Colors.light.textSecondary} />
+            <Ionicons name="trash-outline" size={18} color={colors.textSecondary} />
           </Pressable>
         )}
       </View>
@@ -257,7 +259,7 @@ export default function AIAssistantScreen() {
             value={input}
             onChangeText={setInput}
             placeholder="Ask about campers, allergies, check-ins..."
-            placeholderTextColor={Colors.light.textMuted}
+            placeholderTextColor={colors.textMuted}
             multiline
             maxLength={500}
             editable={!isLoading}
@@ -292,7 +294,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 12,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
   },
   headerLeft: {
     flexDirection: "row",
@@ -310,18 +312,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   headerSub: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
   clearBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -363,13 +365,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 22,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
     textAlign: "center",
   },
   emptySubtitle: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     textAlign: "center",
     lineHeight: 20,
   },
@@ -381,18 +383,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
     gap: 10,
   },
   suggestionText: {
     flex: 1,
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.text,
+    color: "#111111",
   },
   messageList: {
     paddingHorizontal: 16,
@@ -431,10 +433,10 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   aiBubbleContent: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderBottomLeftRadius: 4,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
   },
   bubbleText: {
     fontSize: 15,
@@ -446,33 +448,33 @@ const styles = StyleSheet.create({
   },
   aiText: {
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.text,
+    color: "#111111",
   },
   cursor: {
     color: Colors.accent,
   },
   inputContainer: {
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
+    borderTopColor: "#E5E7EB",
     paddingTop: 12,
   },
   inputRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 10,
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
   },
   input: {
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: Colors.light.text,
+    color: "#111111",
     maxHeight: 100,
     paddingTop: 4,
     paddingBottom: 4,
@@ -487,6 +489,6 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   sendBtnDisabled: {
-    backgroundColor: Colors.light.textMuted,
+    backgroundColor: "#999999",
   },
 });
