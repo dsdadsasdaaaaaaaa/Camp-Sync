@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Modal,
   ScrollView,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -308,6 +309,7 @@ export default function StaffCheckInScreen() {
   } = useData();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState("");
+  const [selectedCabin, setSelectedCabin] = useState<string | null>(null);
   const [nfcScanVisible, setNfcScanVisible] = useState(false);
   const [emergencyLookupVisible, setEmergencyLookupVisible] = useState(false);
 
@@ -319,13 +321,18 @@ export default function StaffCheckInScreen() {
   const activeSession = todaySessions[0];
   const canCheckIn = canStaffCheckIn();
 
-  const filtered = campers.filter(
-    (c) =>
-      `${c.firstName} ${c.lastName}`
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      c.cabinGroup?.toLowerCase().includes(search.toLowerCase())
-  );
+  const cabinGroups = useMemo(() => {
+    const groups = campers.map((c) => c.cabinGroup).filter((g): g is string => !!g && g.trim() !== "");
+    return [...new Set(groups)].sort();
+  }, [campers]);
+
+  const filtered = useMemo(() => campers.filter((c) => {
+    const matchesSearch =
+      `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+      c.cabinGroup?.toLowerCase().includes(search.toLowerCase());
+    const matchesCabin = !selectedCabin || c.cabinGroup === selectedCabin;
+    return matchesSearch && matchesCabin;
+  }), [campers, search, selectedCabin]);
 
   const handleCheckIn = async (camper: Camper) => {
     if (!activeSession) {
@@ -512,6 +519,26 @@ export default function StaffCheckInScreen() {
             </Pressable>
           )}
         </View>
+
+        {cabinGroups.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            <Pressable
+              style={[styles.filterChip, { backgroundColor: !selectedCabin ? Colors.primary : Colors.light.surface, borderColor: !selectedCabin ? Colors.primary : Colors.light.border }]}
+              onPress={() => setSelectedCabin(null)}
+            >
+              <Text style={[styles.filterChipText, { color: !selectedCabin ? "#fff" : Colors.light.textSecondary }]}>All</Text>
+            </Pressable>
+            {cabinGroups.map((cabin) => (
+              <Pressable
+                key={cabin}
+                style={[styles.filterChip, { backgroundColor: selectedCabin === cabin ? Colors.primary : Colors.light.surface, borderColor: selectedCabin === cabin ? Colors.primary : Colors.light.border }]}
+                onPress={() => setSelectedCabin(selectedCabin === cabin ? null : cabin)}
+              >
+                <Text style={[styles.filterChipText, { color: selectedCabin === cabin ? "#fff" : Colors.light.textSecondary }]}>{cabin}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
       </View>
 
       <FlatList
@@ -685,6 +712,20 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
     color: Colors.light.text,
+  },
+  filterRow: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
   },
   list: {
     paddingHorizontal: 20,

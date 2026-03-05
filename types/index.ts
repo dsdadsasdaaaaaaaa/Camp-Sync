@@ -41,6 +41,7 @@ export interface Camper {
   wristbandLastProgrammed?: string;
   wristbandEncryptedData?: string;
   parentAuthCode?: string;
+  photoData?: string;
   createdAt: string;
   updatedAt: string;
 }

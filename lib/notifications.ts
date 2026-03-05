@@ -1,5 +1,7 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { getApiUrl } from "@/lib/query-client";
+import { getToken } from "@/lib/auth-token";
 
 if (Platform.OS !== "web") {
   try {
@@ -21,6 +23,28 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   if (existing === "granted") return true;
   const { status } = await Notifications.requestPermissionsAsync();
   return status === "granted";
+}
+
+export async function registerPushToken(): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    const granted = await requestNotificationPermissions();
+    if (!granted) return;
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: "campsync",
+    });
+    const token = tokenData.data;
+    const authToken = getToken();
+    if (!authToken || !token) return;
+    const url = new URL("/api/users/push-token", getApiUrl()).toString();
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+      body: JSON.stringify({ token }),
+    });
+  } catch (e) {
+    console.log("Push token registration failed (non-fatal):", e);
+  }
 }
 
 export async function scheduleCheckInNotification(

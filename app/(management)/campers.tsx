@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,12 +10,15 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useData } from "@/contexts/DataContext";
+import { useColors } from "@/hooks/useColors";
 import Colors from "@/constants/colors";
 import type { Camper } from "@/types";
 
@@ -32,8 +35,9 @@ function CamperCard({
   onPress: () => void;
   onDelete: () => void;
 }) {
+  const colors = useColors();
   return (
-    <View style={styles.camperCard}>
+    <View style={[styles.camperCard, { backgroundColor: colors.surface }]}>
       <Pressable
         style={({ pressed }) => [
           styles.camperCardContent,
@@ -44,21 +48,28 @@ function CamperCard({
         accessibilityLabel={`View ${camper.firstName} ${camper.lastName}`}
         testID={`camper-card-${camper.id}`}
       >
-        <View style={styles.camperAvatar}>
-          <Text style={styles.camperInitial}>
-            {camper.firstName.charAt(0).toUpperCase()}
-          </Text>
+        <View style={[styles.camperAvatar, { backgroundColor: Colors.primary + "20" }]}>
+          {camper.photoData ? (
+            <Image
+              source={{ uri: camper.photoData }}
+              style={styles.camperAvatarImg}
+            />
+          ) : (
+            <Text style={[styles.camperInitial, { color: Colors.primary }]}>
+              {camper.firstName.charAt(0).toUpperCase()}
+            </Text>
+          )}
         </View>
         <View style={{ flex: 1 }}>
           <View style={styles.camperNameRow}>
-            <Text style={styles.camperName}>
+            <Text style={[styles.camperName, { color: colors.text }]}>
               {camper.firstName} {camper.lastName}
             </Text>
             {hasPendingUpdate && (
               <Ionicons name="warning" size={14} color={Colors.warning} />
             )}
           </View>
-          <Text style={styles.camperCabin}>{camper.cabinGroup || "No cabin assigned"}</Text>
+          <Text style={[styles.camperCabin, { color: colors.textSecondary }]}>{camper.cabinGroup || "No cabin assigned"}</Text>
           <View style={styles.camperTags}>
             <View
               style={[
@@ -66,7 +77,7 @@ function CamperCard({
                 {
                   backgroundColor: isCheckedIn
                     ? Colors.success + "20"
-                    : Colors.light.surfaceSecondary,
+                    : colors.surfaceSecondary,
                 },
               ]}
             >
@@ -76,7 +87,7 @@ function CamperCard({
                   {
                     backgroundColor: isCheckedIn
                       ? Colors.success
-                      : Colors.light.textMuted,
+                      : colors.textMuted,
                   },
                 ]}
               />
@@ -86,7 +97,7 @@ function CamperCard({
                   {
                     color: isCheckedIn
                       ? Colors.success
-                      : Colors.light.textSecondary,
+                      : colors.textSecondary,
                   },
                 ]}
               >
@@ -106,7 +117,7 @@ function CamperCard({
         <Ionicons
           name="chevron-forward"
           size={18}
-          color={Colors.light.textMuted}
+          color={colors.textMuted}
         />
       </Pressable>
       <Pressable
@@ -126,18 +137,28 @@ function CamperCard({
 }
 
 export default function CampersScreen() {
-  const { campers, checkIns, pendingUpdates, deleteCamper, isLoading, refresh } =
-    useData();
+  const { campers, checkIns, pendingUpdates, deleteCamper, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [search, setSearch] = useState("");
+  const [selectedCabin, setSelectedCabin] = useState<string | null>(null);
 
-  const filtered = campers.filter(
-    (c) =>
-      `${c.firstName} ${c.lastName}`
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      c.cabinGroup?.toLowerCase().includes(search.toLowerCase())
-  );
+  const cabinGroups = useMemo(() => {
+    const groups = campers
+      .map((c) => c.cabinGroup)
+      .filter((g): g is string => !!g && g.trim() !== "");
+    return [...new Set(groups)].sort();
+  }, [campers]);
+
+  const filtered = useMemo(() => {
+    return campers.filter((c) => {
+      const matchesSearch =
+        `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+        c.cabinGroup?.toLowerCase().includes(search.toLowerCase());
+      const matchesCabin = !selectedCabin || c.cabinGroup === selectedCabin;
+      return matchesSearch && matchesCabin;
+    });
+  }, [campers, search, selectedCabin]);
 
   const getActiveCheckIn = (camperId: string) =>
     checkIns.find((ci) => ci.camperId === camperId && !ci.checkedOutAt);
@@ -156,9 +177,7 @@ export default function CampersScreen() {
             text: "Delete",
             style: "destructive",
             onPress: async () => {
-              await Haptics.notificationAsync(
-                Haptics.NotificationFeedbackType.Warning
-              );
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
               await deleteCamper(camper.id);
             },
           },
@@ -169,70 +188,83 @@ export default function CampersScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.light.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View
         style={[
           styles.header,
-          {
-            paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20),
-          },
+          { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20), backgroundColor: colors.background },
         ]}
       >
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.headerTitle}>Campers</Text>
-            <Text style={styles.headerSub}>{campers.length} registered</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Campers</Text>
+            <Text style={[styles.headerSub, { color: colors.textSecondary }]}>{campers.length} registered</Text>
           </View>
           <Pressable
-            style={({ pressed }) => [
-              styles.addButton,
-              { opacity: pressed ? 0.85 : 1 },
-            ]}
+            style={({ pressed }) => [styles.addButton, { opacity: pressed ? 0.85 : 1 }]}
             onPress={() => router.push("/(management)/camper/new")}
           >
             <Ionicons name="add" size={22} color="#fff" />
             <Text style={styles.addButtonText}>Add</Text>
           </Pressable>
         </View>
-        <View style={styles.searchContainer}>
-          <Ionicons
-            name="search-outline"
-            size={18}
-            color={Colors.light.textMuted}
-          />
+
+        <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name="search-outline" size={18} color={colors.textMuted} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
             placeholder="Search campers..."
-            placeholderTextColor={Colors.light.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch("")}>
-              <Ionicons
-                name="close-circle"
-                size={18}
-                color={Colors.light.textMuted}
-              />
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </Pressable>
           )}
         </View>
+
+        {cabinGroups.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+          >
+            <Pressable
+              style={[
+                styles.filterChip,
+                { backgroundColor: !selectedCabin ? Colors.primary : colors.surface, borderColor: !selectedCabin ? Colors.primary : colors.border },
+              ]}
+              onPress={() => setSelectedCabin(null)}
+            >
+              <Text style={[styles.filterChipText, { color: !selectedCabin ? "#fff" : colors.textSecondary }]}>All</Text>
+            </Pressable>
+            {cabinGroups.map((cabin) => (
+              <Pressable
+                key={cabin}
+                style={[
+                  styles.filterChip,
+                  { backgroundColor: selectedCabin === cabin ? Colors.primary : colors.surface, borderColor: selectedCabin === cabin ? Colors.primary : colors.border },
+                ]}
+                onPress={() => setSelectedCabin(selectedCabin === cabin ? null : cabin)}
+              >
+                <Text style={[styles.filterChipText, { color: selectedCabin === cabin ? "#fff" : colors.textSecondary }]}>
+                  {cabin}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
       </View>
 
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[
-          styles.list,
-          { paddingBottom: insets.bottom + 100 },
-        ]}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}
         scrollEnabled={!!filtered.length}
         refreshControl={
-          <RefreshControl
-            refreshing={isLoading}
-            onRefresh={refresh}
-            tintColor={Colors.primary}
-          />
+          <RefreshControl refreshing={isLoading} onRefresh={refresh} tintColor={Colors.primary} />
         }
         renderItem={({ item }) => (
           <CamperCard
@@ -245,13 +277,13 @@ export default function CampersScreen() {
         )}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="people-outline" size={52} color={Colors.light.textMuted} />
-            <Text style={styles.emptyTitle}>
-              {search ? "No campers found" : "No campers yet"}
+            <Ionicons name="people-outline" size={52} color={colors.textMuted} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              {search || selectedCabin ? "No campers found" : "No campers yet"}
             </Text>
-            <Text style={styles.emptyText}>
-              {search
-                ? "Try a different search term"
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              {search || selectedCabin
+                ? "Try a different search or filter"
                 : "Add campers using the button above"}
             </Text>
           </View>
@@ -264,8 +296,7 @@ export default function CampersScreen() {
 const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: Colors.light.background,
+    paddingBottom: 12,
     gap: 12,
   },
   headerTop: {
@@ -276,12 +307,10 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
   },
   headerSub: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
     marginTop: 2,
   },
   addButton: {
@@ -302,18 +331,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: Colors.light.surface,
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 46,
     borderWidth: 1,
-    borderColor: Colors.light.border,
   },
   searchInput: {
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: Colors.light.text,
+  },
+  filterRow: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
   },
   list: {
     paddingHorizontal: 20,
@@ -323,7 +363,6 @@ const styles = StyleSheet.create({
   camperCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.light.surface,
     borderRadius: 16,
     paddingRight: 6,
     shadowColor: "#000",
@@ -345,14 +384,18 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: Colors.primary + "20",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  camperAvatarImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   camperInitial: {
     fontSize: 20,
     fontFamily: "Outfit_700Bold",
-    color: Colors.primary,
   },
   camperNameRow: {
     flexDirection: "row",
@@ -362,12 +405,10 @@ const styles = StyleSheet.create({
   camperName: {
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
   },
   camperCabin: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
     marginTop: 2,
   },
   camperTags: {
@@ -406,12 +447,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
   },
   emptyText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
     textAlign: "center",
   },
 });

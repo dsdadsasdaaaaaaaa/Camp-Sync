@@ -10,6 +10,7 @@ export const csUsers = pgTable("cs_users", {
   role: varchar("role", { length: 50 }).notNull(),
   linkedCamperIds: text("linked_camper_ids").notNull().default("[]"),
   authCode: varchar("auth_code", { length: 100 }).notNull(),
+  pushToken: text("push_token"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -46,8 +47,17 @@ export const csCampers = pgTable("cs_campers", {
   wristbandLastProgrammed: text("wristband_last_programmed"),
   wristbandEncryptedData: text("wristband_encrypted_data"),
   parentAuthCode: text("parent_auth_code"),
+  photoData: text("photo_data"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const csResetCodes = pgTable("cs_reset_codes", {
+  code: varchar("code", { length: 20 }).primaryKey(),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => csUsers.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const csCampSessions = pgTable("cs_camp_sessions", {

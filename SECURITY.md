@@ -29,7 +29,7 @@ Each camper's wristband contains a small encoded payload that can be read offlin
 
 | Property | Detail |
 |---|---|
-| **Algorithm** | XOR cipher with a fixed application key, output Base64-encoded |
+| **Algorithm** | XOR cipher with fixed application key `CAMPSYNC_NFC_SECRET_KEY_2024_v1`, output Base64-encoded |
 | **Purpose** | Lightweight obfuscation suitable for offline NFC tag reading |
 | **Tag size limit** | 540 bytes maximum |
 | **Payload format** | Compact JSON with abbreviated key names to minimise size |
@@ -99,7 +99,7 @@ Management users can generate a short-lived recovery code for any account withou
 | **Expiry** | 60 minutes from generation |
 | **Usage** | Single-use — consumed immediately on first use |
 | **Purpose** | Allows a manager to hand a code to a user verbally or on paper so they can set a new password themselves |
-| **Server storage** | Held in-memory (lost on server restart); not persisted to the database |
+| **Server storage** | Persisted in the `cs_reset_codes` database table — survives server restarts; only one active code exists per user at a time (generating a new code replaces any existing one) |
 | **Endpoint** | `POST /api/auth/use-reset-code` — accepts the code and a new password; validates expiry and single-use constraint before applying the change |
 
 ---

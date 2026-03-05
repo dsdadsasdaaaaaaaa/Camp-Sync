@@ -9,8 +9,9 @@ import {
   csCampSessions,
   csCheckIns,
   csPendingUpdates,
+  csResetCodes,
 } from "@shared/schema";
-import { eq, and, gt, isNull } from "drizzle-orm";
+import { eq, and, gt, lt, isNull } from "drizzle-orm";
 import OpenAI from "openai";
 import {
   randomBytes,
@@ -94,6 +95,40 @@ function generateId(): string {
   return randomBytes(9).toString("hex") + Date.now().toString(36);
 }
 
+// ─── Expo Push Notifications ──────────────────────────────────────────────────
+
+async function sendExpoPush(tokens: string[], title: string, body: string, data?: object) {
+  const messages = tokens
+    .filter((t) => t && t.startsWith("ExponentPushToken["))
+    .map((to) => ({ to, title, body, sound: "default", data: data || {} }));
+  if (messages.length === 0) return;
+  try {
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Accept": "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(messages),
+    });
+  } catch (e) {
+    console.error("Push notification error:", e);
+  }
+}
+
+async function notifyParentsOfCamper(camperId: string, title: string, body: string, data?: object) {
+  try {
+    const allUsers = await db.select().from(csUsers);
+    const parentTokens = allUsers
+      .filter((u) => {
+        const linked: string[] = JSON.parse(u.linkedCamperIds || "[]");
+        return linked.includes(camperId) && u.pushToken;
+      })
+      .map((u) => u.pushToken!)
+      .filter(Boolean);
+    if (parentTokens.length > 0) await sendExpoPush(parentTokens, title, body, data);
+  } catch (e) {
+    console.error("Notify parents error:", e);
+  }
+}
+
 // ─── Auth Middleware ───────────────────────────────────────────────────────────
 
 function authMiddleware(req: Request, res: Response, next: Function) {
@@ -133,6 +168,7 @@ function formatCamper(row: any, medical: object) {
     wristbandLastProgrammed: row.wristbandLastProgrammed ?? undefined,
     wristbandEncryptedData: row.wristbandEncryptedData ?? undefined,
     parentAuthCode: row.parentAuthCode ?? undefined,
+    photoData: row.photoData ?? undefined,
     createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
     updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
   };
@@ -572,9 +608,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ── Users ───────────────────────────────────────────────────────────────────
 
-  // In-memory store for short-lived reset codes: token -> { userId, expiresAt }
-  const resetCodes = new Map<string, { userId: string; expiresAt: number }>();
-
   app.get("/api/users", async (req: Request, res: Response) => {
     try {
       const auth = await resolveUser(req);
@@ -649,9 +682,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!auth || auth.role !== "management") return res.status(403).json({ message: "Forbidden" });
       const [target] = await db.select().from(csUsers).where(eq(csUsers.id, req.params.id));
       if (!target) return res.status(404).json({ message: "User not found" });
-      // Generate a 8-character alphanumeric code
       const code = randomBytes(5).toString("hex").toUpperCase().slice(0, 8);
-      resetCodes.set(code, { userId: target.id, expiresAt: Date.now() + 60 * 60 * 1000 });
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      await db.delete(csResetCodes).where(eq(csResetCodes.userId, target.id));
+      await db.insert(csResetCodes).values({ code, userId: target.id, expiresAt, used: false });
       return res.json({ code, expiresInMinutes: 60 });
     } catch (err) {
       console.error("Reset code error:", err);
@@ -664,20 +698,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { code, newPassword } = req.body;
       if (!code || !newPassword) return res.status(400).json({ message: "Code and new password are required" });
       if (newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
-      const entry = resetCodes.get(code.toUpperCase().trim());
-      if (!entry) return res.status(400).json({ message: "Invalid or expired reset code" });
-      if (Date.now() > entry.expiresAt) {
-        resetCodes.delete(code);
+      const normalizedCode = code.toUpperCase().trim();
+      const [entry] = await db.select().from(csResetCodes).where(eq(csResetCodes.code, normalizedCode));
+      if (!entry || entry.used) return res.status(400).json({ message: "Invalid or expired reset code" });
+      if (new Date() > entry.expiresAt) {
+        await db.delete(csResetCodes).where(eq(csResetCodes.code, normalizedCode));
         return res.status(400).json({ message: "Reset code has expired" });
       }
       const newHash = await hashPassword(newPassword.trim());
       await db.update(csUsers).set({ passwordHash: newHash }).where(eq(csUsers.id, entry.userId));
       await db.delete(csUserSessions).where(eq(csUserSessions.userId, entry.userId));
-      resetCodes.delete(code);
+      await db.delete(csResetCodes).where(eq(csResetCodes.code, normalizedCode));
       return res.json({ success: true });
     } catch (err) {
       console.error("Use reset code error:", err);
       return res.status(500).json({ message: "Failed to use reset code" });
+    }
+  });
+
+  app.post("/api/users/push-token", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth) return res.status(401).json({ message: "Unauthorized" });
+      const { token } = req.body;
+      if (!token) return res.status(400).json({ message: "token is required" });
+      await db.update(csUsers).set({ pushToken: token }).where(eq(csUsers.id, auth.userId));
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Push token error:", err);
+      return res.status(500).json({ message: "Failed to register push token" });
     }
   });
 
@@ -849,6 +898,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/campers/:id/photo", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Only management can update photos" });
+      const { photoData } = req.body;
+      await db.update(csCampers)
+        .set({ photoData: photoData ?? null, updatedAt: new Date() })
+        .where(eq(csCampers.id, String(req.params.id)));
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Photo update error:", err);
+      return res.status(500).json({ message: "Failed to update photo" });
+    }
+  });
+
   // ── Sessions ────────────────────────────────────────────────────────────────
 
   app.get("/api/sessions", async (req: Request, res: Response) => {
@@ -975,6 +1039,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const [row] = await db.select().from(csCheckIns).where(eq(csCheckIns.id, id));
+      // Send push notification to parents
+      const [camper] = await db.select().from(csCampers).where(eq(csCampers.id, camperId));
+      if (camper) {
+        notifyParentsOfCamper(
+          camperId,
+          `${camper.firstName} checked in`,
+          `${camper.firstName} ${camper.lastName} has been checked in by ${user.name}.`,
+          { type: "check_in", camperId }
+        ).catch(() => {});
+      }
       return res.status(201).json(formatCheckIn(row!));
     } catch (err) {
       console.error("Check-in error:", err);
@@ -990,6 +1064,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [user] = await db.select().from(csUsers).where(eq(csUsers.id, auth.userId));
       if (!user) return res.status(401).json({ message: "Unauthorized" });
 
+      const [existingCheckIn] = await db.select().from(csCheckIns).where(eq(csCheckIns.id, String(req.params.id)));
+
       await db.update(csCheckIns)
         .set({
           checkedOutAt: new Date(),
@@ -999,6 +1075,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(csCheckIns.id, String(req.params.id)));
 
       const [row] = await db.select().from(csCheckIns).where(eq(csCheckIns.id, String(req.params.id)));
+
+      // Send push notification to parents
+      if (existingCheckIn) {
+        const [camper] = await db.select().from(csCampers).where(eq(csCampers.id, existingCheckIn.camperId));
+        if (camper) {
+          notifyParentsOfCamper(
+            existingCheckIn.camperId,
+            `${camper.firstName} checked out`,
+            `${camper.firstName} ${camper.lastName} has been checked out by ${user.name}.`,
+            { type: "check_out", camperId: existingCheckIn.camperId }
+          ).catch(() => {});
+        }
+      }
+
       return res.json(formatCheckIn(row!));
     } catch (err) {
       console.error("Check-out error:", err);

@@ -180,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await cacheUser(u);
     setUser(u);
     setOfflineMode(false);
+    import("@/lib/notifications").then(({ registerPushToken }) => registerPushToken()).catch(() => {});
   };
 
   const register = async (
