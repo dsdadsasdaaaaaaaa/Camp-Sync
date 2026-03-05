@@ -460,7 +460,7 @@ export default function MoreScreen() {
             />
           )}
 
-          <View style={[styles.aiInputContainer, { paddingBottom: (Platform.OS === "web" ? insets.bottom + 34 : tabBarHeight), paddingHorizontal: 16 }]}>
+          <View style={[styles.aiInputContainer, { paddingBottom: (Platform.OS === "web" ? insets.bottom + 34 : tabBarHeight + 20), paddingHorizontal: 16 }]}>
             <View style={styles.aiInputRow}>
               <TextInput
                 style={styles.aiInput}

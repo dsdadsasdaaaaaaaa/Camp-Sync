@@ -35,6 +35,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "slider.horizontal.3", selected: "slider.horizontal.3" }} />
         <Label>Manage</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="account">
+        <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
+        <Label>Account</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -120,6 +124,19 @@ function ClassicTabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? "settings" : "settings-outline"}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="account"
+        options={{
+          title: "Account",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "person-circle" : "person-circle-outline"}
               size={24}
               color={color}
             />
