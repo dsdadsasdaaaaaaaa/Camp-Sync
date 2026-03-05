@@ -31,13 +31,9 @@ function NativeTabLayout() {
         <Label>Updates</Label>
         {unresolved > 0 && <Badge>{unresolved.toString()}</Badge>}
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="ai">
-        <Icon sf={{ default: "sparkles", selected: "sparkles" }} />
-        <Label>AI</Label>
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="more">
-        <Icon sf={{ default: "ellipsis", selected: "ellipsis.circle.fill" }} />
-        <Label>More</Label>
+        <Icon sf={{ default: "slider.horizontal.3", selected: "slider.horizontal.3" }} />
+        <Label>Manage</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -85,11 +81,7 @@ function ClassicTabLayout() {
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "home" : "home-outline"}
-              size={24}
-              color={color}
-            />
+            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -98,11 +90,7 @@ function ClassicTabLayout() {
         options={{
           title: "Campers",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "people" : "people-outline"}
-              size={24}
-              color={color}
-            />
+            <Ionicons name={focused ? "people" : "people-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -121,40 +109,24 @@ function ClassicTabLayout() {
           title: "Updates",
           tabBarBadge: unresolved > 0 ? unresolved : undefined,
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "time" : "time-outline"}
-              size={24}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="ai"
-        options={{
-          title: "AI",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "sparkles" : "sparkles-outline"}
-              size={24}
-              color={color}
-            />
+            <Ionicons name={focused ? "time" : "time-outline"} size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="more"
         options={{
-          title: "More",
+          title: "Manage",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "ellipsis-horizontal-circle" : "ellipsis-horizontal-circle-outline"}
+              name={focused ? "settings" : "settings-outline"}
               size={24}
               color={color}
             />
           ),
         }}
       />
+      <Tabs.Screen name="ai" options={{ href: null }} />
     </Tabs>
   );
 }

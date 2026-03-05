@@ -82,17 +82,10 @@ export default function StaffNFCScreen() {
     if (checkoutCamper.wristbandId) {
       setEraseScanVisible(true);
     } else {
-      // No wristband — confirm direct checkout
       Alert.alert(
         "No Wristband",
-        `${checkoutCamper.firstName} doesn't have an active wristband. Check out without erasing?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Check Out",
-            onPress: () => handleCompleteCheckout(),
-          },
-        ]
+        `${checkoutCamper.firstName} doesn't have an active wristband. Contact a manager to perform a manual override.`,
+        [{ text: "OK" }]
       );
     }
   };

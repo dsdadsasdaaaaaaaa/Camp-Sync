@@ -116,6 +116,13 @@ Every API request is authenticated and the caller's role is verified before any 
 
 Role is not trusted from the client. It is read from the database on every request after the session token is validated.
 
+### Checkout Permissions
+
+| Role | Checkout Method |
+|---|---|
+| **Management** | Can scan and erase the camper's NFC wristband (normal flow), **or** use Manual Override to check a camper out without a scan — for situations where a wristband is lost or unavailable. |
+| **Staff** | Must always scan and erase the camper's NFC wristband to complete a checkout. No bypass or override option is available. If a camper has no wristband, staff must contact a manager. |
+
 ---
 
 ## 6. Invite-Code Registration

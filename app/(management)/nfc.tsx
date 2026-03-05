@@ -8,6 +8,8 @@ import {
   TextInput,
   Alert,
   Platform,
+  Modal,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,7 +18,7 @@ import Colors from "@/constants/colors";
 import NFCScanner from "@/components/NFCScanner";
 import type { Camper, WristbandPayload } from "@/types";
 
-type Screen = "home" | "selectCamper" | "readResult" | "checkoutResult";
+type Screen = "home" | "selectCamper" | "readResult" | "confirmCheckout";
 
 export default function NFCScreen() {
   const { campers, checkIns, programWristband, checkOutCamper, updateCamper } = useData();
@@ -25,37 +27,39 @@ export default function NFCScreen() {
   const [readScanVisible, setReadScanVisible] = useState(false);
   const [writeScanVisible, setWriteScanVisible] = useState(false);
   const [eraseScanVisible, setEraseScanVisible] = useState(false);
-  const [checkoutScanVisible, setCheckoutScanVisible] = useState(false);
   const [selectedCamper, setSelectedCamper] = useState<Camper | null>(null);
   const [writePayload, setWritePayload] = useState<WristbandPayload | null>(null);
   const [readResult, setReadResult] = useState<WristbandPayload | null>(null);
   const [camperSearch, setCamperSearch] = useState("");
 
-  const programmedWristbands = campers.filter(
-    (c) => c.wristbandId && c.wristbandEncryptedData
-  );
+  // Checkout-specific state
+  const [checkoutPickerVisible, setCheckoutPickerVisible] = useState(false);
+  const [checkoutCamper, setCheckoutCamper] = useState<Camper | null>(null);
+  const [checkoutSearch, setCheckoutSearch] = useState("");
+  const [manualOverrideLoading, setManualOverrideLoading] = useState(false);
 
-  const checkedInCount = campers.filter((c) => {
-    return checkIns.some(ci => ci.camperId === c.id && !ci.checkedOutAt);
-  }).length;
+  const programmedWristbands = campers.filter((c) => c.wristbandId && c.wristbandEncryptedData);
 
   const filteredCampers = campers.filter((c) =>
     `${c.firstName} ${c.lastName}`.toLowerCase().includes(camperSearch.toLowerCase())
   );
 
-  const handleStartRead = () => {
-    setReadScanVisible(true);
-  };
+  // Only checked-in campers can be checked out
+  const checkedInCampers = campers.filter((c) =>
+    checkIns.some((ci) => ci.camperId === c.id && !ci.checkedOutAt)
+  );
 
-  const handleStartCheckoutScan = () => {
-    setCheckoutScanVisible(true);
-  };
+  const filteredCheckoutCampers = checkedInCampers.filter((c) =>
+    `${c.firstName} ${c.lastName}`.toLowerCase().includes(checkoutSearch.toLowerCase()) ||
+    c.cabinGroup?.toLowerCase().includes(checkoutSearch.toLowerCase())
+  );
 
+  const getCamperCheckInStatus = (camperId: string) =>
+    checkIns.some((ci) => ci.camperId === camperId && !ci.checkedOutAt);
+
+  // ── Check In ───────────────────────────────────────────────────────────────
   const handleStartWrite = () => {
-    if (!selectedCamper) {
-      Alert.alert("Select Camper", "Please select a camper first.");
-      return;
-    }
+    if (!selectedCamper) { Alert.alert("Select Camper", "Please select a camper first."); return; }
     const payload: WristbandPayload = {
       camperId: selectedCamper.id,
       firstName: selectedCamper.firstName,
@@ -76,82 +80,102 @@ export default function NFCScreen() {
       await programWristband(selectedCamper.id);
       Alert.alert(
         "Wristband Programmed",
-        `${selectedCamper.firstName} ${selectedCamper.lastName}'s wristband now contains their encrypted profile and medical data. It can be read offline anywhere. They have also been checked into camp automatically.`,
+        `${selectedCamper.firstName} ${selectedCamper.lastName}'s wristband is programmed with encrypted data and they've been checked in automatically.`,
         [{ text: "Done", onPress: resetAll }]
       );
-    } catch (err: any) {
-      Alert.alert("Error", err.message);
-    }
+    } catch (err: any) { Alert.alert("Error", err.message); }
   };
 
+  // ── Scan Only ──────────────────────────────────────────────────────────────
   const handlePayloadRead = (payload: WristbandPayload) => {
     setReadScanVisible(false);
     setReadResult(payload);
     setScreen("readResult");
   };
 
-  const handleCheckoutPayloadRead = (payload: WristbandPayload) => {
-    setCheckoutScanVisible(false);
-    setReadResult(payload);
-    setScreen("checkoutResult");
+  // ── Checkout — select camper first ────────────────────────────────────────
+  const handleOpenCheckoutPicker = () => {
+    setCheckoutSearch("");
+    setCheckoutPickerVisible(true);
   };
 
-  const handleCheckOutFromRead = async () => {
-    if (!readResult) return;
-    const camper = campers.find(c => c.id === readResult.camperId);
-    if (!camper) {
-      Alert.alert("Error", "Camper not found in system.");
-      return;
-    }
+  const handleSelectCheckoutCamper = (camper: Camper) => {
+    setCheckoutCamper(camper);
+    setCheckoutPickerVisible(false);
+    setScreen("confirmCheckout");
+  };
 
-    const activeCheckIn = checkIns.find(ci => ci.camperId === camper.id && !ci.checkedOutAt);
-    if (!activeCheckIn) {
-      Alert.alert("Error", "Camper is not currently checked in.");
-      return;
-    }
-
+  const handleStartErase = () => {
+    if (!checkoutCamper) return;
+    const activeCheckIn = checkIns.find((ci) => ci.camperId === checkoutCamper.id && !ci.checkedOutAt);
+    if (!activeCheckIn) { Alert.alert("Error", "Camper is not currently checked in."); return; }
     setEraseScanVisible(true);
   };
 
   const handleEraseSuccess = async () => {
     setEraseScanVisible(false);
-    if (!readResult) return;
-    const camper = campers.find(c => c.id === readResult.camperId);
-    if (!camper) return;
-
-    const activeCheckIn = checkIns.find(ci => ci.camperId === camper.id && !ci.checkedOutAt);
+    if (!checkoutCamper) return;
+    const activeCheckIn = checkIns.find((ci) => ci.camperId === checkoutCamper.id && !ci.checkedOutAt);
     if (!activeCheckIn) return;
-
     try {
       await checkOutCamper(activeCheckIn.id);
-      await updateCamper(camper.id, {
+      await updateCamper(checkoutCamper.id, {
         wristbandId: null as any,
         wristbandEncryptedData: null as any,
-        wristbandLastProgrammed: null as any
+        wristbandLastProgrammed: null as any,
       });
-
-      Alert.alert("Checked Out", `${camper.firstName} has been checked out and their wristband has been erased.`);
+      Alert.alert("Checked Out", `${checkoutCamper.firstName} has been checked out and their wristband erased.`);
       resetAll();
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to complete check-out.");
-    }
+    } catch (err: any) { Alert.alert("Error", err.message || "Failed to complete check-out."); }
   };
 
-  const handleCheckoutConfirm = async () => {
+  // Management-only: checkout without scanning wristband
+  const handleManualOverride = async () => {
+    if (!checkoutCamper) return;
+    const activeCheckIn = checkIns.find((ci) => ci.camperId === checkoutCamper.id && !ci.checkedOutAt);
+    if (!activeCheckIn) { Alert.alert("Error", "Camper is not currently checked in."); return; }
+
+    Alert.alert(
+      "Manual Override",
+      `Check out ${checkoutCamper.firstName} ${checkoutCamper.lastName} without scanning a wristband?\n\nTheir wristband record (if any) will also be cleared.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Override & Check Out",
+          style: "destructive",
+          onPress: async () => {
+            setManualOverrideLoading(true);
+            try {
+              await checkOutCamper(activeCheckIn.id);
+              if (checkoutCamper.wristbandId) {
+                await updateCamper(checkoutCamper.id, {
+                  wristbandId: null as any,
+                  wristbandEncryptedData: null as any,
+                  wristbandLastProgrammed: null as any,
+                });
+              }
+              Alert.alert("Checked Out", `${checkoutCamper.firstName} has been manually checked out.`);
+              resetAll();
+            } catch (err: any) {
+              Alert.alert("Error", err.message || "Failed to complete check-out.");
+            } finally {
+              setManualOverrideLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // ── Scan-and-read checkout (from "Scan Only" readResult screen) ────────────
+  const handleCheckOutFromRead = () => {
     if (!readResult) return;
-    const camper = campers.find(c => c.id === readResult.camperId);
-    if (!camper) {
-      Alert.alert("Error", "Camper not found in system.");
-      return;
-    }
-
-    const activeCheckIn = checkIns.find(ci => ci.camperId === camper.id && !ci.checkedOutAt);
-    if (!activeCheckIn) {
-      Alert.alert("Not Checked In", `${camper.firstName} is not currently checked in.`);
-      return;
-    }
-
-    setEraseScanVisible(true);
+    const camper = campers.find((c) => c.id === readResult.camperId);
+    if (!camper) { Alert.alert("Error", "Camper not found."); return; }
+    const activeCheckIn = checkIns.find((ci) => ci.camperId === camper.id && !ci.checkedOutAt);
+    if (!activeCheckIn) { Alert.alert("Error", "Camper is not currently checked in."); return; }
+    setCheckoutCamper(camper);
+    setScreen("confirmCheckout");
   };
 
   const resetAll = () => {
@@ -160,14 +184,12 @@ export default function NFCScreen() {
     setWritePayload(null);
     setReadResult(null);
     setCamperSearch("");
+    setCheckoutCamper(null);
+    setCheckoutSearch("");
     setReadScanVisible(false);
     setWriteScanVisible(false);
     setEraseScanVisible(false);
-    setCheckoutScanVisible(false);
-  };
-
-  const getCamperCheckInStatus = (camperId: string) => {
-    return checkIns.some(ci => ci.camperId === camperId && !ci.checkedOutAt);
+    setCheckoutPickerVisible(false);
   };
 
   return (
@@ -175,24 +197,19 @@ export default function NFCScreen() {
       style={{ flex: 1, backgroundColor: Colors.light.background }}
       contentContainerStyle={[
         styles.container,
-        {
-          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20),
-          paddingBottom: insets.bottom + 100,
-        },
+        { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20), paddingBottom: insets.bottom + 100 },
       ]}
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.headerTitle}>Check In / Out</Text>
-      <Text style={styles.headerSub}>Scan or check out camper wristbands</Text>
+      <Text style={styles.headerSub}>Manage camper wristbands and attendance</Text>
 
+      {/* ── HOME ── */}
       {screen === "home" && (
         <>
           <View style={styles.modeGrid}>
             <Pressable
-              style={({ pressed }) => [
-                styles.modeCard,
-                { opacity: pressed ? 0.85 : 1, borderColor: Colors.primary + "40" },
-              ]}
+              style={({ pressed }) => [styles.modeCard, { opacity: pressed ? 0.85 : 1, borderColor: Colors.primary + "40" }]}
               onPress={() => setScreen("selectCamper")}
             >
               <View style={[styles.modeIcon, { backgroundColor: Colors.primary + "15" }]}>
@@ -202,26 +219,20 @@ export default function NFCScreen() {
               <Text style={styles.modeSub}>Program & check in camper</Text>
             </Pressable>
             <Pressable
-              style={({ pressed }) => [
-                styles.modeCard,
-                { opacity: pressed ? 0.85 : 1, borderColor: Colors.danger + "40" },
-              ]}
-              onPress={handleStartCheckoutScan}
+              style={({ pressed }) => [styles.modeCard, { opacity: pressed ? 0.85 : 1, borderColor: Colors.danger + "40" }]}
+              onPress={handleOpenCheckoutPicker}
             >
               <View style={[styles.modeIcon, { backgroundColor: Colors.danger + "15" }]}>
                 <Ionicons name="log-out" size={28} color={Colors.danger} />
               </View>
               <Text style={styles.modeTitle}>Check Out</Text>
-              <Text style={styles.modeSub}>Scan to check out & erase</Text>
+              <Text style={styles.modeSub}>Select camper to check out</Text>
             </Pressable>
           </View>
 
           <Pressable
-            style={({ pressed }) => [
-              styles.scanOnlyCard,
-              { opacity: pressed ? 0.85 : 1 },
-            ]}
-            onPress={handleStartRead}
+            style={({ pressed }) => [styles.scanOnlyCard, { opacity: pressed ? 0.85 : 1 }]}
+            onPress={() => setReadScanVisible(true)}
           >
             <View style={styles.checkoutCardLeft}>
               <View style={[styles.modeIcon, { backgroundColor: Colors.accent + "15" }]}>
@@ -245,12 +256,12 @@ export default function NFCScreen() {
               </View>
             </View>
             <View style={styles.statRow}>
-              <View style={[styles.statIcon, { backgroundColor: Colors.warning + "15" }]}>
-                <Ionicons name="alert-circle" size={20} color={Colors.warning} />
+              <View style={[styles.statIcon, { backgroundColor: Colors.primary + "15" }]}>
+                <Ionicons name="people" size={20} color={Colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.statLabel}>Not Yet Programmed</Text>
-                <Text style={styles.statValue}>{campers.length - programmedWristbands.length}</Text>
+                <Text style={styles.statLabel}>Currently Checked In</Text>
+                <Text style={styles.statValue}>{checkedInCampers.length}</Text>
               </View>
             </View>
           </View>
@@ -260,19 +271,18 @@ export default function NFCScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.offlineTitle}>Offline-First NFC</Text>
               <Text style={styles.offlineText}>
-                All camper data is encrypted and written directly to the NFC wristband tag. Scanning works anywhere — no internet required. Medical info and emergency contacts are always accessible.
+                All camper data is encrypted and written directly to the NFC wristband. Medical info and emergency contacts are always accessible — no internet required.
               </Text>
             </View>
           </View>
         </>
       )}
 
+      {/* ── SELECT CAMPER (CHECK IN) ── */}
       {screen === "selectCamper" && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Check In Camper</Text>
-          <Text style={styles.cardSub}>
-            Their encrypted data will be written directly onto the NFC wristband
-          </Text>
+          <Text style={styles.cardSub}>Their encrypted data will be written to the NFC wristband</Text>
           <TextInput
             style={styles.input}
             placeholder="Search campers..."
@@ -281,28 +291,19 @@ export default function NFCScreen() {
             onChangeText={setCamperSearch}
           />
           {campers.length === 0 && (
-            <Text style={[styles.cardSub, { textAlign: "center", paddingVertical: 16 }]}>
-              No campers registered yet.
-            </Text>
+            <Text style={[styles.cardSub, { textAlign: "center", paddingVertical: 16 }]}>No campers registered yet.</Text>
           )}
           {filteredCampers.slice(0, 8).map((camper) => (
             <Pressable
               key={camper.id}
-              style={[
-                styles.camperOption,
-                selectedCamper?.id === camper.id && styles.camperOptionSelected,
-              ]}
+              style={[styles.camperOption, selectedCamper?.id === camper.id && styles.camperOptionSelected]}
               onPress={() => setSelectedCamper(camper)}
             >
               <View style={styles.camperAvatar}>
-                <Text style={styles.camperInitial}>
-                  {camper.firstName.charAt(0)}
-                </Text>
+                <Text style={styles.camperInitial}>{camper.firstName.charAt(0)}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.camperName}>
-                  {camper.firstName} {camper.lastName}
-                </Text>
+                <Text style={styles.camperName}>{camper.firstName} {camper.lastName}</Text>
                 <Text style={styles.camperSub}>
                   {camper.cabinGroup || "No cabin"}
                   {camper.wristbandId ? " · Wristband active" : " · No wristband"}
@@ -319,18 +320,11 @@ export default function NFCScreen() {
             </Pressable>
           ))}
           <View style={styles.buttonRow}>
-            <Pressable
-              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
-              onPress={resetAll}
-            >
+            <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={resetAll}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
             <Pressable
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                !selectedCamper && styles.disabledBtn,
-                { opacity: pressed && selectedCamper ? 0.85 : 1 },
-              ]}
+              style={({ pressed }) => [styles.primaryBtn, !selectedCamper && styles.disabledBtn, { opacity: pressed && selectedCamper ? 0.85 : 1 }]}
               onPress={handleStartWrite}
               disabled={!selectedCamper}
             >
@@ -341,6 +335,76 @@ export default function NFCScreen() {
         </View>
       )}
 
+      {/* ── CONFIRM CHECKOUT ── */}
+      {screen === "confirmCheckout" && checkoutCamper && (
+        <View style={styles.card}>
+          <View style={styles.successHeader}>
+            <View style={[styles.successIcon, { backgroundColor: Colors.danger + "15" }]}>
+              <Ionicons name="log-out" size={36} color={Colors.danger} />
+            </View>
+            <Text style={[styles.successTitle, { color: Colors.danger }]}>Check Out</Text>
+            <Text style={styles.successSub}>
+              {checkoutCamper.wristbandId ? "Erase wristband to confirm" : "No wristband — use manual override"}
+            </Text>
+          </View>
+
+          <View style={styles.camperBanner}>
+            <Text style={styles.camperBannerName}>{checkoutCamper.firstName} {checkoutCamper.lastName}</Text>
+            {checkoutCamper.cabinGroup ? (
+              <Text style={styles.camperBannerDob}>{checkoutCamper.cabinGroup}</Text>
+            ) : null}
+            <View style={[styles.statusPill, { backgroundColor: Colors.success + "15", marginTop: 8 }]}>
+              <View style={[styles.statusDot, { backgroundColor: Colors.success }]} />
+              <Text style={[styles.statusPillText, { color: Colors.success }]}>Currently Checked In</Text>
+            </View>
+          </View>
+
+          <View style={styles.checkoutInfo}>
+            <Ionicons name="information-circle" size={18} color={Colors.light.textSecondary} />
+            <Text style={styles.checkoutInfoText}>
+              {checkoutCamper.wristbandId
+                ? "Scan and erase the wristband to check this camper out. Their parent will be notified automatically."
+                : "This camper has no active wristband. Use Manual Override to check them out without a scan."}
+            </Text>
+          </View>
+
+          <View style={{ gap: 10 }}>
+            {checkoutCamper.wristbandId ? (
+              <Pressable
+                style={({ pressed }) => [styles.checkOutBtn, { opacity: pressed ? 0.85 : 1 }]}
+                onPress={handleStartErase}
+              >
+                <Ionicons name="radio" size={18} color="#fff" />
+                <Text style={styles.checkOutBtnText}>Scan &amp; Erase Wristband</Text>
+              </Pressable>
+            ) : null}
+
+            <Pressable
+              style={({ pressed }) => [styles.overrideBtn, { opacity: pressed ? 0.85 : 1 || manualOverrideLoading ? 0.7 : 1 }]}
+              onPress={handleManualOverride}
+              disabled={manualOverrideLoading}
+            >
+              {manualOverrideLoading ? (
+                <ActivityIndicator size="small" color={Colors.warning} />
+              ) : (
+                <>
+                  <Ionicons name="shield-checkmark-outline" size={18} color={Colors.warning} />
+                  <Text style={styles.overrideBtnText}>Manual Override</Text>
+                </>
+              )}
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
+              onPress={resetAll}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* ── SCAN ONLY RESULT ── */}
       {screen === "readResult" && readResult && (
         <View style={styles.card}>
           <View style={styles.successHeader}>
@@ -352,9 +416,7 @@ export default function NFCScreen() {
           </View>
 
           <View style={styles.camperBanner}>
-            <Text style={styles.camperBannerName}>
-              {readResult.firstName} {readResult.lastName}
-            </Text>
+            <Text style={styles.camperBannerName}>{readResult.firstName} {readResult.lastName}</Text>
             <Text style={styles.camperBannerDob}>DOB: {readResult.dateOfBirth || "—"}</Text>
           </View>
 
@@ -377,19 +439,12 @@ export default function NFCScreen() {
                   {ec.email ? <Text style={styles.dataValueSec}>{ec.email}</Text> : null}
                 </View>
               ))
-            ) : (
-              <Text style={styles.dataValue}>—</Text>
-            )}
+            ) : <Text style={styles.dataValue}>—</Text>}
           </View>
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Allergies</Text>
-            <Text style={[
-              styles.dataValue,
-              readResult.medical?.allergies && readResult.medical.allergies.toLowerCase() !== "none"
-                ? { color: Colors.danger }
-                : {},
-            ]}>
+            <Text style={[styles.dataValue, readResult.medical?.allergies && readResult.medical.allergies.toLowerCase() !== "none" ? { color: Colors.danger } : {}]}>
               {readResult.medical?.allergies || "None reported"}
             </Text>
           </View>
@@ -407,9 +462,7 @@ export default function NFCScreen() {
           <View style={[styles.dataSection, { borderBottomWidth: 0 }]}>
             <View style={styles.serverNote}>
               <Ionicons name="cloud-outline" size={13} color={Colors.light.textMuted} />
-              <Text style={styles.serverNoteText}>
-                Doctor, insurance &amp; notes are stored in server records only
-              </Text>
+              <Text style={styles.serverNoteText}>Doctor, insurance &amp; notes are stored in server records only</Text>
             </View>
           </View>
 
@@ -418,131 +471,47 @@ export default function NFCScreen() {
           </Text>
 
           <View style={{ gap: 10 }}>
-            <Pressable
-              style={({ pressed }) => [styles.checkOutBtn, { opacity: pressed ? 0.85 : 1 }]}
-              onPress={handleCheckOutFromRead}
-            >
-              <Ionicons name="log-out" size={18} color="#fff" />
-              <Text style={styles.checkOutBtnText}>Check Out Camper</Text>
-            </Pressable>
-
+            {getCamperCheckInStatus(readResult.camperId) && (
+              <Pressable
+                style={({ pressed }) => [styles.checkOutBtn, { opacity: pressed ? 0.85 : 1 }]}
+                onPress={handleCheckOutFromRead}
+              >
+                <Ionicons name="log-out" size={18} color="#fff" />
+                <Text style={styles.checkOutBtnText}>Check Out This Camper</Text>
+              </Pressable>
+            )}
             <Pressable
               style={({ pressed }) => [styles.primaryBtn, { opacity: pressed ? 0.85 : 1, backgroundColor: Colors.light.surfaceSecondary, borderWidth: 1, borderColor: Colors.light.border }]}
-              onPress={handleStartRead}
+              onPress={() => setReadScanVisible(true)}
             >
               <Ionicons name="radio" size={18} color={Colors.light.textSecondary} />
               <Text style={[styles.primaryBtnText, { color: Colors.light.textSecondary }]}>Scan Another</Text>
             </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
-              onPress={resetAll}
-            >
+            <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={resetAll}>
               <Text style={styles.cancelBtnText}>Done</Text>
             </Pressable>
           </View>
         </View>
       )}
 
-      {screen === "checkoutResult" && readResult && (
-        <View style={styles.card}>
-          <View style={styles.successHeader}>
-            <View style={[styles.successIcon, { backgroundColor: Colors.danger + "15" }]}>
-              <Ionicons name="log-out" size={36} color={Colors.danger} />
-            </View>
-            <Text style={[styles.successTitle, { color: Colors.danger }]}>Check Out</Text>
-            <Text style={styles.successSub}>Confirm checkout and erase wristband</Text>
-          </View>
-
-          <View style={styles.camperBanner}>
-            <Text style={styles.camperBannerName}>
-              {readResult.firstName} {readResult.lastName}
-            </Text>
-            <Text style={styles.camperBannerDob}>DOB: {readResult.dateOfBirth || "—"}</Text>
-            {getCamperCheckInStatus(readResult.camperId) ? (
-              <View style={[styles.statusPill, { backgroundColor: Colors.success + "15", marginTop: 8 }]}>
-                <View style={[styles.statusDot, { backgroundColor: Colors.success }]} />
-                <Text style={[styles.statusPillText, { color: Colors.success }]}>Currently Checked In</Text>
-              </View>
-            ) : (
-              <View style={[styles.statusPill, { backgroundColor: Colors.light.textMuted + "15", marginTop: 8 }]}>
-                <View style={[styles.statusDot, { backgroundColor: Colors.light.textMuted }]} />
-                <Text style={[styles.statusPillText, { color: Colors.light.textMuted }]}>Not Checked In</Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.checkoutInfo}>
-            <Ionicons name="information-circle" size={18} color={Colors.light.textSecondary} />
-            <Text style={styles.checkoutInfoText}>
-              This will check out the camper, erase the wristband data, and unlink the wristband from their profile. A new wristband will need to be programmed for their next visit.
-            </Text>
-          </View>
-
-          <View style={{ gap: 10 }}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.checkOutBtn,
-                !getCamperCheckInStatus(readResult.camperId) && styles.disabledBtn,
-                { opacity: pressed ? 0.85 : 1 },
-              ]}
-              onPress={handleCheckoutConfirm}
-              disabled={!getCamperCheckInStatus(readResult.camperId)}
-            >
-              <Ionicons name="log-out" size={18} color="#fff" />
-              <Text style={styles.checkOutBtnText}>
-                {getCamperCheckInStatus(readResult.camperId)
-                  ? "Erase Wristband & Check Out"
-                  : "Camper Not Checked In"}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
-              onPress={resetAll}
-            >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-
+      {/* ── NFC Scanners ── */}
       {readScanVisible && (
         <NFCScanner
           visible={readScanVisible}
           mode="read"
           onPayloadRead={handlePayloadRead}
-          onError={(msg) => {
-            setReadScanVisible(false);
-            Alert.alert("Scan Error", msg);
-          }}
+          onError={(msg) => { setReadScanVisible(false); Alert.alert("Scan Error", msg); }}
           onCancel={() => setReadScanVisible(false)}
         />
       )}
 
-      {checkoutScanVisible && (
-        <NFCScanner
-          visible={checkoutScanVisible}
-          mode="read"
-          onPayloadRead={handleCheckoutPayloadRead}
-          onError={(msg) => {
-            setCheckoutScanVisible(false);
-            Alert.alert("Scan Error", msg);
-          }}
-          onCancel={() => setCheckoutScanVisible(false)}
-        />
-      )}
-
-      {eraseScanVisible && readResult && (
+      {eraseScanVisible && checkoutCamper && (
         <NFCScanner
           visible={eraseScanVisible}
           mode="erase"
-          camperName={readResult.firstName}
+          camperName={checkoutCamper.firstName}
           onEraseSuccess={handleEraseSuccess}
-          onError={(msg) => {
-            setEraseScanVisible(false);
-            Alert.alert("Erase Error", msg);
-          }}
+          onError={(msg) => { setEraseScanVisible(false); Alert.alert("Erase Error", msg); }}
           onCancel={() => setEraseScanVisible(false)}
         />
       )}
@@ -554,440 +523,159 @@ export default function NFCScreen() {
           writePayload={writePayload}
           writeCamper={selectedCamper}
           onWriteSuccess={handleWriteSuccess}
-          onError={(msg) => {
-            setWriteScanVisible(false);
-            Alert.alert("Write Error", msg);
-          }}
+          onError={(msg) => { setWriteScanVisible(false); Alert.alert("Write Error", msg); }}
           onCancel={() => setWriteScanVisible(false)}
         />
       )}
+
+      {/* ── Checkout Camper Picker Modal ── */}
+      <Modal
+        visible={checkoutPickerVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setCheckoutPickerVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Select Camper to Check Out</Text>
+            <Text style={styles.modalSub}>{checkedInCampers.length} camper{checkedInCampers.length !== 1 ? "s" : ""} currently checked in</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Search by name or cabin..."
+              placeholderTextColor={Colors.light.textMuted}
+              value={checkoutSearch}
+              onChangeText={setCheckoutSearch}
+              autoFocus
+            />
+
+            {checkedInCampers.length === 0 ? (
+              <View style={styles.emptyPicker}>
+                <Ionicons name="people-outline" size={36} color={Colors.light.textMuted} />
+                <Text style={styles.emptyPickerText}>No campers are currently checked in</Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
+                {filteredCheckoutCampers.map((camper) => (
+                  <Pressable
+                    key={camper.id}
+                    style={({ pressed }) => [styles.pickerRow, { opacity: pressed ? 0.8 : 1 }]}
+                    onPress={() => handleSelectCheckoutCamper(camper)}
+                  >
+                    <View style={[styles.camperAvatar, { backgroundColor: Colors.danger + "20" }]}>
+                      <Text style={[styles.camperInitial, { color: Colors.danger }]}>{camper.firstName.charAt(0)}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.camperName}>{camper.firstName} {camper.lastName}</Text>
+                      <Text style={styles.camperSub}>
+                        {camper.cabinGroup || "No cabin"}
+                        {camper.wristbandId ? " · Wristband active" : " · No wristband"}
+                      </Text>
+                    </View>
+                    {camper.wristbandId ? (
+                      <View style={styles.activeBadge}>
+                        <Text style={styles.activeBadgeText}>NFC</Text>
+                      </View>
+                    ) : (
+                      <View style={[styles.activeBadge, { backgroundColor: Colors.warning + "20" }]}>
+                        <Text style={[styles.activeBadgeText, { color: Colors.warning }]}>Manual</Text>
+                      </View>
+                    )}
+                    <Ionicons name="chevron-forward" size={16} color={Colors.light.textMuted} />
+                  </Pressable>
+                ))}
+                {filteredCheckoutCampers.length === 0 && checkoutSearch.length > 0 && (
+                  <Text style={[styles.emptyPickerText, { paddingVertical: 20, textAlign: "center" }]}>No results for "{checkoutSearch}"</Text>
+                )}
+              </ScrollView>
+            )}
+
+            <Pressable
+              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1, marginTop: 12 }]}
+              onPress={() => setCheckoutPickerVisible(false)}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 20,
-    gap: 16,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-  },
-  headerSub: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    marginTop: -8,
-  },
-  modeGrid: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  modeCard: {
-    flex: 1,
-    backgroundColor: Colors.light.surface,
-    borderRadius: 20,
-    padding: 20,
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1.5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  modeIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modeTitle: {
-    fontSize: 16,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-    textAlign: "center",
-  },
-  modeSub: {
-    fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    textAlign: "center",
-  },
-  scanOnlyCard: {
-    backgroundColor: Colors.light.surface,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: Colors.accent + "30",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    gap: 10,
-  },
-  checkoutCard: {
-    backgroundColor: Colors.light.surface,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: Colors.danger + "30",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    gap: 10,
-  },
-  checkoutCardLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  checkoutCardTitle: {
-    fontSize: 16,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-  },
-  checkoutCardSub: {
-    fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    marginTop: 2,
-  },
-  checkoutBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: Colors.danger + "12",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginLeft: 70,
-  },
-  checkoutBadgeText: {
-    fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.danger,
-  },
-  statsCard: {
-    backgroundColor: Colors.light.surface,
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  statRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statLabel: {
-    fontSize: 13,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-  },
-  statValue: {
-    fontSize: 16,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-  },
-  offlineCard: {
-    flexDirection: "row",
-    gap: 12,
-    backgroundColor: Colors.primary + "08",
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.primary + "20",
-  },
-  offlineTitle: {
-    fontSize: 14,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.primary,
-    marginBottom: 4,
-  },
-  offlineText: {
-    fontSize: 13,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    lineHeight: 18,
-  },
-  card: {
-    backgroundColor: Colors.light.surface,
-    borderRadius: 20,
-    padding: 20,
-    gap: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-  },
-  cardSub: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    marginTop: -6,
-  },
-  input: {
-    backgroundColor: Colors.light.surfaceSecondary,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    paddingHorizontal: 14,
-    height: 50,
-    fontFamily: "Outfit_400Regular",
-    fontSize: 15,
-    color: Colors.light.text,
-  },
-  camperOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  camperOptionSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary + "08",
-  },
-  camperAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primary + "20",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  camperInitial: {
-    fontSize: 16,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.primary,
-  },
-  camperName: {
-    fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
-  },
-  camperSub: {
-    fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-  },
-  activeBadge: {
-    backgroundColor: Colors.success + "15",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  activeBadgeText: {
-    fontSize: 11,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.success,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 4,
-  },
-  cancelBtn: {
-    flex: 1,
-    height: 50,
-    borderRadius: 12,
-    backgroundColor: Colors.light.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  cancelBtnText: {
-    fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
-  },
-  primaryBtn: {
-    flex: 2,
-    height: 50,
-    borderRadius: 12,
-    backgroundColor: Colors.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  primaryBtnText: {
-    fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
-    color: "#fff",
-  },
-  disabledBtn: {
-    backgroundColor: Colors.light.textMuted,
-  },
-  successHeader: {
-    alignItems: "center",
-    gap: 8,
-  },
-  successIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.success + "15",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  successTitle: {
-    fontSize: 20,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.success,
-  },
-  successSub: {
-    fontSize: 13,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-  },
-  camperBanner: {
-    backgroundColor: Colors.primary + "10",
-    borderRadius: 14,
-    padding: 16,
-  },
-  camperBannerName: {
-    fontSize: 22,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.primary,
-  },
-  camperBannerDob: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    marginTop: 4,
-  },
-  statusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  statusPillText: {
-    fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
-  },
-  bloodHighlight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: Colors.danger + "10",
-    borderRadius: 14,
-    padding: 14,
-  },
-  bloodLabel: {
-    fontSize: 12,
-    fontFamily: "Outfit_500Medium",
-    color: Colors.light.textSecondary,
-  },
-  bloodValue: {
-    fontSize: 26,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.danger,
-  },
-  dataSection: {
-    gap: 4,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-  },
-  dataSectionTitle: {
-    fontSize: 11,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  dataValue: {
-    fontSize: 15,
-    fontFamily: "Outfit_500Medium",
-    color: Colors.light.text,
-  },
-  dataValueSec: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-  },
-  programmedAt: {
-    fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
-    textAlign: "center",
-  },
-  checkOutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: Colors.danger,
-    borderRadius: 14,
-    height: 52,
-  },
-  checkOutBtnText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
-  },
-  checkoutInfo: {
-    flexDirection: "row",
-    gap: 10,
-    backgroundColor: Colors.light.surfaceSecondary,
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  checkoutInfoText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    lineHeight: 18,
-  },
-  serverNote: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    gap: 6,
-  },
-  serverNoteText: {
-    flex: 1,
-    fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
-    fontStyle: "italic" as const,
-  },
+  container: { paddingHorizontal: 20, gap: 16 },
+  headerTitle: { fontSize: 28, fontFamily: "Outfit_700Bold", color: Colors.light.text },
+  headerSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginTop: -8 },
+  modeGrid: { flexDirection: "row", gap: 12 },
+  modeCard: { flex: 1, backgroundColor: Colors.light.surface, borderRadius: 20, padding: 20, alignItems: "center", gap: 10, borderWidth: 1.5, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  modeIcon: { width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  modeTitle: { fontSize: 16, fontFamily: "Outfit_700Bold", color: Colors.light.text, textAlign: "center" },
+  modeSub: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, textAlign: "center" },
+  scanOnlyCard: { backgroundColor: Colors.light.surface, borderRadius: 20, padding: 16, borderWidth: 1.5, borderColor: Colors.accent + "30", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, gap: 10 },
+  checkoutCardLeft: { flexDirection: "row", alignItems: "center", gap: 14 },
+  checkoutCardTitle: { fontSize: 16, fontFamily: "Outfit_700Bold", color: Colors.light.text },
+  checkoutCardSub: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginTop: 2 },
+  statsCard: { backgroundColor: Colors.light.surface, borderRadius: 16, padding: 16, gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  statRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  statIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  statLabel: { fontSize: 13, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary },
+  statValue: { fontSize: 16, fontFamily: "Outfit_700Bold", color: Colors.light.text },
+  offlineCard: { flexDirection: "row", gap: 12, backgroundColor: Colors.primary + "08", borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.primary + "20" },
+  offlineTitle: { fontSize: 14, fontFamily: "Outfit_700Bold", color: Colors.primary, marginBottom: 4 },
+  offlineText: { fontSize: 13, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, lineHeight: 18 },
+  card: { backgroundColor: Colors.light.surface, borderRadius: 20, padding: 20, gap: 14, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  cardTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", color: Colors.light.text },
+  cardSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginTop: -6 },
+  input: { backgroundColor: Colors.light.surfaceSecondary, borderRadius: 12, borderWidth: 1, borderColor: Colors.light.border, paddingHorizontal: 14, height: 50, fontFamily: "Outfit_400Regular", fontSize: 15, color: Colors.light.text },
+  camperOption: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: Colors.light.border },
+  camperOptionSelected: { borderColor: Colors.primary, backgroundColor: Colors.primary + "08" },
+  camperAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary + "20", alignItems: "center", justifyContent: "center" },
+  camperInitial: { fontSize: 16, fontFamily: "Outfit_700Bold", color: Colors.primary },
+  camperName: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: Colors.light.text },
+  camperSub: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary },
+  activeBadge: { backgroundColor: Colors.success + "15", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  activeBadgeText: { fontSize: 11, fontFamily: "Outfit_600SemiBold", color: Colors.success },
+  buttonRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+  cancelBtn: { flex: 1, height: 50, borderRadius: 12, backgroundColor: Colors.light.surfaceSecondary, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: Colors.light.border },
+  cancelBtnText: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: Colors.light.textSecondary },
+  primaryBtn: { flex: 2, height: 50, borderRadius: 12, backgroundColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  primaryBtnText: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: "#fff" },
+  disabledBtn: { backgroundColor: Colors.light.textMuted },
+  successHeader: { alignItems: "center", gap: 8 },
+  successIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.success + "15", alignItems: "center", justifyContent: "center" },
+  successTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", color: Colors.success },
+  successSub: { fontSize: 13, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, textAlign: "center" },
+  camperBanner: { backgroundColor: Colors.primary + "10", borderRadius: 14, padding: 16 },
+  camperBannerName: { fontSize: 22, fontFamily: "Outfit_700Bold", color: Colors.primary },
+  camperBannerDob: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginTop: 4 },
+  statusPill: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  statusDot: { width: 7, height: 7, borderRadius: 3.5 },
+  statusPillText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
+  checkoutInfo: { flexDirection: "row", gap: 10, backgroundColor: Colors.light.surfaceSecondary, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: Colors.light.border },
+  checkoutInfoText: { flex: 1, fontSize: 13, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, lineHeight: 18 },
+  checkOutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.danger, borderRadius: 14, height: 52 },
+  checkOutBtnText: { color: "#fff", fontSize: 16, fontFamily: "Outfit_600SemiBold" },
+  overrideBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 14, height: 52, borderWidth: 1.5, borderColor: Colors.warning + "60", backgroundColor: Colors.warning + "10" },
+  overrideBtnText: { fontSize: 16, fontFamily: "Outfit_600SemiBold", color: Colors.warning },
+  bloodHighlight: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: Colors.danger + "10", borderRadius: 14, padding: 14 },
+  bloodLabel: { fontSize: 12, fontFamily: "Outfit_500Medium", color: Colors.light.textSecondary },
+  bloodValue: { fontSize: 26, fontFamily: "Outfit_700Bold", color: Colors.danger },
+  dataSection: { gap: 4, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: Colors.light.border },
+  dataSectionTitle: { fontSize: 11, fontFamily: "Outfit_700Bold", color: Colors.light.textMuted, textTransform: "uppercase", letterSpacing: 0.8 },
+  dataValue: { fontSize: 15, fontFamily: "Outfit_500Medium", color: Colors.light.text },
+  dataValueSec: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary },
+  programmedAt: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted, textAlign: "center" },
+  serverNote: { flexDirection: "row" as const, alignItems: "center" as const, gap: 6 },
+  serverNoteText: { flex: 1, fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted, fontStyle: "italic" as const },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalSheet: { backgroundColor: Colors.light.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingTop: 12, maxHeight: "85%" },
+  modalHandle: { width: 40, height: 5, backgroundColor: Colors.light.border, borderRadius: 2.5, alignSelf: "center", marginBottom: 16 },
+  modalTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", color: Colors.light.text, marginBottom: 4 },
+  modalSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginBottom: 16 },
+  pickerRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.light.border },
+  emptyPicker: { alignItems: "center", paddingVertical: 32, gap: 12 },
+  emptyPickerText: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted },
 });

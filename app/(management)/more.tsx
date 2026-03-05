@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   Pressable,
   TextInput,
   Alert,
@@ -11,19 +12,59 @@ import {
   RefreshControl,
   Modal,
   ActivityIndicator,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
+import { fetch } from "expo/fetch";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import DatePicker from "@/components/DatePicker";
 import Colors from "@/constants/colors";
+import { getApiUrl } from "@/lib/query-client";
+import { getToken } from "@/lib/auth-token";
 import type { Session, AuthCode, UserRole } from "@/types";
 
-type Tab = "sessions" | "codes" | "users";
+type Tab = "sessions" | "codes" | "users" | "ai";
 
+// ── AI Types ──────────────────────────────────────────────────────────────────
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  isStreaming?: boolean;
+}
+
+const SUGGESTION_QUESTIONS = [
+  "Who has peanut allergies checking in today?",
+  "Which campers are currently checked in?",
+  "List all campers with medical conditions",
+  "Who hasn't been checked in yet this session?",
+  "Which campers don't have wristbands?",
+];
+
+function MessageBubble({ message }: { message: Message }) {
+  const isUser = message.role === "user";
+  return (
+    <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
+      {!isUser && (
+        <View style={styles.aiAvatar}>
+          <Ionicons name="sparkles" size={14} color={Colors.accent} />
+        </View>
+      )}
+      <View style={[styles.bubbleContent, isUser ? styles.userBubbleContent : styles.aiBubbleContent]}>
+        <Text style={[styles.bubbleText, isUser ? styles.userText : styles.aiText]}>
+          {message.content}
+          {message.isStreaming && <Text style={styles.cursor}>▋</Text>}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// ── Session Card ──────────────────────────────────────────────────────────────
 function SessionCard({
   session,
   onDelete,
@@ -46,29 +87,15 @@ function SessionCard({
           </Text>
         </View>
         <Pressable
-          style={[
-            styles.activeToggle,
-            { backgroundColor: session.isActive ? Colors.success + "20" : Colors.light.surfaceSecondary },
-          ]}
+          style={[styles.activeToggle, { backgroundColor: session.isActive ? Colors.success + "20" : Colors.light.surfaceSecondary }]}
           onPress={onToggleActive}
         >
-          <View
-            style={[
-              styles.activeDot,
-              { backgroundColor: session.isActive ? Colors.success : Colors.light.textMuted },
-            ]}
-          />
-          <Text
-            style={[
-              styles.activeText,
-              { color: session.isActive ? Colors.success : Colors.light.textSecondary },
-            ]}
-          >
+          <View style={[styles.activeDot, { backgroundColor: session.isActive ? Colors.success : Colors.light.textMuted }]} />
+          <Text style={[styles.activeText, { color: session.isActive ? Colors.success : Colors.light.textSecondary }]}>
             {session.isActive ? "Active" : "Inactive"}
           </Text>
         </Pressable>
       </View>
-
       <View style={styles.datesChips}>
         {session.authorizedDates.length === 0 ? (
           <Text style={styles.noDatesText}>No check-in dates set</Text>
@@ -76,10 +103,7 @@ function SessionCard({
           session.authorizedDates.slice(0, 4).map((d) => (
             <View key={d} style={styles.dateChip}>
               <Text style={styles.dateChipText}>
-                {new Date(d + "T12:00:00").toLocaleDateString([], {
-                  month: "short",
-                  day: "numeric",
-                })}
+                {new Date(d + "T12:00:00").toLocaleDateString([], { month: "short", day: "numeric" })}
               </Text>
             </View>
           ))
@@ -90,19 +114,12 @@ function SessionCard({
           </View>
         )}
       </View>
-
       <View style={styles.sessionCardActions}>
-        <Pressable
-          onPress={onViewRoster}
-          style={({ pressed }) => [styles.rosterBtn, { opacity: pressed ? 0.7 : 1 }]}
-        >
+        <Pressable onPress={onViewRoster} style={({ pressed }) => [styles.rosterBtn, { opacity: pressed ? 0.7 : 1 }]}>
           <Ionicons name="list-outline" size={15} color={Colors.primary} />
           <Text style={styles.rosterBtnText}>Roster</Text>
         </Pressable>
-        <Pressable
-          onPress={onDelete}
-          style={({ pressed }) => [styles.deleteSessionBtn, { opacity: pressed ? 0.7 : 1 }]}
-        >
+        <Pressable onPress={onDelete} style={({ pressed }) => [styles.deleteSessionBtn, { opacity: pressed ? 0.7 : 1 }]}>
           <Ionicons name="trash-outline" size={16} color={Colors.danger} />
           <Text style={styles.deleteSessionText}>Delete</Text>
         </Pressable>
@@ -111,75 +128,34 @@ function SessionCard({
   );
 }
 
-function AuthCodeCard({
-  code,
-  onEdit,
-  onDelete,
-}: {
-  code: AuthCode;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const roleColors: Record<UserRole, string> = {
-    management: Colors.primary,
-    staff: Colors.accent,
-    parent: "#8B5CF6",
-  };
-
+// ── Auth Code Card ────────────────────────────────────────────────────────────
+function AuthCodeCard({ code, onEdit, onDelete }: { code: AuthCode; onEdit: () => void; onDelete: () => void }) {
+  const roleColors: Record<UserRole, string> = { management: Colors.primary, staff: Colors.accent, parent: "#8B5CF6" };
   const isFull = code.maxUses > 0 && code.usedCount >= code.maxUses;
-
   return (
     <View style={styles.codeCard}>
       <View style={styles.codeHeader}>
         <View style={[styles.roleIcon, { backgroundColor: roleColors[code.role] + "20" }]}>
           <Ionicons
-            name={
-              code.role === "management"
-                ? "shield-checkmark"
-                : code.role === "staff"
-                ? "people"
-                : "person"
-            }
+            name={code.role === "management" ? "shield-checkmark" : code.role === "staff" ? "people" : "person"}
             size={18}
             color={roleColors[code.role]}
           />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.codeValue}>{code.code}</Text>
-          <Text style={styles.codeRole}>
-            {code.role.charAt(0).toUpperCase() + code.role.slice(1)} ·{" "}
-            {code.usedCount} / {code.maxUses === 0 ? "∞" : code.maxUses} used
-          </Text>
+          <Text style={styles.codeRole}>{code.role.charAt(0).toUpperCase() + code.role.slice(1)} · {code.usedCount} / {code.maxUses === 0 ? "∞" : code.maxUses} used</Text>
         </View>
-        <View
-          style={[
-            styles.usedBadge,
-            { backgroundColor: isFull ? Colors.danger + "15" : Colors.success + "15" },
-          ]}
-        >
-          <Text
-            style={[
-              styles.usedBadgeText,
-              { color: isFull ? Colors.danger : Colors.success },
-            ]}
-          >
-            {isFull ? "Full" : "Active"}
-          </Text>
+        <View style={[styles.usedBadge, { backgroundColor: isFull ? Colors.danger + "15" : Colors.success + "15" }]}>
+          <Text style={[styles.usedBadgeText, { color: isFull ? Colors.danger : Colors.success }]}>{isFull ? "Full" : "Active"}</Text>
         </View>
       </View>
-      
       <View style={styles.codeActions}>
-        <Pressable
-          onPress={onEdit}
-          style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}
-        >
+        <Pressable onPress={onEdit} style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}>
           <Ionicons name="pencil-outline" size={16} color={Colors.primary} />
           <Text style={[styles.actionBtnText, { color: Colors.primary }]}>Edit</Text>
         </Pressable>
-        <Pressable
-          onPress={onDelete}
-          style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}
-        >
+        <Pressable onPress={onDelete} style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}>
           <Ionicons name="trash-outline" size={16} color={Colors.danger} />
           <Text style={[styles.actionBtnText, { color: Colors.danger }]}>Revoke</Text>
         </Pressable>
@@ -188,47 +164,30 @@ function AuthCodeCard({
   );
 }
 
+// ── Main Screen ───────────────────────────────────────────────────────────────
 export default function MoreScreen() {
   const { user, logout, adminResetPassword } = useAuth();
-  const { 
-    sessions, 
-    authCodes, 
-    campers,
-    checkIns,
-    users,
-    addSession, 
-    updateSession, 
-    deleteSession, 
-    createAuthCode, 
-    updateAuthCode,
-    deleteAuthCode,
-    updateUser,
-    deleteUser,
-    isLoading, 
-    refresh 
-  } = useData();
+  const { sessions, authCodes, campers, checkIns, users, addSession, updateSession, deleteSession, createAuthCode, updateAuthCode, deleteAuthCode, updateUser, deleteUser, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<Tab>("sessions");
-  const [showNewSession, setShowNewSession] = useState(false);
-  const [showCodeModal, setShowCodeModal] = useState(false);
-  const [editingCode, setEditingCode] = useState<AuthCode | null>(null);
 
+  const [activeTab, setActiveTab] = useState<Tab>("sessions");
+
+  // Sessions
+  const [showNewSession, setShowNewSession] = useState(false);
   const [sessionName, setSessionName] = useState("");
   const [sessionStart, setSessionStart] = useState("");
   const [sessionEnd, setSessionEnd] = useState("");
   const [authorizedDates, setAuthorizedDates] = useState<string[]>([]);
-  
+  const [rosterSession, setRosterSession] = useState<Session | null>(null);
+
+  // Auth Codes
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [editingCode, setEditingCode] = useState<AuthCode | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>("staff");
   const [selectedCamperId, setSelectedCamperId] = useState<string | undefined>();
   const [maxUses, setMaxUses] = useState("1");
 
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetNewPassword, setResetNewPassword] = useState("");
-  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
-  const [resetLoading, setResetLoading] = useState(false);
-  const [rosterSession, setRosterSession] = useState<Session | null>(null);
-
+  // Users
   const [editingUser, setEditingUser] = useState<typeof users[0] | null>(null);
   const [userEditName, setUserEditName] = useState("");
   const [userEditEmail, setUserEditEmail] = useState("");
@@ -240,140 +199,130 @@ export default function MoreScreen() {
   const [userActionLoading, setUserActionLoading] = useState(false);
   const [userSheetTab, setUserSheetTab] = useState<"info" | "security">("info");
 
+  // AI
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [aiInput, setAiInput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const listRef = useRef<FlatList>(null);
+  const abortRef = useRef<boolean>(false);
+  const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 6);
+
+  const sendQuestion = useCallback(async (question: string) => {
+    if (!question.trim() || aiLoading) return;
+    const trimmed = question.trim();
+    setAiInput("");
+    setAiLoading(true);
+    abortRef.current = false;
+
+    const userMsg: Message = { id: generateId(), role: "user", content: trimmed };
+    const assistantId = generateId();
+    const assistantMsg: Message = { id: assistantId, role: "assistant", content: "", isStreaming: true };
+    setMessages((prev) => [...prev, userMsg, assistantMsg]);
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+
+    try {
+      const url = new URL("/api/ai/query", getApiUrl()).toString();
+      const token = getToken();
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ question: trimmed }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Request failed" }));
+        throw new Error(err.message || "Request failed");
+      }
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No response stream");
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let fullContent = "";
+      while (true) {
+        if (abortRef.current) break;
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.content) {
+              fullContent += event.content;
+              setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: fullContent, isStreaming: true } : m));
+              listRef.current?.scrollToEnd({ animated: false });
+            }
+            if (event.done) {
+              setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, isStreaming: false } : m));
+            }
+          } catch {}
+        }
+      }
+      setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, isStreaming: false } : m));
+    } catch (err: any) {
+      setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: `Error: ${err.message || "Something went wrong"}`, isStreaming: false } : m));
+    } finally {
+      setAiLoading(false);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  }, [aiLoading]);
+
+  const clearChat = () => { abortRef.current = true; setMessages([]); setAiLoading(false); };
+
+  // Sessions
   const handleAddSession = async () => {
     if (!sessionName.trim() || !sessionStart.trim() || !sessionEnd.trim()) {
       Alert.alert("Missing Info", "Please fill in session name, start date, and end date.");
       return;
     }
     try {
-      await addSession({
-        name: sessionName.trim(),
-        startDate: sessionStart.trim(),
-        endDate: sessionEnd.trim(),
-        authorizedDates: authorizedDates,
-        isActive: true,
-        createdBy: user?.id || "",
-      });
+      await addSession({ name: sessionName.trim(), startDate: sessionStart.trim(), endDate: sessionEnd.trim(), authorizedDates, isActive: true, createdBy: user?.id || "" });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setSessionName("");
-      setSessionStart("");
-      setSessionEnd("");
-      setAuthorizedDates([]);
-      setShowNewSession(false);
-    } catch (err: any) {
-      Alert.alert("Error", err.message);
-    }
+      setSessionName(""); setSessionStart(""); setSessionEnd(""); setAuthorizedDates([]); setShowNewSession(false);
+    } catch (err: any) { Alert.alert("Error", err.message); }
   };
 
+  // Auth Codes
   const handleSaveCode = async () => {
     try {
       const uses = parseInt(maxUses) || 0;
       if (editingCode) {
-        await updateAuthCode(editingCode.code, {
-          role: selectedRole,
-          linkedCamperId: selectedCamperId,
-          maxUses: uses,
-        });
+        await updateAuthCode(editingCode.code, { role: selectedRole, linkedCamperId: selectedCamperId, maxUses: uses });
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("Success", "Auth code updated successfully.");
+        Alert.alert("Success", "Auth code updated.");
       } else {
         const code = await createAuthCode(selectedRole, uses, selectedCamperId);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(
-          "Auth Code Created",
-          `Share this code:\n\n${code}\n\nThis grants ${selectedRole} access.`,
-          [{ text: "Done" }]
-        );
+        Alert.alert("Auth Code Created", `Share this code:\n\n${code}\n\nThis grants ${selectedRole} access.`, [{ text: "Done" }]);
       }
-      setShowCodeModal(false);
-      setEditingCode(null);
-    } catch (err: any) {
-      Alert.alert("Error", err.message);
-    }
+      setShowCodeModal(false); setEditingCode(null);
+    } catch (err: any) { Alert.alert("Error", err.message); }
   };
 
   const openCodeModal = (code?: AuthCode) => {
-    if (code) {
-      setEditingCode(code);
-      setSelectedRole(code.role);
-      setSelectedCamperId(code.linkedCamperId);
-      setMaxUses(code.maxUses.toString());
-    } else {
-      setEditingCode(null);
-      setSelectedRole("staff");
-      setSelectedCamperId(undefined);
-      setMaxUses("1");
-    }
+    if (code) { setEditingCode(code); setSelectedRole(code.role); setSelectedCamperId(code.linkedCamperId); setMaxUses(code.maxUses.toString()); }
+    else { setEditingCode(null); setSelectedRole("staff"); setSelectedCamperId(undefined); setMaxUses("1"); }
     setShowCodeModal(true);
   };
 
-  const handleAdminResetPassword = async () => {
-    if (!resetEmail.trim()) {
-      Alert.alert("Missing Info", "Please enter the user's email address.");
-      return;
-    }
-    if (!resetNewPassword.trim() || resetNewPassword.length < 6) {
-      Alert.alert("Invalid Password", "Password must be at least 6 characters.");
-      return;
-    }
-    if (resetNewPassword !== resetConfirmPassword) {
-      Alert.alert("Mismatch", "Passwords do not match.");
-      return;
-    }
-    setResetLoading(true);
-    try {
-      await adminResetPassword(resetEmail.trim().toLowerCase(), resetNewPassword);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Success", `Password reset for ${resetEmail.trim()}.`);
-      setShowResetModal(false);
-      setResetEmail("");
-      setResetNewPassword("");
-      setResetConfirmPassword("");
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to reset password.");
-    } finally {
-      setResetLoading(false);
-    }
-  };
-
+  // Users
   const openUserEdit = (u: typeof users[0]) => {
-    setEditingUser(u);
-    setUserEditName(u.name);
-    setUserEditEmail(u.email);
-    setUserEditRole(u.role as UserRole);
-    setUserEditLinkedCampers(u.linkedCamperIds || []);
-    setUserPwdNew("");
-    setUserPwdConfirm("");
-    setUserResetCode("");
-    setUserSheetTab("info");
+    setEditingUser(u); setUserEditName(u.name); setUserEditEmail(u.email); setUserEditRole(u.role as UserRole);
+    setUserEditLinkedCampers(u.linkedCamperIds || []); setUserPwdNew(""); setUserPwdConfirm(""); setUserResetCode(""); setUserSheetTab("info");
   };
-
-  const closeUserEdit = () => {
-    setEditingUser(null);
-    setUserPwdNew("");
-    setUserPwdConfirm("");
-    setUserResetCode("");
-  };
+  const closeUserEdit = () => { setEditingUser(null); setUserPwdNew(""); setUserPwdConfirm(""); setUserResetCode(""); };
 
   const handleSaveUser = async () => {
     if (!editingUser) return;
     if (!userEditName.trim()) { Alert.alert("Required", "Name cannot be empty."); return; }
     setUserActionLoading(true);
     try {
-      await updateUser(editingUser.id, {
-        name: userEditName.trim(),
-        email: userEditEmail.trim().toLowerCase(),
-        role: userEditRole,
-        linkedCamperIds: userEditRole === "parent" ? userEditLinkedCampers : [],
-      });
+      await updateUser(editingUser.id, { name: userEditName.trim(), email: userEditEmail.trim().toLowerCase(), role: userEditRole, linkedCamperIds: userEditRole === "parent" ? userEditLinkedCampers : [] });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Saved", "User info updated.");
-      closeUserEdit();
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to update user.");
-    } finally {
-      setUserActionLoading(false);
-    }
+      Alert.alert("Saved", "User info updated."); closeUserEdit();
+    } catch (err: any) { Alert.alert("Error", err.message || "Failed to update user."); }
+    finally { setUserActionLoading(false); }
   };
 
   const handleUserResetPwd = async () => {
@@ -384,14 +333,9 @@ export default function MoreScreen() {
     try {
       await adminResetPassword(editingUser.email, userPwdNew);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Done", `Password reset for ${editingUser.name}.`);
-      setUserPwdNew("");
-      setUserPwdConfirm("");
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to reset password.");
-    } finally {
-      setUserActionLoading(false);
-    }
+      Alert.alert("Done", `Password reset for ${editingUser.name}.`); setUserPwdNew(""); setUserPwdConfirm("");
+    } catch (err: any) { Alert.alert("Error", err.message || "Failed to reset password."); }
+    finally { setUserActionLoading(false); }
   };
 
   const handleGenerateResetCode = async () => {
@@ -402,67 +346,43 @@ export default function MoreScreen() {
       const res = await apiRequest("POST", `/api/users/${editingUser.id}/reset-code`);
       const { code, expiresInMinutes } = await res.json();
       setUserResetCode(code);
-      Alert.alert(
-        "Reset Code Generated",
-        `Share this one-time code with ${editingUser.name}:\n\n${code}\n\nThe user can enter this code on the login screen to set a new password. Expires in ${expiresInMinutes} minutes.`,
-        [{ text: "OK" }]
-      );
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to generate reset code.");
-    } finally {
-      setUserActionLoading(false);
-    }
+      Alert.alert("Reset Code Generated", `Share this one-time code with ${editingUser.name}:\n\n${code}\n\nExpires in ${expiresInMinutes} minutes.`, [{ text: "OK" }]);
+    } catch (err: any) { Alert.alert("Error", err.message || "Failed to generate reset code."); }
+    finally { setUserActionLoading(false); }
   };
 
   const handleDeleteUser = (u: typeof users[0]) => {
     if (u.id === user?.id) { Alert.alert("Not Allowed", "You cannot delete your own account."); return; }
-    Alert.alert(
-      "Delete User",
-      `Permanently delete ${u.name}'s account? This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: async () => {
-          try {
-            await deleteUser(u.id);
-            closeUserEdit();
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          } catch (err: any) {
-            Alert.alert("Error", err.message || "Failed to delete user.");
-          }
-        }},
-      ]
-    );
-  };
-
-  const ROLE_COLORS: Record<UserRole, string> = {
-    management: Colors.danger,
-    staff: Colors.primary,
-    parent: Colors.success,
-  };
-
-  const handleLogout = async () => {
-    if (Platform.OS === "web") {
-      await logout();
-      router.replace("/(auth)/login");
-      return;
-    }
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+    Alert.alert("Delete User", `Permanently delete ${u.name}'s account?`, [
       { text: "Cancel", style: "cancel" },
-      { text: "Sign Out", style: "destructive", onPress: async () => {
-        await logout();
-        router.replace("/(auth)/login");
+      { text: "Delete", style: "destructive", onPress: async () => {
+        try { await deleteUser(u.id); closeUserEdit(); await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
+        catch (err: any) { Alert.alert("Error", err.message || "Failed to delete user."); }
       }},
     ]);
   };
 
+  const ROLE_COLORS: Record<UserRole, string> = { management: Colors.danger, staff: Colors.primary, parent: Colors.success };
+
+  const handleLogout = async () => {
+    if (Platform.OS === "web") { await logout(); router.replace("/(auth)/login"); return; }
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign Out", style: "destructive", onPress: async () => { await logout(); router.replace("/(auth)/login"); }},
+    ]);
+  };
+
+  const TABS: { key: Tab; label: string; icon: string }[] = [
+    { key: "sessions", label: "Sessions", icon: "calendar-outline" },
+    { key: "codes", label: "Codes", icon: "key-outline" },
+    { key: "users", label: "Users", icon: "people-outline" },
+    { key: "ai", label: "AI", icon: "sparkles-outline" },
+  ];
+
   return (
     <View style={{ flex: 1, backgroundColor: Colors.light.background }}>
-      <View
-        style={[
-          styles.header,
-          { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20) },
-        ]}
-      >
+      {/* Fixed header */}
+      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20) }]}>
         <View style={styles.headerTop}>
           <Text style={styles.headerTitle}>Management</Text>
           <Pressable onPress={handleLogout} style={styles.logoutBtn}>
@@ -471,336 +391,305 @@ export default function MoreScreen() {
         </View>
 
         <View style={styles.tabRow}>
-          {(["sessions", "codes", "users"] as Tab[]).map((t) => (
+          {TABS.map((t) => (
             <Pressable
-              key={t}
-              style={[styles.tabBtn, activeTab === t && styles.tabBtnActive]}
-              onPress={() => setActiveTab(t)}
+              key={t.key}
+              style={[styles.tabBtn, activeTab === t.key && styles.tabBtnActive]}
+              onPress={() => setActiveTab(t.key)}
             >
               <Ionicons
-                name={t === "sessions" ? "calendar-outline" : t === "codes" ? "key-outline" : "people-outline"}
-                size={16}
-                color={activeTab === t ? Colors.primary : Colors.light.textMuted}
+                name={t.icon as any}
+                size={15}
+                color={activeTab === t.key ? Colors.primary : Colors.light.textMuted}
               />
-              <Text
-                style={[styles.tabBtnText, activeTab === t && styles.tabBtnActiveText]}
-              >
-                {t === "sessions" ? "Sessions" : t === "codes" ? "Auth Codes" : "Users"}
+              <Text style={[styles.tabBtnText, activeTab === t.key && styles.tabBtnActiveText]}>
+                {t.label}
               </Text>
             </Pressable>
           ))}
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + 100 },
-        ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={isLoading}
-            onRefresh={refresh}
-            tintColor={Colors.primary}
-          />
-        }
-      >
-        {activeTab === "sessions" && (
-          <>
-            <Pressable
-              style={({ pressed }) => [
-                styles.addBtn,
-                { opacity: pressed ? 0.85 : 1 },
-              ]}
-              onPress={() => setShowNewSession(true)}
+      {/* AI Tab — uses its own layout */}
+      {activeTab === "ai" && (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={0}
+        >
+          <View style={styles.aiSecurityBadge}>
+            <Ionicons name="lock-closed" size={12} color={Colors.success} />
+            <Text style={styles.aiSecurityText}>All data is accessed server-side only — nothing is sent from your device</Text>
+            {messages.length > 0 && (
+              <Pressable onPress={clearChat} style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: "auto" }]}>
+                <Ionicons name="trash-outline" size={16} color={Colors.light.textSecondary} />
+              </Pressable>
+            )}
+          </View>
+
+          {messages.length === 0 ? (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.aiEmpty, { paddingBottom: insets.bottom + 120 }]}
+              keyboardShouldPersistTaps="handled"
             >
-              <Ionicons name="add-circle" size={20} color="#fff" />
-              <Text style={styles.addBtnText}>New Session</Text>
-            </Pressable>
-
-            {sessions.length === 0 && (
-              <View style={styles.empty}>
-                <Ionicons name="calendar-outline" size={48} color={Colors.light.textMuted} />
-                <Text style={styles.emptyTitle}>No Sessions Yet</Text>
-                <Text style={styles.emptyText}>
-                  Create camp sessions to authorize check-in dates for staff
-                </Text>
+              <View style={styles.aiEmptyIcon}>
+                <Ionicons name="sparkles" size={32} color={Colors.accent} />
               </View>
-            )}
+              <Text style={styles.aiEmptyTitle}>Ask anything about camp</Text>
+              <Text style={styles.aiEmptySub}>Full access to all camper records, medical data, and check-in history.</Text>
+              <View style={styles.aiSuggestions}>
+                {SUGGESTION_QUESTIONS.map((q, i) => (
+                  <Pressable key={i} style={({ pressed }) => [styles.aiSuggestion, { opacity: pressed ? 0.7 : 1 }]} onPress={() => sendQuestion(q)}>
+                    <Text style={styles.aiSuggestionText}>{q}</Text>
+                    <Ionicons name="arrow-forward" size={14} color={Colors.accent} />
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+          ) : (
+            <FlatList
+              ref={listRef}
+              data={messages}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={[styles.aiMessageList, { paddingBottom: insets.bottom + 120 }]}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => <MessageBubble message={item} />}
+            />
+          )}
 
-            {sessions.map((session) => (
-              <SessionCard
-                key={session.id}
-                session={session}
-                onDelete={() =>
-                  Alert.alert("Delete Session", `Remove "${session.name}"?`, [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Delete",
-                      style: "destructive",
-                      onPress: () => deleteSession(session.id),
-                    },
-                  ])
-                }
-                onToggleActive={() =>
-                  updateSession(session.id, { isActive: !session.isActive })
-                }
-                onViewRoster={() => setRosterSession(session)}
+          <View style={[styles.aiInputContainer, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 16), paddingHorizontal: 16 }]}>
+            <View style={styles.aiInputRow}>
+              <TextInput
+                style={styles.aiInput}
+                value={aiInput}
+                onChangeText={setAiInput}
+                placeholder="Ask about campers, allergies, check-ins..."
+                placeholderTextColor={Colors.light.textMuted}
+                multiline
+                maxLength={500}
+                editable={!aiLoading}
+                returnKeyType="send"
+                onSubmitEditing={() => sendQuestion(aiInput)}
               />
-            ))}
-          </>
-        )}
+              <Pressable
+                style={({ pressed }) => [styles.aiSendBtn, !aiInput.trim() || aiLoading ? styles.aiSendBtnDisabled : {}, { opacity: pressed ? 0.85 : 1 }]}
+                onPress={() => sendQuestion(aiInput)}
+                disabled={!aiInput.trim() || aiLoading}
+              >
+                {aiLoading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="arrow-up" size={20} color="#fff" />}
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      )}
 
-        {activeTab === "codes" && (
-          <>
-            <Pressable
-              style={({ pressed }) => [
-                styles.addBtn,
-                { opacity: pressed ? 0.85 : 1 },
-              ]}
-              onPress={() => openCodeModal()}
-            >
-              <Ionicons name="key" size={20} color="#fff" />
-              <Text style={styles.addBtnText}>Generate Code</Text>
-            </Pressable>
+      {/* Sessions / Codes / Users tabs — shared ScrollView */}
+      {activeTab !== "ai" && (
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
+          refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refresh} tintColor={Colors.primary} />}
+        >
+          {/* ── SESSIONS ── */}
+          {activeTab === "sessions" && (
+            <>
+              <Pressable style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={() => setShowNewSession(true)}>
+                <Ionicons name="add-circle" size={20} color="#fff" />
+                <Text style={styles.addBtnText}>New Session</Text>
+              </Pressable>
+              {sessions.length === 0 && (
+                <View style={styles.empty}>
+                  <Ionicons name="calendar-outline" size={48} color={Colors.light.textMuted} />
+                  <Text style={styles.emptyTitle}>No Sessions Yet</Text>
+                  <Text style={styles.emptyText}>Create camp sessions to authorize check-in dates for staff</Text>
+                </View>
+              )}
+              {sessions.map((session) => (
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  onDelete={() => Alert.alert("Delete Session", `Remove "${session.name}"?`, [{ text: "Cancel", style: "cancel" }, { text: "Delete", style: "destructive", onPress: () => deleteSession(session.id) }])}
+                  onToggleActive={() => updateSession(session.id, { isActive: !session.isActive })}
+                  onViewRoster={() => setRosterSession(session)}
+                />
+              ))}
+            </>
+          )}
 
-            {authCodes.length === 0 && (
-              <View style={styles.empty}>
-                <Ionicons name="key-outline" size={48} color={Colors.light.textMuted} />
-                <Text style={styles.emptyTitle}>No Auth Codes</Text>
-                <Text style={styles.emptyText}>
-                  Generate codes for staff and parents to register
-                </Text>
-              </View>
-            )}
+          {/* ── AUTH CODES ── */}
+          {activeTab === "codes" && (
+            <>
+              <Pressable style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={() => openCodeModal()}>
+                <Ionicons name="key" size={20} color="#fff" />
+                <Text style={styles.addBtnText}>Generate Code</Text>
+              </Pressable>
+              {authCodes.length === 0 && (
+                <View style={styles.empty}>
+                  <Ionicons name="key-outline" size={48} color={Colors.light.textMuted} />
+                  <Text style={styles.emptyTitle}>No Auth Codes</Text>
+                  <Text style={styles.emptyText}>Generate codes for staff and parents to register</Text>
+                </View>
+              )}
+              {authCodes.map((code) => (
+                <AuthCodeCard
+                  key={code.code}
+                  code={code}
+                  onEdit={() => openCodeModal(code)}
+                  onDelete={() => Alert.alert("Revoke Code", `Revoke "${code.code}"?`, [{ text: "Cancel", style: "cancel" }, { text: "Revoke", style: "destructive", onPress: () => deleteAuthCode(code.code) }])}
+                />
+              ))}
+            </>
+          )}
 
-            {authCodes.map((code) => (
-              <AuthCodeCard
-                key={code.code}
-                code={code}
-                onEdit={() => openCodeModal(code)}
-                onDelete={() =>
-                  Alert.alert("Revoke Code", `Revoke "${code.code}"?`, [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Revoke",
-                      style: "destructive",
-                      onPress: () => deleteAuthCode(code.code),
-                    },
-                  ])
-                }
-              />
-            ))}
-          </>
-        )}
-
-        {activeTab === "users" && (
-          <>
-            {users.length === 0 && (
-              <View style={styles.empty}>
-                <Ionicons name="people-outline" size={48} color={Colors.light.textMuted} />
-                <Text style={styles.emptyTitle}>No Users Yet</Text>
-                <Text style={styles.emptyText}>Registered users will appear here</Text>
-              </View>
-            )}
-            {users.map((u) => {
-              const initials = u.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-              const roleColor = ROLE_COLORS[u.role as UserRole] || Colors.light.textSecondary;
-              const linkedCamperNames = (u.linkedCamperIds || [])
-                .map((cid) => campers.find((c) => c.id === cid))
-                .filter(Boolean)
-                .map((c) => `${c!.firstName} ${c!.lastName}`)
-                .join(", ");
-              return (
-                <Pressable
-                  key={u.id}
-                  style={({ pressed }) => [styles.userCard, { opacity: pressed ? 0.85 : 1 }]}
-                  onPress={() => openUserEdit(u)}
-                >
-                  <View style={[styles.userAvatar, { backgroundColor: roleColor + "20" }]}>
-                    <Text style={[styles.userAvatarText, { color: roleColor }]}>{initials}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <Text style={styles.userName}>{u.name}</Text>
-                      {u.id === user?.id && (
-                        <View style={[styles.rolePill, { backgroundColor: Colors.light.surfaceSecondary }]}>
-                          <Text style={[styles.rolePillText, { color: Colors.light.textMuted }]}>You</Text>
-                        </View>
-                      )}
+          {/* ── USERS ── */}
+          {activeTab === "users" && (
+            <>
+              {users.length === 0 && (
+                <View style={styles.empty}>
+                  <Ionicons name="people-outline" size={48} color={Colors.light.textMuted} />
+                  <Text style={styles.emptyTitle}>No Users Yet</Text>
+                  <Text style={styles.emptyText}>Registered users will appear here</Text>
+                </View>
+              )}
+              {users.map((u) => {
+                const initials = u.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+                const roleColor = ROLE_COLORS[u.role as UserRole] || Colors.light.textSecondary;
+                const linkedCamperNames = (u.linkedCamperIds || []).map((cid) => campers.find((c) => c.id === cid)).filter(Boolean).map((c) => `${c!.firstName} ${c!.lastName}`).join(", ");
+                return (
+                  <Pressable key={u.id} style={({ pressed }) => [styles.userCard, { opacity: pressed ? 0.85 : 1 }]} onPress={() => openUserEdit(u)}>
+                    <View style={[styles.userAvatar, { backgroundColor: roleColor + "20" }]}>
+                      <Text style={[styles.userAvatarText, { color: roleColor }]}>{initials}</Text>
                     </View>
-                    <Text style={styles.userEmail}>{u.email}</Text>
-                    {linkedCamperNames ? (
-                      <Text style={styles.userMeta} numberOfLines={1}>Linked: {linkedCamperNames}</Text>
-                    ) : null}
-                  </View>
-                  <View style={[styles.rolePill, { backgroundColor: roleColor + "15" }]}>
-                    <Text style={[styles.rolePillText, { color: roleColor }]}>{u.role}</Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </>
-        )}
-      </ScrollView>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Text style={styles.userName}>{u.name}</Text>
+                        {u.id === user?.id && (
+                          <View style={[styles.rolePill, { backgroundColor: Colors.light.surfaceSecondary }]}>
+                            <Text style={[styles.rolePillText, { color: Colors.light.textMuted }]}>You</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.userEmail}>{u.email}</Text>
+                      {linkedCamperNames ? <Text style={styles.userMeta} numberOfLines={1}>Linked: {linkedCamperNames}</Text> : null}
+                    </View>
+                    <View style={[styles.rolePill, { backgroundColor: roleColor + "15" }]}>
+                      <Text style={[styles.rolePillText, { color: roleColor }]}>{u.role}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </>
+          )}
+        </ScrollView>
+      )}
 
-      <Modal
-        visible={showResetModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => {
-          setShowResetModal(false);
-          setResetEmail("");
-          setResetNewPassword("");
-          setResetConfirmPassword("");
-        }}
-      >
+      {/* ── MODALS ── */}
+
+      {/* New Session */}
+      <Modal visible={showNewSession} animationType="slide" transparent onRequestClose={() => setShowNewSession(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Reset User Password</Text>
-            <Text style={styles.modalSub}>
-              Enter the user's email and set a new password for them
-            </Text>
-
-            <Text style={styles.fieldLabel}>User Email</Text>
-            <TextInput
-              style={styles.fieldInput}
-              value={resetEmail}
-              onChangeText={setResetEmail}
-              placeholder="user@email.com"
-              placeholderTextColor={Colors.light.textMuted}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoCorrect={false}
-            />
-
-            <Text style={styles.fieldLabel}>New Password</Text>
-            <TextInput
-              style={styles.fieldInput}
-              value={resetNewPassword}
-              onChangeText={setResetNewPassword}
-              placeholder="New password"
-              placeholderTextColor={Colors.light.textMuted}
-              secureTextEntry
-              autoCapitalize="none"
-            />
-
-            <Text style={styles.fieldLabel}>Confirm Password</Text>
-            <TextInput
-              style={styles.fieldInput}
-              value={resetConfirmPassword}
-              onChangeText={setResetConfirmPassword}
-              placeholder="Confirm new password"
-              placeholderTextColor={Colors.light.textMuted}
-              secureTextEntry
-              autoCapitalize="none"
-            />
-
+            <Text style={styles.modalTitle}>New Camp Session</Text>
+            <Text style={styles.modalSub}>Set the dates when staff are authorized to check in campers</Text>
+            <Text style={styles.fieldLabel}>Session Name</Text>
+            <TextInput style={styles.fieldInput} value={sessionName} onChangeText={setSessionName} placeholder="e.g. Week 1 - Summer 2025" placeholderTextColor={Colors.light.textMuted} />
+            <DatePicker mode="single" value={sessionStart} onChange={setSessionStart} label="Start Date" placeholder="Select start date" maxDate={sessionEnd || undefined} />
+            <DatePicker mode="single" value={sessionEnd} onChange={setSessionEnd} label="End Date" placeholder="Select end date" minDate={sessionStart || undefined} />
+            <DatePicker mode="multi" value={authorizedDates} onChange={setAuthorizedDates} label="Authorized Check-in Dates" placeholder="Select check-in dates" minDate={sessionStart || undefined} maxDate={sessionEnd || undefined} />
             <View style={styles.modalButtons}>
-              <Pressable
-                style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
-                onPress={() => {
-                  setShowResetModal(false);
-                  setResetEmail("");
-                  setResetNewPassword("");
-                  setResetConfirmPassword("");
-                }}
-              >
+              <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={() => setShowNewSession(false)}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]}
-                onPress={handleAdminResetPassword}
-                disabled={resetLoading}
-              >
-                {resetLoading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.confirmBtnText}>Reset Password</Text>
-                )}
+              <Pressable style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={handleAddSession}>
+                <Text style={styles.confirmBtnText}>Create Session</Text>
               </Pressable>
             </View>
           </View>
         </View>
       </Modal>
 
-      <Modal
-        visible={!!editingUser}
-        animationType="slide"
-        transparent
-        onRequestClose={closeUserEdit}
-      >
+      {/* Auth Code Modal */}
+      <Modal visible={showCodeModal} animationType="slide" transparent onRequestClose={() => { setShowCodeModal(false); setEditingCode(null); }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>{editingCode ? "Edit Auth Code" : "Generate Auth Code"}</Text>
+            <Text style={styles.modalSub}>{editingCode ? `Editing code: ${editingCode.code}` : "Select the role and usage limits"}</Text>
+            <Text style={styles.fieldLabel}>Role</Text>
+            {(["staff", "management", "parent"] as UserRole[]).map((role) => (
+              <Pressable key={role} style={[styles.roleOption, selectedRole === role && styles.roleOptionSelected]} onPress={() => setSelectedRole(role)}>
+                <Ionicons name={role === "management" ? "shield-checkmark" : role === "staff" ? "people" : "person"} size={20} color={selectedRole === role ? Colors.primary : Colors.light.textMuted} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.roleName, selectedRole === role && { color: Colors.primary }]}>{role.charAt(0).toUpperCase() + role.slice(1)}</Text>
+                  <Text style={styles.roleDesc}>{role === "management" ? "Full access to all features" : role === "staff" ? "Check-in/out on authorized dates" : "View & update their child's info"}</Text>
+                </View>
+                {selectedRole === role && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
+              </Pressable>
+            ))}
+            <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Maximum Uses</Text>
+            <Text style={styles.fieldHint}>Enter 0 for infinite uses</Text>
+            <TextInput style={styles.fieldInput} value={maxUses} onChangeText={setMaxUses} keyboardType="number-pad" placeholder="1" placeholderTextColor={Colors.light.textMuted} />
+            {selectedRole === "parent" && (
+              <>
+                <Text style={styles.fieldLabel}>Link to Camper (optional)</Text>
+                <ScrollView style={{ maxHeight: 120 }} nestedScrollEnabled>
+                  {campers.map((c) => (
+                    <Pressable key={c.id} style={[styles.camperSelectRow, selectedCamperId === c.id && styles.camperSelectRowActive]} onPress={() => setSelectedCamperId(selectedCamperId === c.id ? undefined : c.id)}>
+                      <Text style={styles.camperSelectName}>{c.firstName} {c.lastName}</Text>
+                      {selectedCamperId === c.id && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+            <View style={styles.modalButtons}>
+              <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={() => { setShowCodeModal(false); setEditingCode(null); }}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={handleSaveCode}>
+                <Text style={styles.confirmBtnText}>{editingCode ? "Save Changes" : "Generate"}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* User Edit Modal */}
+      <Modal visible={!!editingUser} animationType="slide" transparent onRequestClose={closeUserEdit}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { maxHeight: "90%" }]}>
             <View style={styles.modalHandle} />
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
               <Text style={styles.modalTitle}>{editingUser?.name}</Text>
               {editingUser && editingUser.id !== user?.id && (
-                <Pressable
-                  onPress={() => handleDeleteUser(editingUser)}
-                  style={{ padding: 6 }}
-                >
+                <Pressable onPress={() => handleDeleteUser(editingUser)} style={{ padding: 6 }}>
                   <Ionicons name="trash-outline" size={20} color={Colors.danger} />
                 </Pressable>
               )}
             </View>
             <Text style={styles.modalSub}>{editingUser?.email}</Text>
-
             <View style={[styles.tabs2, { marginVertical: 12 }]}>
               {(["info", "security"] as const).map((t) => (
-                <Pressable
-                  key={t}
-                  style={[styles.tab2, userSheetTab === t && styles.tab2Active]}
-                  onPress={() => setUserSheetTab(t)}
-                >
-                  <Text style={[styles.tab2Text, userSheetTab === t && styles.tab2ActiveText]}>
-                    {t === "info" ? "Profile & Role" : "Security"}
-                  </Text>
+                <Pressable key={t} style={[styles.tab2, userSheetTab === t && styles.tab2Active]} onPress={() => setUserSheetTab(t)}>
+                  <Text style={[styles.tab2Text, userSheetTab === t && styles.tab2ActiveText]}>{t === "info" ? "Profile & Role" : "Security"}</Text>
                 </Pressable>
               ))}
             </View>
-
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {userSheetTab === "info" && (
                 <View style={{ gap: 12 }}>
                   <Text style={styles.fieldLabel}>Full Name</Text>
-                  <TextInput
-                    style={styles.fieldInput}
-                    value={userEditName}
-                    onChangeText={setUserEditName}
-                    placeholder="Full name"
-                    placeholderTextColor={Colors.light.textMuted}
-                    autoCapitalize="words"
-                  />
+                  <TextInput style={styles.fieldInput} value={userEditName} onChangeText={setUserEditName} placeholder="Full name" placeholderTextColor={Colors.light.textMuted} autoCapitalize="words" />
                   <Text style={styles.fieldLabel}>Email</Text>
-                  <TextInput
-                    style={styles.fieldInput}
-                    value={userEditEmail}
-                    onChangeText={setUserEditEmail}
-                    placeholder="user@email.com"
-                    placeholderTextColor={Colors.light.textMuted}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    autoCorrect={false}
-                  />
+                  <TextInput style={styles.fieldInput} value={userEditEmail} onChangeText={setUserEditEmail} placeholder="user@email.com" placeholderTextColor={Colors.light.textMuted} autoCapitalize="none" keyboardType="email-address" autoCorrect={false} />
                   <Text style={styles.fieldLabel}>Role</Text>
                   {(["management", "staff", "parent"] as UserRole[]).map((r) => (
-                    <Pressable
-                      key={r}
-                      style={[styles.roleOption, userEditRole === r && styles.roleOptionSelected]}
-                      onPress={() => setUserEditRole(r)}
-                    >
-                      <Ionicons
-                        name={r === "management" ? "shield-outline" : r === "staff" ? "people-outline" : "person-outline"}
-                        size={20}
-                        color={userEditRole === r ? Colors.primary : Colors.light.textMuted}
-                      />
+                    <Pressable key={r} style={[styles.roleOption, userEditRole === r && styles.roleOptionSelected]} onPress={() => setUserEditRole(r)}>
+                      <Ionicons name={r === "management" ? "shield-outline" : r === "staff" ? "people-outline" : "person-outline"} size={20} color={userEditRole === r ? Colors.primary : Colors.light.textMuted} />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.roleName}>{r.charAt(0).toUpperCase() + r.slice(1)}</Text>
-                        <Text style={styles.roleDesc}>
-                          {r === "management" ? "Full access to all features" : r === "staff" ? "Check-in/out and camper list" : "View linked child's info"}
-                        </Text>
+                        <Text style={styles.roleDesc}>{r === "management" ? "Full access to all features" : r === "staff" ? "Check-in/out and camper list" : "View linked child's info"}</Text>
                       </View>
                       {userEditRole === r && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
                     </Pressable>
@@ -809,19 +698,11 @@ export default function MoreScreen() {
                     <>
                       <Text style={styles.fieldLabel}>Linked Campers</Text>
                       <View style={{ borderRadius: 12, borderWidth: 1, borderColor: Colors.light.border, overflow: "hidden" }}>
-                        {campers.length === 0 && (
-                          <Text style={{ padding: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted, fontSize: 13 }}>No campers available</Text>
-                        )}
+                        {campers.length === 0 && <Text style={{ padding: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted, fontSize: 13 }}>No campers available</Text>}
                         {campers.map((c) => {
                           const isLinked = userEditLinkedCampers.includes(c.id);
                           return (
-                            <Pressable
-                              key={c.id}
-                              style={[styles.camperSelectRow, isLinked && styles.camperSelectRowActive]}
-                              onPress={() => setUserEditLinkedCampers(prev =>
-                                isLinked ? prev.filter((id) => id !== c.id) : [...prev, c.id]
-                              )}
-                            >
+                            <Pressable key={c.id} style={[styles.camperSelectRow, isLinked && styles.camperSelectRowActive]} onPress={() => setUserEditLinkedCampers((prev) => isLinked ? prev.filter((id) => id !== c.id) : [...prev, c.id])}>
                               <Text style={styles.camperSelectName}>{c.firstName} {c.lastName}</Text>
                               {isLinked && <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />}
                             </Pressable>
@@ -834,17 +715,12 @@ export default function MoreScreen() {
                     <Pressable style={[styles.cancelBtn, { opacity: 1 }]} onPress={closeUserEdit}>
                       <Text style={styles.cancelBtnText}>Cancel</Text>
                     </Pressable>
-                    <Pressable
-                      style={[styles.confirmBtn, { opacity: userActionLoading ? 0.7 : 1 }]}
-                      onPress={handleSaveUser}
-                      disabled={userActionLoading}
-                    >
+                    <Pressable style={[styles.confirmBtn, { opacity: userActionLoading ? 0.7 : 1 }]} onPress={handleSaveUser} disabled={userActionLoading}>
                       {userActionLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmBtnText}>Save Changes</Text>}
                     </Pressable>
                   </View>
                 </View>
               )}
-
               {userSheetTab === "security" && (
                 <View style={{ gap: 12 }}>
                   <View style={styles.securitySection}>
@@ -852,33 +728,12 @@ export default function MoreScreen() {
                       <Ionicons name="lock-closed-outline" size={16} color={Colors.light.text} />
                       <Text style={[styles.fieldLabel, { fontSize: 14 }]}>Set New Password</Text>
                     </View>
-                    <TextInput
-                      style={styles.fieldInput}
-                      value={userPwdNew}
-                      onChangeText={setUserPwdNew}
-                      placeholder="New password (min 6 chars)"
-                      placeholderTextColor={Colors.light.textMuted}
-                      secureTextEntry
-                      autoCapitalize="none"
-                    />
-                    <TextInput
-                      style={[styles.fieldInput, { marginTop: 8 }]}
-                      value={userPwdConfirm}
-                      onChangeText={setUserPwdConfirm}
-                      placeholder="Confirm new password"
-                      placeholderTextColor={Colors.light.textMuted}
-                      secureTextEntry
-                      autoCapitalize="none"
-                    />
-                    <Pressable
-                      style={[styles.confirmBtn, { marginTop: 8, opacity: userActionLoading ? 0.7 : 1 }]}
-                      onPress={handleUserResetPwd}
-                      disabled={userActionLoading}
-                    >
+                    <TextInput style={styles.fieldInput} value={userPwdNew} onChangeText={setUserPwdNew} placeholder="New password (min 6 chars)" placeholderTextColor={Colors.light.textMuted} secureTextEntry autoCapitalize="none" />
+                    <TextInput style={[styles.fieldInput, { marginTop: 8 }]} value={userPwdConfirm} onChangeText={setUserPwdConfirm} placeholder="Confirm new password" placeholderTextColor={Colors.light.textMuted} secureTextEntry autoCapitalize="none" />
+                    <Pressable style={[styles.confirmBtn, { marginTop: 8, opacity: userActionLoading ? 0.7 : 1 }]} onPress={handleUserResetPwd} disabled={userActionLoading}>
                       {userActionLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmBtnText}>Reset Password</Text>}
                     </Pressable>
                   </View>
-
                   <View style={styles.securitySection}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <Ionicons name="key-outline" size={16} color={Colors.light.text} />
@@ -890,16 +745,10 @@ export default function MoreScreen() {
                     {userResetCode ? (
                       <View style={styles.resetCodeBox}>
                         <Text style={styles.resetCodeText}>{userResetCode}</Text>
-                        <Text style={{ fontFamily: "Outfit_400Regular", fontSize: 12, color: Colors.light.textSecondary, marginTop: 4 }}>
-                          Share this code with the user. It expires in 60 min.
-                        </Text>
+                        <Text style={{ fontFamily: "Outfit_400Regular", fontSize: 12, color: Colors.light.textSecondary, marginTop: 4 }}>Share this code. It expires in 60 min.</Text>
                       </View>
                     ) : null}
-                    <Pressable
-                      style={[styles.securityBtn, { opacity: userActionLoading ? 0.7 : 1 }]}
-                      onPress={handleGenerateResetCode}
-                      disabled={userActionLoading}
-                    >
+                    <Pressable style={[styles.securityBtn, { opacity: userActionLoading ? 0.7 : 1 }]} onPress={handleGenerateResetCode} disabled={userActionLoading}>
                       {userActionLoading ? <ActivityIndicator size="small" color={Colors.primary} /> : (
                         <>
                           <Ionicons name="refresh-outline" size={16} color={Colors.primary} />
@@ -908,12 +757,8 @@ export default function MoreScreen() {
                       )}
                     </Pressable>
                   </View>
-
                   {editingUser && editingUser.id !== user?.id && (
-                    <Pressable
-                      style={[styles.securityBtn, { borderColor: Colors.danger + "40", backgroundColor: Colors.danger + "08" }]}
-                      onPress={() => handleDeleteUser(editingUser)}
-                    >
+                    <Pressable style={[styles.securityBtn, { borderColor: Colors.danger + "40", backgroundColor: Colors.danger + "08" }]} onPress={() => handleDeleteUser(editingUser)}>
                       <Ionicons name="trash-outline" size={16} color={Colors.danger} />
                       <Text style={[styles.confirmBtnText, { color: Colors.danger }]}>Delete This Account</Text>
                     </Pressable>
@@ -925,215 +770,20 @@ export default function MoreScreen() {
         </View>
       </Modal>
 
-      <Modal
-        visible={showNewSession}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowNewSession(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>New Camp Session</Text>
-            <Text style={styles.modalSub}>
-              Set the dates when staff are authorized to check in campers
-            </Text>
-
-            <Text style={styles.fieldLabel}>Session Name</Text>
-            <TextInput style={styles.fieldInput} value={sessionName} onChangeText={setSessionName} placeholder="e.g. Week 1 - Summer 2025" placeholderTextColor={Colors.light.textMuted} />
-
-            <DatePicker
-              mode="single"
-              value={sessionStart}
-              onChange={setSessionStart}
-              label="Start Date"
-              placeholder="Select start date"
-              maxDate={sessionEnd || undefined}
-            />
-
-            <DatePicker
-              mode="single"
-              value={sessionEnd}
-              onChange={setSessionEnd}
-              label="End Date"
-              placeholder="Select end date"
-              minDate={sessionStart || undefined}
-            />
-
-            <DatePicker
-              mode="multi"
-              value={authorizedDates}
-              onChange={setAuthorizedDates}
-              label="Authorized Check-in Dates"
-              placeholder="Select check-in dates"
-              minDate={sessionStart || undefined}
-              maxDate={sessionEnd || undefined}
-            />
-
-            <View style={styles.modalButtons}>
-              <Pressable
-                style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
-                onPress={() => setShowNewSession(false)}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]}
-                onPress={handleAddSession}
-              >
-                <Text style={styles.confirmBtnText}>Create Session</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={showCodeModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => {
-          setShowCodeModal(false);
-          setEditingCode(null);
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>{editingCode ? "Edit Auth Code" : "Generate Auth Code"}</Text>
-            <Text style={styles.modalSub}>
-              {editingCode ? `Editing code: ${editingCode.code}` : "Select the role and usage limits"}
-            </Text>
-
-            <Text style={styles.fieldLabel}>Role</Text>
-            {(["staff", "management", "parent"] as UserRole[]).map((role) => (
-              <Pressable
-                key={role}
-                style={[
-                  styles.roleOption,
-                  selectedRole === role && styles.roleOptionSelected,
-                ]}
-                onPress={() => setSelectedRole(role)}
-              >
-                <Ionicons
-                  name={
-                    role === "management"
-                      ? "shield-checkmark"
-                      : role === "staff"
-                      ? "people"
-                      : "person"
-                  }
-                  size={20}
-                  color={selectedRole === role ? Colors.primary : Colors.light.textMuted}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.roleName, selectedRole === role && { color: Colors.primary }]}>
-                    {role.charAt(0).toUpperCase() + role.slice(1)}
-                  </Text>
-                  <Text style={styles.roleDesc}>
-                    {role === "management"
-                      ? "Full access to all features"
-                      : role === "staff"
-                      ? "Check-in/out on authorized dates"
-                      : "View & update their child's info"}
-                  </Text>
-                </View>
-                {selectedRole === role && (
-                  <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
-                )}
-              </Pressable>
-            ))}
-
-            <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Maximum Uses</Text>
-            <Text style={styles.fieldHint}>Enter 0 for infinite uses</Text>
-            <TextInput
-              style={styles.fieldInput}
-              value={maxUses}
-              onChangeText={setMaxUses}
-              keyboardType="number-pad"
-              placeholder="1"
-              placeholderTextColor={Colors.light.textMuted}
-            />
-
-            {selectedRole === "parent" && (
-              <>
-                <Text style={styles.fieldLabel}>Link to Camper (optional)</Text>
-                <ScrollView
-                  style={{ maxHeight: 120 }}
-                  nestedScrollEnabled
-                >
-                  {campers.map((c) => (
-                    <Pressable
-                      key={c.id}
-                      style={[
-                        styles.camperSelectRow,
-                        selectedCamperId === c.id && styles.camperSelectRowActive,
-                      ]}
-                      onPress={() =>
-                        setSelectedCamperId(
-                          selectedCamperId === c.id ? undefined : c.id
-                        )
-                      }
-                    >
-                      <Text style={styles.camperSelectName}>
-                        {c.firstName} {c.lastName}
-                      </Text>
-                      {selectedCamperId === c.id && (
-                        <Ionicons name="checkmark" size={16} color={Colors.primary} />
-                      )}
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </>
-            )}
-
-            <View style={styles.modalButtons}>
-              <Pressable
-                style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
-                onPress={() => {
-                  setShowCodeModal(false);
-                  setEditingCode(null);
-                }}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]}
-                onPress={handleSaveCode}
-              >
-                <Text style={styles.confirmBtnText}>{editingCode ? "Save Changes" : "Generate"}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={!!rosterSession}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setRosterSession(null)}
-      >
+      {/* Roster Modal */}
+      <Modal visible={!!rosterSession} animationType="slide" transparent onRequestClose={() => setRosterSession(null)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { maxHeight: "85%" }]}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>{rosterSession?.name ?? ""}</Text>
-            <Text style={styles.modalSub}>
-              {rosterSession
-                ? `${new Date(rosterSession.startDate).toLocaleDateString()} — ${new Date(rosterSession.endDate).toLocaleDateString()}`
-                : ""}
-            </Text>
+            <Text style={styles.modalSub}>{rosterSession ? `${new Date(rosterSession.startDate).toLocaleDateString()} — ${new Date(rosterSession.endDate).toLocaleDateString()}` : ""}</Text>
             {rosterSession && (() => {
-              const roster = checkIns
-                .filter((ci) => ci.sessionId === rosterSession.id)
-                .sort((a, b) => new Date(a.checkedInAt).getTime() - new Date(b.checkedInAt).getTime());
+              const roster = checkIns.filter((ci) => ci.sessionId === rosterSession.id).sort((a, b) => new Date(a.checkedInAt).getTime() - new Date(b.checkedInAt).getTime());
               return (
                 <>
                   <View style={styles.rosterCount}>
                     <Ionicons name="people" size={16} color={Colors.primary} />
-                    <Text style={styles.rosterCountText}>
-                      {roster.length} {roster.length === 1 ? "camper" : "campers"} attended
-                    </Text>
+                    <Text style={styles.rosterCountText}>{roster.length} {roster.length === 1 ? "camper" : "campers"} attended</Text>
                   </View>
                   <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 16 }}>
                     {roster.length === 0 ? (
@@ -1148,34 +798,15 @@ export default function MoreScreen() {
                           <View key={ci.id}>
                             <View style={styles.rosterRow}>
                               <View style={styles.rosterAvatar}>
-                                <Text style={styles.rosterAvatarText}>
-                                  {camper?.firstName?.charAt(0)?.toUpperCase() ?? "?"}
-                                </Text>
+                                <Text style={styles.rosterAvatarText}>{camper?.firstName?.charAt(0)?.toUpperCase() ?? "?"}</Text>
                               </View>
                               <View style={{ flex: 1 }}>
-                                <Text style={styles.rosterName}>
-                                  {camper ? `${camper.firstName} ${camper.lastName}` : "Unknown Camper"}
-                                </Text>
-                                {camper?.cabinGroup ? (
-                                  <Text style={styles.rosterCabin}>{camper.cabinGroup}</Text>
-                                ) : null}
-                                <Text style={styles.rosterTime}>
-                                  In: {new Date(ci.checkedInAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                  {ci.checkedOutAt
-                                    ? ` · Out: ${new Date(ci.checkedOutAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                                    : ""}
-                                </Text>
+                                <Text style={styles.rosterName}>{camper ? `${camper.firstName} ${camper.lastName}` : "Unknown Camper"}</Text>
+                                {camper?.cabinGroup ? <Text style={styles.rosterCabin}>{camper.cabinGroup}</Text> : null}
+                                <Text style={styles.rosterTime}>In: {new Date(ci.checkedInAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}{ci.checkedOutAt ? ` · Out: ${new Date(ci.checkedOutAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</Text>
                               </View>
-                              <View style={[
-                                styles.historyBadge,
-                                { backgroundColor: ci.checkedOutAt ? Colors.light.surfaceSecondary : Colors.success + "20" },
-                              ]}>
-                                <Text style={[
-                                  styles.historyBadgeText,
-                                  { color: ci.checkedOutAt ? Colors.light.textSecondary : Colors.success },
-                                ]}>
-                                  {ci.checkedOutAt ? "Done" : "Present"}
-                                </Text>
+                              <View style={[styles.historyBadge, { backgroundColor: ci.checkedOutAt ? Colors.light.surfaceSecondary : Colors.success + "20" }]}>
+                                <Text style={[styles.historyBadgeText, { color: ci.checkedOutAt ? Colors.light.textSecondary : Colors.success }]}>{ci.checkedOutAt ? "Done" : "Present"}</Text>
                               </View>
                             </View>
                             {idx < roster.length - 1 && <View style={styles.divider} />}
@@ -1187,10 +818,7 @@ export default function MoreScreen() {
                 </>
               );
             })()}
-            <Pressable
-              style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]}
-              onPress={() => setRosterSession(null)}
-            >
+            <Pressable style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={() => setRosterSession(null)}>
               <Text style={styles.confirmBtnText}>Close</Text>
             </Pressable>
           </View>
@@ -1201,580 +829,125 @@ export default function MoreScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    backgroundColor: Colors.light.background,
-    gap: 12,
-  },
-  headerTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-  },
-  logoutBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabRow: {
-    flexDirection: "row",
-    backgroundColor: Colors.light.surfaceSecondary,
-    borderRadius: 12,
-    padding: 4,
-  },
-  tabBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  tabBtnActive: {
-    backgroundColor: Colors.light.surface,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  tabBtnText: {
-    fontSize: 14,
-    fontFamily: "Outfit_500Medium",
-    color: Colors.light.textMuted,
-  },
-  tabBtnActiveText: {
-    color: Colors.primary,
-    fontFamily: "Outfit_600SemiBold",
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    gap: 12,
-  },
-  addBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    height: 50,
-    marginBottom: 8,
-  },
-  addBtnText: {
-    color: "#fff",
-    fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
-  },
-  sessionCard: {
-    backgroundColor: Colors.light.surface,
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  sessionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  sessionName: {
-    fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
-  },
-  sessionDates: {
-    fontSize: 13,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    marginTop: 2,
-  },
-  activeToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  activeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  activeText: {
-    fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
-  },
-  datesChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  dateChip: {
-    backgroundColor: Colors.primary + "15",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  dateChipText: {
-    fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.primary,
-  },
-  noDatesText: {
-    fontSize: 13,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
-  },
-  deleteSessionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "flex-start",
-    marginTop: 4,
-  },
-  deleteSessionText: {
-    fontSize: 13,
-    fontFamily: "Outfit_500Medium",
-    color: Colors.danger,
-  },
-  codeCard: {
-    backgroundColor: Colors.light.surface,
-    borderRadius: 16,
-    padding: 16,
-    gap: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  codeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  roleIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  codeValue: {
-    fontSize: 16,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-    letterSpacing: 0.5,
-  },
-  codeRole: {
-    fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    marginTop: 2,
-  },
-  usedBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  usedBadgeText: {
-    fontSize: 11,
-    fontFamily: "Outfit_700Bold",
-  },
-  codeActions: {
-    flexDirection: "row",
-    gap: 16,
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
-    paddingTop: 12,
-  },
-  actionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  actionBtnText: {
-    fontSize: 13,
-    fontFamily: "Outfit_600SemiBold",
-  },
-  empty: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-    gap: 12,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
-  },
-  emptyText: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    textAlign: "center",
-    paddingHorizontal: 40,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalSheet: {
-    backgroundColor: Colors.light.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingTop: 12,
-    maxHeight: "90%",
-  },
-  modalHandle: {
-    width: 40,
-    height: 5,
-    backgroundColor: Colors.light.border,
-    borderRadius: 2.5,
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-  },
-  modalSub: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    marginBottom: 20,
-    lineHeight: 20,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
-    marginBottom: 8,
-  },
-  fieldHint: {
-    fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
-    marginBottom: 8,
-    marginTop: -4,
-  },
-  fieldInput: {
-    backgroundColor: Colors.light.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    paddingHorizontal: 14,
-    height: 48,
-    fontFamily: "Outfit_400Regular",
-    fontSize: 15,
-    color: Colors.light.text,
-    marginBottom: 16,
-  },
-  roleOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    marginBottom: 10,
-  },
-  roleOptionSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary + "05",
-  },
-  roleName: {
-    fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
-  },
-  roleDesc: {
-    fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    marginTop: 2,
-  },
-  camperSelectRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-  },
-  camperSelectRowActive: {
-    backgroundColor: Colors.primary + "05",
-  },
-  camperSelectName: {
-    fontSize: 14,
-    fontFamily: "Outfit_500Medium",
-    color: Colors.light.text,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 8,
-  },
-  cancelBtn: {
-    flex: 1,
-    height: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 14,
-    backgroundColor: Colors.light.surfaceSecondary,
-  },
-  cancelBtnText: {
-    fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
-  },
-  confirmBtn: {
-    flex: 2,
-    height: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 14,
-    backgroundColor: Colors.primary,
-  },
-  confirmBtnText: {
-    fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
-    color: "#fff",
-  },
-  userInfoCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    backgroundColor: Colors.primary + "10",
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.primary + "20",
-  },
-  userInfoText: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    lineHeight: 20,
-  },
-  sessionCardActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginTop: 4,
-  },
-  rosterBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.primary + "40",
-    backgroundColor: Colors.primary + "08",
-  },
-  rosterBtnText: {
-    fontSize: 13,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.primary,
-  },
-  rosterCount: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: Colors.primary + "10",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 16,
-  },
-  rosterCountText: {
-    fontSize: 14,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.primary,
-  },
-  rosterRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
-  },
-  rosterAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.primary + "20",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rosterAvatarText: {
-    fontSize: 15,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.primary,
-  },
-  rosterName: {
-    fontSize: 14,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
-  },
-  rosterCabin: {
-    fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-  },
-  rosterTime: {
-    fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
-    marginTop: 2,
-  },
-  historyBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  historyBadgeText: {
-    fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.light.border,
-  },
-  userCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: Colors.light.surface,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  userAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  userAvatarText: {
-    fontSize: 16,
-    fontFamily: "Outfit_700Bold",
-  },
-  userName: {
-    fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
-  },
-  userEmail: {
-    fontSize: 13,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    marginTop: 1,
-  },
-  userMeta: {
-    fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
-    marginTop: 1,
-  },
-  rolePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  rolePillText: {
-    fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
-    textTransform: "capitalize",
-  },
-  tabs2: {
-    flexDirection: "row",
-    backgroundColor: Colors.light.surfaceSecondary,
-    borderRadius: 10,
-    padding: 3,
-  },
-  tab2: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  tab2Active: {
-    backgroundColor: Colors.light.surface,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  tab2Text: {
-    fontSize: 13,
-    fontFamily: "Outfit_500Medium",
-    color: Colors.light.textMuted,
-  },
-  tab2ActiveText: {
-    color: Colors.primary,
-    fontFamily: "Outfit_600SemiBold",
-  },
-  securitySection: {
-    backgroundColor: Colors.light.surfaceSecondary,
-    borderRadius: 14,
-    padding: 14,
-  },
-  securityBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.primary + "40",
-    backgroundColor: Colors.primary + "08",
-  },
-  resetCodeBox: {
-    backgroundColor: Colors.light.surface,
-    borderRadius: 10,
-    padding: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    marginBottom: 8,
-  },
-  resetCodeText: {
-    fontSize: 24,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-    letterSpacing: 4,
-  },
+  header: { paddingHorizontal: 20, paddingBottom: 12, backgroundColor: Colors.light.background, gap: 12 },
+  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  headerTitle: { fontSize: 28, fontFamily: "Outfit_700Bold", color: Colors.light.text },
+  logoutBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.light.surfaceSecondary, alignItems: "center", justifyContent: "center" },
+  tabRow: { flexDirection: "row", backgroundColor: Colors.light.surfaceSecondary, borderRadius: 12, padding: 4 },
+  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 9, borderRadius: 10 },
+  tabBtnActive: { backgroundColor: Colors.light.surface, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  tabBtnText: { fontSize: 12, fontFamily: "Outfit_500Medium", color: Colors.light.textMuted },
+  tabBtnActiveText: { color: Colors.primary, fontFamily: "Outfit_600SemiBold" },
+  content: { paddingHorizontal: 20, paddingTop: 12, gap: 12 },
+  addBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.primary, borderRadius: 14, height: 50, marginBottom: 8 },
+  addBtnText: { color: "#fff", fontSize: 15, fontFamily: "Outfit_600SemiBold" },
+  // Sessions
+  sessionCard: { backgroundColor: Colors.light.surface, borderRadius: 16, padding: 16, gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  sessionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  sessionName: { fontSize: 16, fontFamily: "Outfit_600SemiBold", color: Colors.light.text },
+  sessionDates: { fontSize: 13, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginTop: 2 },
+  activeToggle: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+  activeDot: { width: 7, height: 7, borderRadius: 3.5 },
+  activeText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
+  datesChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  dateChip: { backgroundColor: Colors.primary + "15", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  dateChipText: { fontSize: 12, fontFamily: "Outfit_600SemiBold", color: Colors.primary },
+  noDatesText: { fontSize: 13, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted },
+  deleteSessionBtn: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", marginTop: 4 },
+  deleteSessionText: { fontSize: 13, fontFamily: "Outfit_500Medium", color: Colors.danger },
+  sessionCardActions: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 4 },
+  rosterBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: Colors.primary + "40", backgroundColor: Colors.primary + "08" },
+  rosterBtnText: { fontSize: 13, fontFamily: "Outfit_600SemiBold", color: Colors.primary },
+  // Auth Codes
+  codeCard: { backgroundColor: Colors.light.surface, borderRadius: 16, padding: 16, gap: 14, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  codeHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  roleIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  codeValue: { fontSize: 16, fontFamily: "Outfit_700Bold", color: Colors.light.text, letterSpacing: 0.5 },
+  codeRole: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginTop: 2 },
+  usedBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+  usedBadgeText: { fontSize: 11, fontFamily: "Outfit_700Bold" },
+  codeActions: { flexDirection: "row", gap: 16, borderTopWidth: 1, borderTopColor: Colors.light.border, paddingTop: 12 },
+  actionBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
+  actionBtnText: { fontSize: 13, fontFamily: "Outfit_600SemiBold" },
+  // Users
+  userCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: Colors.light.surface, borderRadius: 16, padding: 14, marginBottom: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  userAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  userAvatarText: { fontSize: 16, fontFamily: "Outfit_700Bold" },
+  userName: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: Colors.light.text },
+  userEmail: { fontSize: 13, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginTop: 1 },
+  userMeta: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted, marginTop: 1 },
+  rolePill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  rolePillText: { fontSize: 12, fontFamily: "Outfit_600SemiBold", textTransform: "capitalize" },
+  // Empty
+  empty: { alignItems: "center", justifyContent: "center", paddingVertical: 60, gap: 12 },
+  emptyTitle: { fontSize: 18, fontFamily: "Outfit_600SemiBold", color: Colors.light.text },
+  emptyText: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, textAlign: "center", paddingHorizontal: 40 },
+  // Modals
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalSheet: { backgroundColor: Colors.light.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingTop: 12, maxHeight: "90%" },
+  modalHandle: { width: 40, height: 5, backgroundColor: Colors.light.border, borderRadius: 2.5, alignSelf: "center", marginBottom: 16 },
+  modalTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", color: Colors.light.text },
+  modalSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginBottom: 20, lineHeight: 20 },
+  fieldLabel: { fontSize: 14, fontFamily: "Outfit_600SemiBold", color: Colors.light.text, marginBottom: 8 },
+  fieldHint: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted, marginBottom: 8, marginTop: -4 },
+  fieldInput: { backgroundColor: Colors.light.surface, borderRadius: 12, borderWidth: 1, borderColor: Colors.light.border, paddingHorizontal: 14, height: 48, fontFamily: "Outfit_400Regular", fontSize: 15, color: Colors.light.text, marginBottom: 16 },
+  roleOption: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: Colors.light.border, marginBottom: 10 },
+  roleOptionSelected: { borderColor: Colors.primary, backgroundColor: Colors.primary + "05" },
+  roleName: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: Colors.light.text },
+  roleDesc: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, marginTop: 2 },
+  camperSelectRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: Colors.light.border },
+  camperSelectRowActive: { backgroundColor: Colors.primary + "05" },
+  camperSelectName: { fontSize: 14, fontFamily: "Outfit_500Medium", color: Colors.light.text },
+  modalButtons: { flexDirection: "row", gap: 12, marginTop: 8 },
+  cancelBtn: { flex: 1, height: 50, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: Colors.light.surfaceSecondary },
+  cancelBtnText: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: Colors.light.textSecondary },
+  confirmBtn: { flex: 2, height: 50, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: Colors.primary },
+  confirmBtnText: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: "#fff" },
+  tabs2: { flexDirection: "row", backgroundColor: Colors.light.surfaceSecondary, borderRadius: 10, padding: 3 },
+  tab2: { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 8 },
+  tab2Active: { backgroundColor: Colors.light.surface, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1 },
+  tab2Text: { fontSize: 13, fontFamily: "Outfit_500Medium", color: Colors.light.textMuted },
+  tab2ActiveText: { color: Colors.primary, fontFamily: "Outfit_600SemiBold" },
+  securitySection: { backgroundColor: Colors.light.surfaceSecondary, borderRadius: 14, padding: 14 },
+  securityBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 48, borderRadius: 12, borderWidth: 1, borderColor: Colors.primary + "40", backgroundColor: Colors.primary + "08" },
+  resetCodeBox: { backgroundColor: Colors.light.surface, borderRadius: 10, padding: 12, alignItems: "center", borderWidth: 1, borderColor: Colors.light.border, marginBottom: 8 },
+  resetCodeText: { fontSize: 24, fontFamily: "Outfit_700Bold", color: Colors.light.text, letterSpacing: 4 },
+  rosterCount: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.primary + "10", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16 },
+  rosterCountText: { fontSize: 14, fontFamily: "Outfit_600SemiBold", color: Colors.primary },
+  rosterRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
+  rosterAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary + "20", alignItems: "center", justifyContent: "center" },
+  rosterAvatarText: { fontSize: 15, fontFamily: "Outfit_700Bold", color: Colors.primary },
+  rosterName: { fontSize: 14, fontFamily: "Outfit_600SemiBold", color: Colors.light.text },
+  rosterCabin: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary },
+  rosterTime: { fontSize: 12, fontFamily: "Outfit_400Regular", color: Colors.light.textMuted, marginTop: 2 },
+  historyBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  historyBadgeText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
+  divider: { height: 1, backgroundColor: Colors.light.border },
+  // AI
+  aiSecurityBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginHorizontal: 20, marginBottom: 8, backgroundColor: Colors.success + "12", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: Colors.success + "25" },
+  aiSecurityText: { flex: 1, fontSize: 11, fontFamily: "Outfit_400Regular", color: Colors.success, lineHeight: 15 },
+  aiEmpty: { paddingHorizontal: 20, paddingTop: 16, gap: 12 },
+  aiEmptyIcon: { width: 64, height: 64, borderRadius: 18, backgroundColor: Colors.accent + "15", alignItems: "center", justifyContent: "center", alignSelf: "center" },
+  aiEmptyTitle: { fontSize: 22, fontFamily: "Outfit_700Bold", color: Colors.light.text, textAlign: "center" },
+  aiEmptySub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: Colors.light.textSecondary, textAlign: "center", lineHeight: 20 },
+  aiSuggestions: { gap: 8, marginTop: 8 },
+  aiSuggestion: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: Colors.light.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.light.border, gap: 10 },
+  aiSuggestionText: { flex: 1, fontSize: 14, fontFamily: "Outfit_500Medium", color: Colors.light.text },
+  aiMessageList: { paddingHorizontal: 16, paddingTop: 8, gap: 12 },
+  bubble: { flexDirection: "row", alignItems: "flex-end", gap: 8, marginBottom: 4 },
+  userBubble: { justifyContent: "flex-end" },
+  aiBubble: { justifyContent: "flex-start" },
+  aiAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.accent + "15", alignItems: "center", justifyContent: "center", flexShrink: 0, marginBottom: 2 },
+  bubbleContent: { maxWidth: "80%", borderRadius: 18, padding: 12 },
+  userBubbleContent: { backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
+  aiBubbleContent: { backgroundColor: Colors.light.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: Colors.light.border },
+  bubbleText: { fontSize: 15, lineHeight: 21 },
+  userText: { fontFamily: "Outfit_400Regular", color: "#fff" },
+  aiText: { fontFamily: "Outfit_400Regular", color: Colors.light.text },
+  cursor: { color: Colors.accent },
+  aiInputContainer: { backgroundColor: Colors.light.background, borderTopWidth: 1, borderTopColor: Colors.light.border, paddingTop: 12 },
+  aiInputRow: { flexDirection: "row", alignItems: "flex-end", gap: 10, backgroundColor: Colors.light.surface, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: Colors.light.border },
+  aiInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 15, color: Colors.light.text, maxHeight: 100, paddingTop: 4, paddingBottom: 4 },
+  aiSendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  aiSendBtnDisabled: { backgroundColor: Colors.light.textMuted },
 });
