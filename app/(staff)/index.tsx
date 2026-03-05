@@ -312,6 +312,7 @@ export default function StaffCheckInScreen() {
     refresh,
   } = useData();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [search, setSearch] = useState("");
   const [selectedCabin, setSelectedCabin] = useState<string | null>(null);
   const [nfcScanVisible, setNfcScanVisible] = useState(false);
@@ -456,27 +457,27 @@ export default function StaffCheckInScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.light.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View
         style={[
           styles.header,
-          { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20) },
+          { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20), backgroundColor: colors.background },
         ]}
       >
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.greeting}>Welcome,</Text>
-            <Text style={styles.name}>{user?.name}</Text>
+            <Text style={[styles.greeting, { color: colors.textSecondary }]}>Welcome,</Text>
+            <Text style={[styles.name, { color: colors.text }]}>{user?.name}</Text>
           </View>
           <View style={styles.headerActions}>
             <Pressable
               onPress={() => setEmergencyLookupVisible(true)}
-              style={styles.emergencyButton}
+              style={[styles.emergencyButton, { backgroundColor: Colors.danger + "10" }]}
             >
               <Ionicons name="medkit" size={18} color={Colors.danger} />
             </Pressable>
-            <Pressable onPress={handleLogout} style={styles.logoutButton}>
-              <Ionicons name="log-out-outline" size={20} color={Colors.light.textSecondary} />
+            <Pressable onPress={handleLogout} style={[styles.logoutButton, { backgroundColor: colors.surfaceSecondary }]}>
+              <Ionicons name="log-out-outline" size={20} color={colors.textSecondary} />
             </Pressable>
           </View>
         </View>
@@ -508,18 +509,18 @@ export default function StaffCheckInScreen() {
           </View>
         )}
 
-        <View style={styles.searchContainer}>
-          <Ionicons name="search-outline" size={18} color={Colors.light.textMuted} />
+        <View style={[styles.searchContainer, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+          <Ionicons name="search-outline" size={18} color={colors.textMuted} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
             placeholder="Search campers..."
-            placeholderTextColor={Colors.light.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch("")}>
-              <Ionicons name="close-circle" size={18} color={Colors.light.textMuted} />
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </Pressable>
           )}
         </View>
@@ -527,18 +528,18 @@ export default function StaffCheckInScreen() {
         {cabinGroups.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
             <Pressable
-              style={[styles.filterChip, { backgroundColor: !selectedCabin ? Colors.primary : Colors.light.surface, borderColor: !selectedCabin ? Colors.primary : Colors.light.border }]}
+              style={[styles.filterChip, { backgroundColor: !selectedCabin ? Colors.primary : colors.surface, borderColor: !selectedCabin ? Colors.primary : colors.border }]}
               onPress={() => setSelectedCabin(null)}
             >
-              <Text style={[styles.filterChipText, { color: !selectedCabin ? "#fff" : Colors.light.textSecondary }]}>All</Text>
+              <Text style={[styles.filterChipText, { color: !selectedCabin ? "#fff" : colors.textSecondary }]}>All</Text>
             </Pressable>
             {cabinGroups.map((cabin) => (
               <Pressable
                 key={cabin}
-                style={[styles.filterChip, { backgroundColor: selectedCabin === cabin ? Colors.primary : Colors.light.surface, borderColor: selectedCabin === cabin ? Colors.primary : Colors.light.border }]}
+                style={[styles.filterChip, { backgroundColor: selectedCabin === cabin ? Colors.primary : colors.surface, borderColor: selectedCabin === cabin ? Colors.primary : colors.border }]}
                 onPress={() => setSelectedCabin(selectedCabin === cabin ? null : cabin)}
               >
-                <Text style={[styles.filterChipText, { color: selectedCabin === cabin ? "#fff" : Colors.light.textSecondary }]}>{cabin}</Text>
+                <Text style={[styles.filterChipText, { color: selectedCabin === cabin ? "#fff" : colors.textSecondary }]}>{cabin}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -579,9 +580,9 @@ export default function StaffCheckInScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="people-outline" size={52} color={Colors.light.textMuted} />
-            <Text style={styles.emptyTitle}>No campers found</Text>
-            <Text style={styles.emptyText}>
+            <Ionicons name="people-outline" size={52} color={colors.textMuted} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No campers found</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               {search ? "Try a different search" : "Campers will appear here once added"}
             </Text>
           </View>
@@ -631,7 +632,6 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: Colors.light.background,
     gap: 12,
   },
   headerTop: {
@@ -642,18 +642,15 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
   },
   name: {
     fontSize: 26,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
   },
   logoutButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.light.surfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -704,18 +701,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: Colors.light.surface,
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 46,
     borderWidth: 1,
-    borderColor: Colors.light.border,
   },
   searchInput: {
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: Colors.light.text,
   },
   filterRow: {
     gap: 8,
@@ -737,7 +731,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   camperCard: {
-    backgroundColor: Colors.light.surface,
     borderRadius: 16,
     padding: 14,
     gap: 12,
@@ -747,6 +740,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
     marginBottom: 8,
+    borderWidth: 1,
   },
   camperInfo: {
     flexDirection: "row",
@@ -767,12 +761,12 @@ const styles = StyleSheet.create({
   camperName: {
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   camperCabin: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     marginTop: 2,
   },
   allergyTag: {
@@ -827,17 +821,17 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   emptyText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     textAlign: "center",
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
   },
   modalHeader: {
     flexDirection: "row",
@@ -846,12 +840,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: "#E5E7EB",
   },
   modalTitle: {
     fontSize: 17,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   modalBackBtn: {
     width: 36,
@@ -869,20 +863,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 46,
     marginHorizontal: 20,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
   },
   modalSearchInput: {
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: Colors.light.text,
+    color: "#111111",
   },
   emCamperRow: {
     flexDirection: "row",
@@ -890,7 +884,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: "#E5E7EB",
   },
   emAvatar: {
     width: 40,
@@ -919,15 +913,15 @@ const styles = StyleSheet.create({
   medSectionTitle: {
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   medCard: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 16,
     padding: 16,
     gap: 12,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
   },
   medRow: {
     flexDirection: "row",
@@ -946,26 +940,26 @@ const styles = StyleSheet.create({
   medLabel: {
     fontSize: 11,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textMuted,
+    color: "#999999",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   medValue: {
     fontSize: 15,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.text,
+    color: "#111111",
     marginTop: 2,
   },
   medNoData: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
     fontStyle: "italic",
   },
   medNotesText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.text,
+    color: "#111111",
     lineHeight: 20,
   },
 });

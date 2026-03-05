@@ -17,10 +17,12 @@ import * as Haptics from "expo-haptics";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/query-client";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 
 export default function StaffAccountScreen() {
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -84,7 +86,7 @@ export default function StaffAccountScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[
         styles.container,
         {
@@ -93,60 +95,60 @@ export default function StaffAccountScreen() {
         },
       ]}
     >
-      <Text style={styles.title}>Account</Text>
+      <Text style={[styles.title, { color: colors.text }]}>Account</Text>
 
-      <View style={styles.profileCard}>
+      <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
             {user?.name?.charAt(0)?.toUpperCase() ?? "S"}
           </Text>
         </View>
-        <Text style={styles.name}>{user?.name ?? "Staff Member"}</Text>
+        <Text style={[styles.name, { color: colors.text }]}>{user?.name ?? "Staff Member"}</Text>
         <View style={styles.roleBadge}>
           <Ionicons name="people" size={13} color={Colors.accent} />
           <Text style={styles.roleText}>Staff</Text>
         </View>
-        <Text style={styles.email}>{user?.email ?? ""}</Text>
+        <Text style={[styles.email, { color: colors.textSecondary }]}>{user?.email ?? ""}</Text>
       </View>
 
-      <View style={styles.infoCard}>
+      <View style={[styles.infoCard, { backgroundColor: colors.surface }]}>
         <View style={styles.infoRow}>
           <Ionicons name="shield-checkmark-outline" size={18} color={Colors.primary} />
-          <Text style={styles.infoText}>All check-in data is encrypted and synced securely</Text>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>All check-in data is encrypted and synced securely</Text>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
         <View style={styles.infoRow}>
           <Ionicons name="wifi-outline" size={18} color={Colors.primary} />
-          <Text style={styles.infoText}>Wristband scanning works offline via NFC</Text>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>Wristband scanning works offline via NFC</Text>
         </View>
       </View>
 
       <Pressable
-        style={({ pressed }) => [styles.changePasswordToggle, { opacity: pressed ? 0.85 : 1 }]}
+        style={({ pressed }) => [styles.changePasswordToggle, { opacity: pressed ? 0.85 : 1, backgroundColor: colors.surface }]}
         onPress={() => setShowPasswordSection((v) => !v)}
       >
         <View style={styles.changePasswordLeft}>
           <Ionicons name="key-outline" size={18} color={Colors.primary} />
-          <Text style={styles.changePasswordText}>Change Password</Text>
+          <Text style={[styles.changePasswordText, { color: colors.text }]}>Change Password</Text>
         </View>
         <Ionicons
           name={showPasswordSection ? "chevron-up" : "chevron-down"}
           size={18}
-          color={Colors.light.textSecondary}
+          color={colors.textSecondary}
         />
       </Pressable>
 
       {showPasswordSection && (
-        <View style={styles.passwordCard}>
+        <View style={[styles.passwordCard, { backgroundColor: colors.surface }]}>
           <View style={styles.passwordField}>
-            <Text style={styles.fieldLabel}>Current Password</Text>
-            <View style={styles.passwordInputRow}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Current Password</Text>
+            <View style={[styles.passwordInputRow, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, { color: colors.text }]}
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
                 placeholder="Enter current password"
-                placeholderTextColor={Colors.light.textMuted}
+                placeholderTextColor={colors.textMuted}
                 secureTextEntry={!showCurrent}
                 autoCapitalize="none"
               />
@@ -154,21 +156,21 @@ export default function StaffAccountScreen() {
                 <Ionicons
                   name={showCurrent ? "eye-off-outline" : "eye-outline"}
                   size={18}
-                  color={Colors.light.textMuted}
+                  color={colors.textMuted}
                 />
               </Pressable>
             </View>
           </View>
 
           <View style={styles.passwordField}>
-            <Text style={styles.fieldLabel}>New Password</Text>
-            <View style={styles.passwordInputRow}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>New Password</Text>
+            <View style={[styles.passwordInputRow, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, { color: colors.text }]}
                 value={newPassword}
                 onChangeText={setNewPassword}
                 placeholder="At least 8 characters"
-                placeholderTextColor={Colors.light.textMuted}
+                placeholderTextColor={colors.textMuted}
                 secureTextEntry={!showNew}
                 autoCapitalize="none"
               />
@@ -176,21 +178,21 @@ export default function StaffAccountScreen() {
                 <Ionicons
                   name={showNew ? "eye-off-outline" : "eye-outline"}
                   size={18}
-                  color={Colors.light.textMuted}
+                  color={colors.textMuted}
                 />
               </Pressable>
             </View>
           </View>
 
           <View style={styles.passwordField}>
-            <Text style={styles.fieldLabel}>Confirm New Password</Text>
-            <View style={styles.passwordInputRow}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Confirm New Password</Text>
+            <View style={[styles.passwordInputRow, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, { color: colors.text }]}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="Repeat new password"
-                placeholderTextColor={Colors.light.textMuted}
+                placeholderTextColor={colors.textMuted}
                 secureTextEntry
                 autoCapitalize="none"
               />
@@ -235,15 +237,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   profileCard: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 20,
     padding: 24,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
     gap: 8,
   },
   avatar: {
@@ -263,7 +265,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 22,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   roleBadge: {
     flexDirection: "row",
@@ -282,14 +284,14 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   infoCard: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
     gap: 12,
   },
   infoRow: {
@@ -301,22 +303,22 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     lineHeight: 20,
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.light.border,
+    backgroundColor: "#E5E7EB",
   },
   changePasswordToggle: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
   },
   changePasswordLeft: {
     flexDirection: "row",
@@ -326,10 +328,10 @@ const styles = StyleSheet.create({
   changePasswordText: {
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   passwordCard: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
@@ -342,26 +344,26 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 12,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   passwordInputRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 46,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
     gap: 8,
   },
   passwordInput: {
     flex: 1,
     fontSize: 15,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.text,
+    color: "#111111",
   },
   savePasswordBtn: {
     flexDirection: "row",
@@ -398,6 +400,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
 });

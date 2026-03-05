@@ -16,10 +16,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/query-client";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 
 export default function ParentProfileScreen() {
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -77,7 +79,7 @@ export default function ParentProfileScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[
         styles.container,
         {
@@ -86,27 +88,27 @@ export default function ParentProfileScreen() {
         },
       ]}
     >
-      <Text style={styles.title}>Account</Text>
+      <Text style={[styles.title, { color: colors.text }]}>Account</Text>
 
-      <View style={styles.profileCard}>
+      <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
             {user?.name?.charAt(0).toUpperCase()}
           </Text>
         </View>
-        <Text style={styles.name}>{user?.name}</Text>
-        <Text style={styles.email}>{user?.email}</Text>
+        <Text style={[styles.name, { color: colors.text }]}>{user?.name}</Text>
+        <Text style={[styles.email, { color: colors.textSecondary }]}>{user?.email}</Text>
         <View style={styles.roleBadge}>
           <Ionicons name="person" size={12} color="#8B5CF6" />
           <Text style={styles.roleText}>Parent Account</Text>
         </View>
       </View>
 
-      <View style={styles.infoCard}>
+      <View style={[styles.infoCard, { backgroundColor: colors.surface }]}>
         <Ionicons name="shield-checkmark-outline" size={18} color={Colors.primary} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.infoTitle}>Linked via Auth Code</Text>
-          <Text style={styles.infoText}>
+          <Text style={[styles.infoTitle, { color: colors.text }]}>Linked via Auth Code</Text>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
             Your account was created using code:{"\n"}
             <Text style={styles.codeText}>{user?.authCode}</Text>
           </Text>
@@ -148,7 +150,7 @@ export default function ParentProfileScreen() {
         <Ionicons
           name={showPasswordSection ? "chevron-up" : "chevron-down"}
           size={18}
-          color={Colors.light.textSecondary}
+          color={colors.textSecondary}
         />
       </Pressable>
 
@@ -162,7 +164,7 @@ export default function ParentProfileScreen() {
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
                 placeholder="Enter current password"
-                placeholderTextColor={Colors.light.textMuted}
+                placeholderTextColor={colors.textMuted}
                 secureTextEntry={!showCurrent}
                 autoCapitalize="none"
               />
@@ -170,7 +172,7 @@ export default function ParentProfileScreen() {
                 <Ionicons
                   name={showCurrent ? "eye-off-outline" : "eye-outline"}
                   size={18}
-                  color={Colors.light.textMuted}
+                  color={colors.textMuted}
                 />
               </Pressable>
             </View>
@@ -184,7 +186,7 @@ export default function ParentProfileScreen() {
                 value={newPassword}
                 onChangeText={setNewPassword}
                 placeholder="At least 8 characters"
-                placeholderTextColor={Colors.light.textMuted}
+                placeholderTextColor={colors.textMuted}
                 secureTextEntry={!showNew}
                 autoCapitalize="none"
               />
@@ -192,7 +194,7 @@ export default function ParentProfileScreen() {
                 <Ionicons
                   name={showNew ? "eye-off-outline" : "eye-outline"}
                   size={18}
-                  color={Colors.light.textMuted}
+                  color={colors.textMuted}
                 />
               </Pressable>
             </View>
@@ -206,7 +208,7 @@ export default function ParentProfileScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="Repeat new password"
-                placeholderTextColor={Colors.light.textMuted}
+                placeholderTextColor={colors.textMuted}
                 secureTextEntry
                 autoCapitalize="none"
               />
@@ -252,10 +254,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   profileCard: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 24,
     padding: 24,
     alignItems: "center",
@@ -283,12 +285,12 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 22,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   email: {
     fontSize: 15,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   roleBadge: {
     flexDirection: "row",
@@ -317,12 +319,12 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   infoText: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     marginTop: 4,
     lineHeight: 18,
   },
@@ -331,7 +333,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   card: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 20,
     padding: 20,
     gap: 12,
@@ -344,7 +346,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   roleRow: {
     flexDirection: "row",
@@ -354,17 +356,17 @@ const styles = StyleSheet.create({
   roleCapability: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.text,
+    color: "#111111",
   },
   changePasswordToggle: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
   },
   changePasswordLeft: {
     flexDirection: "row",
@@ -374,10 +376,10 @@ const styles = StyleSheet.create({
   changePasswordText: {
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   passwordCard: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
@@ -390,26 +392,26 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 12,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   passwordInputRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 46,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
     gap: 8,
   },
   passwordInput: {
     flex: 1,
     fontSize: 15,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.text,
+    color: "#111111",
   },
   savePasswordBtn: {
     flexDirection: "row",

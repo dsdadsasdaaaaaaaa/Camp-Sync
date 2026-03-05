@@ -15,6 +15,7 @@ import { router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 import type { Camper } from "@/types";
 
 function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
@@ -23,11 +24,12 @@ function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
   lastCheckIn?: { at: string; out?: string };
   hasPendingUpdate: boolean;
 }) {
+  const colors = useColors();
   return (
     <Pressable
       style={({ pressed }) => [
         styles.childCard,
-        { opacity: pressed ? 0.9 : 1 },
+        { opacity: pressed ? 0.9 : 1, backgroundColor: colors.surface },
       ]}
       onPress={() => router.push(`/(parent)/child/${camper.id}`)}
     >
@@ -44,8 +46,8 @@ function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
           </Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.childName}>{camper.firstName} {camper.lastName}</Text>
-          <Text style={styles.childCabin}>{camper.cabinGroup || "No cabin assigned"}</Text>
+          <Text style={[styles.childName, { color: colors.text }]}>{camper.firstName} {camper.lastName}</Text>
+          <Text style={[styles.childCabin, { color: colors.textSecondary }]}>{camper.cabinGroup || "No cabin assigned"}</Text>
         </View>
         {hasPendingUpdate && (
           <View style={styles.pendingBadge}>
@@ -53,21 +55,21 @@ function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
             <Text style={styles.pendingBadgeText}>Wristband update needed</Text>
           </View>
         )}
-        <Ionicons name="chevron-forward" size={20} color={Colors.light.textMuted} />
+        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
       </View>
 
       <View style={styles.statusRow}>
         <View style={[
           styles.statusPill,
-          { backgroundColor: isCheckedIn ? Colors.success + "15" : Colors.light.surfaceSecondary }
+          { backgroundColor: isCheckedIn ? Colors.success + "15" : colors.surfaceSecondary }
         ]}>
           <View style={[
             styles.statusDot,
-            { backgroundColor: isCheckedIn ? Colors.success : Colors.light.textMuted }
+            { backgroundColor: isCheckedIn ? Colors.success : colors.textMuted }
           ]} />
           <Text style={[
             styles.statusText,
-            { color: isCheckedIn ? Colors.success : Colors.light.textSecondary }
+            { color: isCheckedIn ? Colors.success : colors.textSecondary }
           ]}>
             {isCheckedIn ? "Currently at Camp" : "Not Checked In"}
           </Text>
@@ -76,8 +78,8 @@ function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
 
       {lastCheckIn && (
         <View style={styles.lastCheckInRow}>
-          <Ionicons name="time-outline" size={14} color={Colors.light.textMuted} />
-          <Text style={styles.lastCheckInText}>
+          <Ionicons name="time-outline" size={14} color={colors.textMuted} />
+          <Text style={[styles.lastCheckInText, { color: colors.textSecondary }]}>
             {isCheckedIn
               ? `Checked in ${new Date(lastCheckIn.at).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })} at ${new Date(lastCheckIn.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
               : lastCheckIn.out
@@ -102,6 +104,7 @@ function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
 
 export default function ParentChildrenScreen() {
   const { user } = useAuth();
+  const colors = useColors();
   const { campers, checkIns, pendingUpdates, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
 
@@ -128,7 +131,7 @@ export default function ParentChildrenScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[
         styles.container,
         {
@@ -145,8 +148,8 @@ export default function ParentChildrenScreen() {
       }
     >
       <View style={styles.header}>
-        <Text style={styles.greeting}>Hello, {user?.name?.split(" ")[0]}</Text>
-        <Text style={styles.title}>My Children</Text>
+        <Text style={[styles.greeting, { color: colors.textSecondary }]}>Hello, {user?.name?.split(" ")[0]}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>My Children</Text>
       </View>
 
       {!hasLoadedOnce ? (
@@ -183,7 +186,7 @@ export default function ParentChildrenScreen() {
       {myChildren.length > 0 && (
         <View style={styles.activitySection}>
           <View style={styles.activityHeader}>
-            <Ionicons name="notifications-outline" size={20} color={Colors.light.text} />
+            <Ionicons name="notifications-outline" size={20} color={colors.text} />
             <Text style={styles.activityTitle}>Recent Activity</Text>
           </View>
           {(() => {
@@ -200,7 +203,7 @@ export default function ParentChildrenScreen() {
             if (recentActivity.length === 0) {
               return (
                 <View style={styles.activityEmpty}>
-                  <Ionicons name="calendar-outline" size={24} color={Colors.light.textMuted} />
+                  <Ionicons name="calendar-outline" size={24} color={colors.textMuted} />
                   <Text style={styles.activityEmptyText}>No activity yet</Text>
                 </View>
               );
@@ -215,7 +218,7 @@ export default function ParentChildrenScreen() {
                 <View key={ci.id + (isCheckOut ? "-out" : "-in")} style={styles.activityItem}>
                   <View style={[
                     styles.activityDot,
-                    { backgroundColor: isCheckOut ? Colors.light.textMuted : Colors.success }
+                    { backgroundColor: isCheckOut ? "#999999" : Colors.success }
                   ]} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.activityText}>
@@ -232,7 +235,7 @@ export default function ParentChildrenScreen() {
                   <Ionicons
                     name={isCheckOut ? "log-out-outline" : "log-in-outline"}
                     size={16}
-                    color={isCheckOut ? Colors.light.textMuted : Colors.success}
+                    color={isCheckOut ? "#999999" : Colors.success}
                   />
                 </View>
               );
@@ -262,18 +265,18 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   title: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   list: {
     gap: 14,
   },
   childCard: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 20,
     padding: 18,
     gap: 12,
@@ -302,12 +305,12 @@ const styles = StyleSheet.create({
   childName: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   childCabin: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     marginTop: 2,
   },
   pendingBadge: {
@@ -352,7 +355,7 @@ const styles = StyleSheet.create({
   lastCheckInText: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   wristbandRow: {
     flexDirection: "row",
@@ -385,17 +388,17 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   emptyText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     textAlign: "center",
     lineHeight: 21,
   },
   activitySection: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 20,
     padding: 18,
     gap: 14,
@@ -413,7 +416,7 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   activityEmpty: {
     alignItems: "center",
@@ -423,7 +426,7 @@ const styles = StyleSheet.create({
   activityEmptyText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
   activityItem: {
     flexDirection: "row",
@@ -431,7 +434,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
+    borderTopColor: "#E5E7EB",
   },
   activityDot: {
     width: 8,
@@ -441,7 +444,7 @@ const styles = StyleSheet.create({
   activityText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.text,
+    color: "#111111",
   },
   activityBold: {
     fontFamily: "Outfit_600SemiBold",
@@ -449,7 +452,7 @@ const styles = StyleSheet.create({
   activityMeta: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
     marginTop: 2,
   },
   infoCard: {
@@ -465,7 +468,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     lineHeight: 18,
   },
 });

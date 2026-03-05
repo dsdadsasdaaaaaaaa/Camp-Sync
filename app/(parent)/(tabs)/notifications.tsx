@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 import type { CheckIn, Camper } from "@/types";
 
 interface ActivityEvent {
@@ -25,6 +26,7 @@ interface ActivityEvent {
 
 export default function ParentNotificationsScreen() {
   const { user } = useAuth();
+  const colors = useColors();
   const { campers, checkIns, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
 
@@ -93,29 +95,29 @@ export default function ParentNotificationsScreen() {
       });
 
       return (
-        <View style={styles.eventCard}>
+        <View style={[styles.eventCard, { backgroundColor: colors.surface }]}>
           <View
             style={[
               styles.iconCircle,
               {
                 backgroundColor: isIn
                   ? Colors.success + "20"
-                  : Colors.light.surfaceSecondary,
+                  : colors.surfaceSecondary,
               },
             ]}
           >
             <Ionicons
               name={isIn ? "log-in-outline" : "log-out-outline"}
               size={20}
-              color={isIn ? Colors.success : Colors.light.textSecondary}
+              color={isIn ? Colors.success : colors.textSecondary}
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.eventTitle}>
-              <Text style={styles.eventName}>{item.camper.firstName}</Text>
+            <Text style={[styles.eventTitle, { color: colors.text }]}>
+              <Text style={[styles.eventName, { color: colors.text }]}>{item.camper.firstName}</Text>
               {isIn ? " checked in" : " checked out"}
             </Text>
-            <Text style={styles.eventMeta}>
+            <Text style={[styles.eventMeta, { color: colors.textMuted }]}>
               {dayLabel} at {timeLabel}
               {staffName ? ` · ${staffName}` : ""}
             </Text>
@@ -126,14 +128,14 @@ export default function ParentNotificationsScreen() {
               {
                 backgroundColor: isIn
                   ? Colors.success + "15"
-                  : Colors.light.surfaceSecondary,
+                  : colors.surfaceSecondary,
               },
             ]}
           >
             <Text
               style={[
                 styles.badgeText,
-                { color: isIn ? Colors.success : Colors.light.textSecondary },
+                { color: isIn ? Colors.success : colors.textSecondary },
               ]}
             >
               {isIn ? "In" : "Out"}
@@ -142,11 +144,11 @@ export default function ParentNotificationsScreen() {
         </View>
       );
     },
-    []
+    [colors]
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.light.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View
         style={[
           styles.header,
@@ -159,9 +161,9 @@ export default function ParentNotificationsScreen() {
         <Ionicons
           name="notifications-outline"
           size={22}
-          color={Colors.light.text}
+          color={colors.text}
         />
-        <Text style={styles.headerTitle}>Activity</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Activity</Text>
       </View>
 
       {myChildren.length === 0 ? (
@@ -221,12 +223,12 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
   },
   headerTitle: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   list: {
     paddingHorizontal: 20,
@@ -237,7 +239,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 16,
     padding: 16,
     shadowColor: "#000",
@@ -256,7 +258,7 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.text,
+    color: "#111111",
     lineHeight: 20,
   },
   eventName: {
@@ -265,7 +267,7 @@ const styles = StyleSheet.create({
   eventMeta: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
     marginTop: 3,
   },
   badge: {
@@ -288,12 +290,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   emptyText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     textAlign: "center",
     lineHeight: 20,
   },

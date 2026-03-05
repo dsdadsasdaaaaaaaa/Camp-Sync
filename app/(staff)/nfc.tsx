@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 import NFCScanner from "@/components/NFCScanner";
 import { useData } from "@/contexts/DataContext";
 import type { Camper, WristbandPayload } from "@/types";
@@ -22,6 +23,7 @@ type Screen = "home" | "readResult" | "confirmCheckout";
 
 export default function StaffNFCScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const { campers, checkIns, checkOutCamper, updateCamper } = useData();
   const [screen, setScreen] = useState<Screen>("home");
   const [scannerVisible, setScannerVisible] = useState(false);
@@ -149,7 +151,7 @@ export default function StaffNFCScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[
         styles.container,
         {
@@ -158,8 +160,8 @@ export default function StaffNFCScreen() {
         },
       ]}
     >
-      <Text style={styles.title}>Wristband</Text>
-      <Text style={styles.subtitle}>
+      <Text style={[styles.title, { color: colors.text }]}>Wristband</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
         Scan wristbands or select a camper to check out
       </Text>
 
@@ -169,42 +171,42 @@ export default function StaffNFCScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.modeCard,
-                { opacity: pressed ? 0.85 : 1, borderColor: Colors.accent + "40" },
+                { opacity: pressed ? 0.85 : 1, borderColor: Colors.accent + "40", backgroundColor: colors.surface },
               ]}
               onPress={handleStartScan}
             >
               <View style={[styles.modeIcon, { backgroundColor: Colors.accent + "15" }]}>
                 <Ionicons name="radio" size={28} color={Colors.accent} />
               </View>
-              <Text style={styles.modeTitle}>Scan</Text>
-              <Text style={styles.modeSub}>Read wristband data offline</Text>
+              <Text style={[styles.modeTitle, { color: colors.text }]}>Scan</Text>
+              <Text style={[styles.modeSub, { color: colors.textSecondary }]}>Read wristband data offline</Text>
             </Pressable>
 
             <Pressable
               style={({ pressed }) => [
                 styles.modeCard,
-                { opacity: pressed ? 0.85 : 1, borderColor: Colors.danger + "40" },
+                { opacity: pressed ? 0.85 : 1, borderColor: Colors.danger + "40", backgroundColor: colors.surface },
               ]}
               onPress={handleOpenCheckoutPicker}
             >
               <View style={[styles.modeIcon, { backgroundColor: Colors.danger + "15" }]}>
                 <Ionicons name="log-out" size={28} color={Colors.danger} />
               </View>
-              <Text style={styles.modeTitle}>Check Out</Text>
-              <Text style={styles.modeSub}>Select camper & erase wristband</Text>
+              <Text style={[styles.modeTitle, { color: colors.text }]}>Check Out</Text>
+              <Text style={[styles.modeSub, { color: colors.textSecondary }]}>Select camper & erase wristband</Text>
             </Pressable>
           </View>
 
-          <View style={styles.infoCard}>
+          <View style={[styles.infoCard, { backgroundColor: colors.surface }]}>
             <Ionicons name="cloud-offline" size={18} color={Colors.primary} />
-            <Text style={styles.infoText}>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
               All camper data is encrypted on the tag. {checkedInCount} campers currently checked in.
             </Text>
           </View>
 
-          <View style={styles.instructionCard}>
-            <Ionicons name="information-circle-outline" size={16} color={Colors.light.textSecondary} />
-            <Text style={styles.instructionText}>
+          <View style={[styles.instructionCard, { backgroundColor: colors.surface }]}>
+            <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+            <Text style={[styles.instructionText, { color: colors.textMuted }]}>
               Staff can read and check out wristbands during designated times. Contact management to program new wristbands.
             </Text>
           </View>
@@ -212,56 +214,57 @@ export default function StaffNFCScreen() {
       )}
 
       {screen === "readResult" && result && (
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <View style={styles.successHeader}>
             <View style={styles.successIcon}>
               <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
             </View>
-            <Text style={styles.successTitle}>Wristband Data</Text>
-            <Text style={styles.offlineLabel}>Read from NFC tag · Offline</Text>
+            <Text style={[styles.successTitle, { color: colors.text }]}>Wristband Data</Text>
+            <Text style={[styles.offlineLabel, { color: colors.textMuted }]}>Read from NFC tag · Offline</Text>
           </View>
 
-          <View style={styles.camperBanner}>
-            <Text style={styles.camperBannerName}>
+          <View style={[styles.camperBanner, { backgroundColor: colors.surfaceSecondary }]}>
+            <Text style={[styles.camperBannerName, { color: colors.text }]}>
               {result.firstName} {result.lastName}
             </Text>
-            <Text style={styles.camperBannerDob}>
+            <Text style={[styles.camperBannerDob, { color: colors.textSecondary }]}>
               DOB: {result.dateOfBirth || "—"}
             </Text>
           </View>
 
-          <View style={styles.bloodHighlight}>
+          <View style={[styles.bloodHighlight, { backgroundColor: Colors.danger + "10" }]}>
             <Ionicons name="water" size={22} color={Colors.danger} />
             <View>
-              <Text style={styles.bloodLabel}>Blood Type</Text>
-              <Text style={styles.bloodValue}>
+              <Text style={[styles.bloodLabel, { color: colors.textSecondary }]}>Blood Type</Text>
+              <Text style={[styles.bloodValue, { color: colors.text }]}>
                 {result.medical?.bloodType || "Unknown"}
               </Text>
             </View>
           </View>
 
-          <View style={styles.dataSection}>
-            <Text style={styles.dataSectionTitle}>Emergency Contact</Text>
+          <View style={[styles.dataSection, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.dataSectionTitle, { color: colors.textMuted }]}>Emergency Contact</Text>
             {result.medical?.emergencyContacts?.length > 0 ? (
               result.medical.emergencyContacts.map((ec: any, i: number) => (
                 <View key={i} style={i > 0 ? { marginTop: 8 } : undefined}>
-                  <Text style={styles.dataValue}>{ec.name || "—"}</Text>
+                  <Text style={[styles.dataValue, { color: colors.text }]}>{ec.name || "—"}</Text>
                   {ec.relationship ? (
-                    <Text style={styles.dataValueSec}>{ec.relationship}</Text>
+                    <Text style={[styles.dataValueSec, { color: colors.textSecondary }]}>{ec.relationship}</Text>
                   ) : null}
-                  <Text style={styles.dataValueSec}>{ec.phone || "—"}</Text>
+                  <Text style={[styles.dataValueSec, { color: colors.textSecondary }]}>{ec.phone || "—"}</Text>
                 </View>
               ))
             ) : (
-              <Text style={styles.dataValue}>—</Text>
+              <Text style={[styles.dataValue, { color: colors.text }]}>—</Text>
             )}
           </View>
 
-          <View style={styles.dataSection}>
-            <Text style={styles.dataSectionTitle}>Allergies</Text>
+          <View style={[styles.dataSection, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.dataSectionTitle, { color: colors.textMuted }]}>Allergies</Text>
             <Text
               style={[
                 styles.dataValue,
+                { color: colors.text },
                 result.medical?.allergies &&
                 result.medical.allergies.toLowerCase() !== "none"
                   ? { color: Colors.danger, fontFamily: "Outfit_700Bold" }
@@ -272,24 +275,24 @@ export default function StaffNFCScreen() {
             </Text>
           </View>
 
-          <View style={styles.dataSection}>
-            <Text style={styles.dataSectionTitle}>Medications</Text>
-            <Text style={styles.dataValue}>
+          <View style={[styles.dataSection, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.dataSectionTitle, { color: colors.textMuted }]}>Medications</Text>
+            <Text style={[styles.dataValue, { color: colors.text }]}>
               {result.medical?.medications || "None reported"}
             </Text>
           </View>
 
-          <View style={styles.dataSection}>
-            <Text style={styles.dataSectionTitle}>Medical Conditions</Text>
-            <Text style={styles.dataValue}>
+          <View style={[styles.dataSection, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.dataSectionTitle, { color: colors.textMuted }]}>Medical Conditions</Text>
+            <Text style={[styles.dataValue, { color: colors.text }]}>
               {result.medical?.conditions || "None reported"}
             </Text>
           </View>
 
           <View style={[styles.dataSection, { borderBottomWidth: 0 }]}>
             <View style={styles.serverNote}>
-              <Ionicons name="cloud-outline" size={13} color={Colors.light.textMuted} />
-              <Text style={styles.serverNoteText}>
+              <Ionicons name="cloud-outline" size={13} color={colors.textMuted} />
+              <Text style={[styles.serverNoteText, { color: colors.textMuted }]}>
                 Doctor, insurance &amp; notes are stored in server records only
               </Text>
             </View>
@@ -314,12 +317,12 @@ export default function StaffNFCScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.scanAgainBtn,
-                { opacity: pressed ? 0.85 : 1, backgroundColor: Colors.light.surfaceSecondary, borderWidth: 1, borderColor: Colors.light.border },
+                { opacity: pressed ? 0.85 : 1, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
               ]}
               onPress={handleStartScan}
             >
-              <Ionicons name="radio" size={18} color={Colors.light.textSecondary} />
-              <Text style={[styles.scanAgainText, { color: Colors.light.textSecondary }]}>Scan Another Wristband</Text>
+              <Ionicons name="radio" size={18} color={colors.textSecondary} />
+              <Text style={[styles.scanAgainText, { color: colors.textSecondary }]}>Scan Another Wristband</Text>
             </Pressable>
 
             <Pressable
@@ -432,23 +435,23 @@ export default function StaffNFCScreen() {
               onPress={() => setCheckoutPickerVisible(false)}
               style={styles.modalCloseBtn}
             >
-              <Ionicons name="close" size={22} color={Colors.light.textSecondary} />
+              <Ionicons name="close" size={22} color={colors.textSecondary} />
             </Pressable>
           </View>
 
           <View style={styles.modalSearchContainer}>
-            <Ionicons name="search-outline" size={18} color={Colors.light.textMuted} />
+            <Ionicons name="search-outline" size={18} color={colors.textMuted} />
             <TextInput
               style={styles.modalSearchInput}
               placeholder="Search by name or cabin..."
-              placeholderTextColor={Colors.light.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={checkoutSearch}
               onChangeText={setCheckoutSearch}
               autoFocus
             />
             {checkoutSearch.length > 0 && (
               <Pressable onPress={() => setCheckoutSearch("")}>
-                <Ionicons name="close-circle" size={18} color={Colors.light.textMuted} />
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
               </Pressable>
             )}
           </View>
@@ -480,12 +483,12 @@ export default function StaffNFCScreen() {
                     ) : null}
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.light.textMuted} />
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </Pressable>
             )}
             ListEmptyComponent={
               <View style={styles.emptyPicker}>
-                <Ionicons name="people-outline" size={44} color={Colors.light.textMuted} />
+                <Ionicons name="people-outline" size={44} color={colors.textMuted} />
                 <Text style={styles.emptyPickerTitle}>
                   {checkedInCount === 0 ? "No campers checked in" : "No campers found"}
                 </Text>
@@ -511,12 +514,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   subtitle: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     marginTop: -8,
   },
   modeGrid: {
@@ -525,7 +528,7 @@ const styles = StyleSheet.create({
   },
   modeCard: {
     flex: 1,
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 20,
     padding: 20,
     alignItems: "center",
@@ -547,13 +550,13 @@ const styles = StyleSheet.create({
   modeTitle: {
     fontSize: 16,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
+    color: "#111111",
     textAlign: "center",
   },
   modeSub: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     textAlign: "center",
   },
   infoCard: {
@@ -569,28 +572,28 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     lineHeight: 18,
   },
   instructionCard: {
     flexDirection: "row",
     gap: 8,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 12,
     padding: 12,
     alignSelf: "stretch",
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
   },
   instructionText: {
     flex: 1,
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     lineHeight: 17,
   },
   card: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 20,
     padding: 20,
     gap: 14,
@@ -620,7 +623,7 @@ const styles = StyleSheet.create({
   offlineLabel: {
     fontSize: 12,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textMuted,
+    color: "#999999",
   },
   camperBanner: {
     backgroundColor: Colors.primary + "10",
@@ -635,7 +638,7 @@ const styles = StyleSheet.create({
   camperBannerDob: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     marginTop: 4,
   },
   bloodHighlight: {
@@ -649,7 +652,7 @@ const styles = StyleSheet.create({
   bloodLabel: {
     fontSize: 12,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   bloodValue: {
     fontSize: 26,
@@ -660,24 +663,24 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: "#E5E7EB",
   },
   dataSectionTitle: {
     fontSize: 11,
     fontFamily: "Outfit_700Bold",
-    color: Colors.light.textMuted,
+    color: "#999999",
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   dataValue: {
     fontSize: 15,
     fontFamily: "Outfit_500Medium",
-    color: Colors.light.text,
+    color: "#111111",
   },
   dataValueSec: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   serverNote: {
     flexDirection: "row",
@@ -688,13 +691,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
     fontStyle: "italic" as const,
   },
   programmedAt: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textMuted,
+    color: "#999999",
     textAlign: "center",
   },
   checkOutBtn: {
@@ -731,20 +734,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: "#F3F4F6",
     borderRadius: 14,
     height: 52,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
   },
   cancelBtnText: {
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "#FFFFFF",
   },
   modalHeader: {
     flexDirection: "row",
@@ -753,12 +756,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: "#E5E7EB",
   },
   modalTitle: {
     fontSize: 17,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   modalCloseBtn: {
     width: 36,
@@ -770,20 +773,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: Colors.light.surface,
+    backgroundColor: "#F9FAFB",
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 46,
     marginHorizontal: 20,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#E5E7EB",
   },
   modalSearchInput: {
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: Colors.light.text,
+    color: "#111111",
   },
   camperRow: {
     flexDirection: "row",
@@ -791,7 +794,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: "#E5E7EB",
   },
   camperRowAvatar: {
     width: 44,
@@ -807,7 +810,7 @@ const styles = StyleSheet.create({
   camperRowName: {
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   camperRowMeta: {
     flexDirection: "row",
@@ -818,7 +821,7 @@ const styles = StyleSheet.create({
   camperRowCabin: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
   },
   wristbandBadge: {
     flexDirection: "row",
@@ -842,12 +845,12 @@ const styles = StyleSheet.create({
   emptyPickerTitle: {
     fontSize: 17,
     fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.text,
+    color: "#111111",
   },
   emptyPickerSub: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
+    color: "#666666",
     textAlign: "center",
     paddingHorizontal: 20,
   },
