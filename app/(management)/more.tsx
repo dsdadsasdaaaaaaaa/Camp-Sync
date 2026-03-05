@@ -48,6 +48,7 @@ const SUGGESTION_QUESTIONS = [
 
 function MessageBubble({ message }: { message: Message }) {
   const colors = useColors();
+  const styles = getStyles(colors);
   const isUser = message.role === "user";
   return (
     <View style={[styles.bubble, isUser ? styles.userBubble : [styles.aiBubble, { backgroundColor: colors.surfaceSecondary }]]}>
@@ -79,6 +80,7 @@ function SessionCard({
   onViewRoster: () => void;
 }) {
   const colors = useColors();
+  const styles = getStyles(colors);
   return (
     <View style={[styles.sessionCard, { backgroundColor: colors.surface }]}>
       <View style={styles.sessionHeader}>
@@ -134,6 +136,7 @@ function SessionCard({
 // ── Auth Code Card ────────────────────────────────────────────────────────────
 function AuthCodeCard({ code, onEdit, onDelete }: { code: AuthCode; onEdit: () => void; onDelete: () => void }) {
   const colors = useColors();
+  const styles = getStyles(colors);
   const roleColors: Record<UserRole, string> = { management: colors.danger, staff: colors.primary, parent: "#8B5CF6" };
   const isFull = code.maxUses > 0 && code.usedCount >= code.maxUses;
   return (
@@ -176,6 +179,7 @@ export default function MoreScreen() {
   const tabBarHeight = isLiquidGlassAvailable() ? insets.bottom : insets.bottom + 49;
 
   const colors = useColors();
+  const styles = getStyles(colors);
 
   const [activeTab, setActiveTab] = useState<Tab>("sessions");
 
@@ -835,98 +839,98 @@ export default function MoreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  header: { paddingHorizontal: 20, paddingBottom: 12, backgroundColor: "#FFFFFF", gap: 12 },
+const getStyles = (colors: any) => StyleSheet.create({
+  header: { paddingHorizontal: 20, paddingBottom: 12, backgroundColor: colors.surface, gap: 12 },
   headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  headerTitle: { fontSize: 28, fontFamily: "Outfit_700Bold", color: "#111111" },
-  logoutBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
-  tabRow: { flexDirection: "row", backgroundColor: "#F3F4F6", borderRadius: 12, padding: 4 },
+  headerTitle: { fontSize: 28, fontFamily: "Outfit_700Bold", color: colors.text },
+  logoutBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceSecondary, alignItems: "center", justifyContent: "center" },
+  tabRow: { flexDirection: "row", backgroundColor: colors.surfaceSecondary, borderRadius: 12, padding: 4 },
   tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 9, borderRadius: 10 },
-  tabBtnActive: { backgroundColor: "#F9FAFB", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-  tabBtnText: { fontSize: 12, fontFamily: "Outfit_500Medium", color: "#999999" },
+  tabBtnActive: { backgroundColor: colors.surface, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  tabBtnText: { fontSize: 12, fontFamily: "Outfit_500Medium", color: colors.textMuted },
   tabBtnActiveText: { color: Colors.primary, fontFamily: "Outfit_600SemiBold" },
   content: { paddingHorizontal: 20, paddingTop: 12, gap: 12 },
   addBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.primary, borderRadius: 14, height: 50, marginBottom: 8 },
   addBtnText: { color: "#fff", fontSize: 15, fontFamily: "Outfit_600SemiBold" },
   // Sessions
-  sessionCard: { backgroundColor: "#F9FAFB", borderRadius: 16, padding: 16, gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  sessionCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
   sessionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  sessionName: { fontSize: 16, fontFamily: "Outfit_600SemiBold", color: "#111111" },
-  sessionDates: { fontSize: 13, fontFamily: "Outfit_400Regular", color: "#666666", marginTop: 2 },
+  sessionName: { fontSize: 16, fontFamily: "Outfit_600SemiBold", color: colors.text },
+  sessionDates: { fontSize: 13, fontFamily: "Outfit_400Regular", color: colors.textSecondary, marginTop: 2 },
   activeToggle: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
   activeDot: { width: 7, height: 7, borderRadius: 3.5 },
   activeText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
   datesChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   dateChip: { backgroundColor: Colors.primary + "15", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   dateChipText: { fontSize: 12, fontFamily: "Outfit_600SemiBold", color: Colors.primary },
-  noDatesText: { fontSize: 13, fontFamily: "Outfit_400Regular", color: "#999999" },
+  noDatesText: { fontSize: 13, fontFamily: "Outfit_400Regular", color: colors.textMuted },
   deleteSessionBtn: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", marginTop: 4 },
   deleteSessionText: { fontSize: 13, fontFamily: "Outfit_500Medium", color: Colors.danger },
   sessionCardActions: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 4 },
   rosterBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: Colors.primary + "40", backgroundColor: Colors.primary + "08" },
   rosterBtnText: { fontSize: 13, fontFamily: "Outfit_600SemiBold", color: Colors.primary },
   // Auth Codes
-  codeCard: { backgroundColor: "#F9FAFB", borderRadius: 16, padding: 16, gap: 14, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  codeCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, gap: 14, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
   codeHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   roleIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  codeValue: { fontSize: 16, fontFamily: "Outfit_700Bold", color: "#111111", letterSpacing: 0.5 },
-  codeRole: { fontSize: 12, fontFamily: "Outfit_400Regular", color: "#666666", marginTop: 2 },
+  codeValue: { fontSize: 16, fontFamily: "Outfit_700Bold", color: colors.text, letterSpacing: 0.5 },
+  codeRole: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textSecondary, marginTop: 2 },
   usedBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
   usedBadgeText: { fontSize: 11, fontFamily: "Outfit_700Bold" },
   codeActions: { flexDirection: "row", gap: 16, borderTopWidth: 1, borderTopColor: "#E5E7EB", paddingTop: 12 },
   actionBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
   actionBtnText: { fontSize: 13, fontFamily: "Outfit_600SemiBold" },
   // Users
-  userCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#F9FAFB", borderRadius: 16, padding: 14, marginBottom: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  userCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: colors.surface, borderRadius: 16, padding: 14, marginBottom: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
   userAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   userAvatarText: { fontSize: 16, fontFamily: "Outfit_700Bold" },
-  userName: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: "#111111" },
-  userEmail: { fontSize: 13, fontFamily: "Outfit_400Regular", color: "#666666", marginTop: 1 },
-  userMeta: { fontSize: 12, fontFamily: "Outfit_400Regular", color: "#999999", marginTop: 1 },
+  userName: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: colors.text },
+  userEmail: { fontSize: 13, fontFamily: "Outfit_400Regular", color: colors.textSecondary, marginTop: 1 },
+  userMeta: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textMuted, marginTop: 1 },
   rolePill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   rolePillText: { fontSize: 12, fontFamily: "Outfit_600SemiBold", textTransform: "capitalize" },
   // Empty
   empty: { alignItems: "center", justifyContent: "center", paddingVertical: 60, gap: 12 },
-  emptyTitle: { fontSize: 18, fontFamily: "Outfit_600SemiBold", color: "#111111" },
-  emptyText: { fontSize: 14, fontFamily: "Outfit_400Regular", color: "#666666", textAlign: "center", paddingHorizontal: 40 },
+  emptyTitle: { fontSize: 18, fontFamily: "Outfit_600SemiBold", color: colors.text },
+  emptyText: { fontSize: 14, fontFamily: "Outfit_400Regular", color: colors.textSecondary, textAlign: "center", paddingHorizontal: 40 },
   // Modals
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingTop: 12, maxHeight: "90%" },
+  modalSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingTop: 12, maxHeight: "90%" },
   modalHandle: { width: 40, height: 5, backgroundColor: "#E5E7EB", borderRadius: 2.5, alignSelf: "center", marginBottom: 16 },
-  modalTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", color: "#111111" },
-  modalSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: "#666666", marginBottom: 20, lineHeight: 20 },
-  fieldLabel: { fontSize: 14, fontFamily: "Outfit_600SemiBold", color: "#111111", marginBottom: 8 },
-  fieldHint: { fontSize: 12, fontFamily: "Outfit_400Regular", color: "#999999", marginBottom: 8, marginTop: -4 },
-  fieldInput: { backgroundColor: "#F9FAFB", borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", paddingHorizontal: 14, height: 48, fontFamily: "Outfit_400Regular", fontSize: 15, color: "#111111", marginBottom: 16 },
-  roleOption: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 10 },
+  modalTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", color: colors.text },
+  modalSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: colors.textSecondary, marginBottom: 20, lineHeight: 20 },
+  fieldLabel: { fontSize: 14, fontFamily: "Outfit_600SemiBold", color: colors.text, marginBottom: 8 },
+  fieldHint: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textMuted, marginBottom: 8, marginTop: -4 },
+  fieldInput: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, height: 48, fontFamily: "Outfit_400Regular", fontSize: 15, color: colors.text, marginBottom: 16 },
+  roleOption: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 10 },
   roleOptionSelected: { borderColor: Colors.primary, backgroundColor: Colors.primary + "05" },
-  roleName: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: "#111111" },
-  roleDesc: { fontSize: 12, fontFamily: "Outfit_400Regular", color: "#666666", marginTop: 2 },
+  roleName: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: colors.text },
+  roleDesc: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textSecondary, marginTop: 2 },
   camperSelectRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   camperSelectRowActive: { backgroundColor: Colors.primary + "05" },
-  camperSelectName: { fontSize: 14, fontFamily: "Outfit_500Medium", color: "#111111" },
+  camperSelectName: { fontSize: 14, fontFamily: "Outfit_500Medium", color: colors.text },
   modalButtons: { flexDirection: "row", gap: 12, marginTop: 8 },
-  cancelBtn: { flex: 1, height: 50, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: "#F3F4F6" },
-  cancelBtnText: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: "#666666" },
+  cancelBtn: { flex: 1, height: 50, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: colors.surfaceSecondary },
+  cancelBtnText: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: colors.textSecondary },
   confirmBtn: { flex: 2, height: 50, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: Colors.primary },
   confirmBtnText: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: "#fff" },
-  tabs2: { flexDirection: "row", backgroundColor: "#F3F4F6", borderRadius: 10, padding: 3 },
+  tabs2: { flexDirection: "row", backgroundColor: colors.surfaceSecondary, borderRadius: 10, padding: 3 },
   tab2: { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 8 },
-  tab2Active: { backgroundColor: "#F9FAFB", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1 },
-  tab2Text: { fontSize: 13, fontFamily: "Outfit_500Medium", color: "#999999" },
+  tab2Active: { backgroundColor: colors.surface, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1 },
+  tab2Text: { fontSize: 13, fontFamily: "Outfit_500Medium", color: colors.textMuted },
   tab2ActiveText: { color: Colors.primary, fontFamily: "Outfit_600SemiBold" },
-  securitySection: { backgroundColor: "#F3F4F6", borderRadius: 14, padding: 14 },
+  securitySection: { backgroundColor: colors.surfaceSecondary, borderRadius: 14, padding: 14 },
   securityBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 48, borderRadius: 12, borderWidth: 1, borderColor: Colors.primary + "40", backgroundColor: Colors.primary + "08" },
-  resetCodeBox: { backgroundColor: "#F9FAFB", borderRadius: 10, padding: 12, alignItems: "center", borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 8 },
-  resetCodeText: { fontSize: 24, fontFamily: "Outfit_700Bold", color: "#111111", letterSpacing: 4 },
+  resetCodeBox: { backgroundColor: colors.surface, borderRadius: 10, padding: 12, alignItems: "center", borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
+  resetCodeText: { fontSize: 24, fontFamily: "Outfit_700Bold", color: colors.text, letterSpacing: 4 },
   rosterCount: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.primary + "10", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16 },
   rosterCountText: { fontSize: 14, fontFamily: "Outfit_600SemiBold", color: Colors.primary },
   rosterRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
   rosterAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary + "20", alignItems: "center", justifyContent: "center" },
   rosterAvatarText: { fontSize: 15, fontFamily: "Outfit_700Bold", color: Colors.primary },
-  rosterName: { fontSize: 14, fontFamily: "Outfit_600SemiBold", color: "#111111" },
-  rosterCabin: { fontSize: 12, fontFamily: "Outfit_400Regular", color: "#666666" },
-  rosterTime: { fontSize: 12, fontFamily: "Outfit_400Regular", color: "#999999", marginTop: 2 },
+  rosterName: { fontSize: 14, fontFamily: "Outfit_600SemiBold", color: colors.text },
+  rosterCabin: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textSecondary },
+  rosterTime: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textMuted, marginTop: 2 },
   historyBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   historyBadgeText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
   divider: { height: 1, backgroundColor: "#E5E7EB" },
@@ -935,11 +939,11 @@ const styles = StyleSheet.create({
   aiSecurityText: { flex: 1, fontSize: 11, fontFamily: "Outfit_400Regular", color: Colors.success, lineHeight: 15 },
   aiEmpty: { paddingHorizontal: 20, paddingTop: 16, gap: 12 },
   aiEmptyIcon: { width: 64, height: 64, borderRadius: 18, backgroundColor: Colors.accent + "15", alignItems: "center", justifyContent: "center", alignSelf: "center" },
-  aiEmptyTitle: { fontSize: 22, fontFamily: "Outfit_700Bold", color: "#111111", textAlign: "center" },
-  aiEmptySub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: "#666666", textAlign: "center", lineHeight: 20 },
+  aiEmptyTitle: { fontSize: 22, fontFamily: "Outfit_700Bold", color: colors.text, textAlign: "center" },
+  aiEmptySub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: colors.textSecondary, textAlign: "center", lineHeight: 20 },
   aiSuggestions: { gap: 8, marginTop: 8 },
-  aiSuggestion: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#F9FAFB", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "#E5E7EB", gap: 10 },
-  aiSuggestionText: { flex: 1, fontSize: 14, fontFamily: "Outfit_500Medium", color: "#111111" },
+  aiSuggestion: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border, gap: 10 },
+  aiSuggestionText: { flex: 1, fontSize: 14, fontFamily: "Outfit_500Medium", color: colors.text },
   aiMessageList: { paddingHorizontal: 16, paddingTop: 8, gap: 12 },
   bubble: { flexDirection: "row", alignItems: "flex-end", gap: 8, marginBottom: 4 },
   userBubble: { justifyContent: "flex-end" },
@@ -947,14 +951,14 @@ const styles = StyleSheet.create({
   aiAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.accent + "15", alignItems: "center", justifyContent: "center", flexShrink: 0, marginBottom: 2 },
   bubbleContent: { maxWidth: "80%", borderRadius: 18, padding: 12 },
   userBubbleContent: { backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
-  aiBubbleContent: { backgroundColor: "#F9FAFB", borderBottomLeftRadius: 4, borderWidth: 1, borderColor: "#E5E7EB" },
+  aiBubbleContent: { backgroundColor: colors.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: colors.border },
   bubbleText: { fontSize: 15, lineHeight: 21 },
   userText: { fontFamily: "Outfit_400Regular", color: "#fff" },
-  aiText: { fontFamily: "Outfit_400Regular", color: "#111111" },
+  aiText: { fontFamily: "Outfit_400Regular", color: colors.text },
   cursor: { color: Colors.accent },
-  aiInputContainer: { backgroundColor: "#FFFFFF", borderTopWidth: 1, borderTopColor: "#E5E7EB", paddingTop: 12 },
-  aiInputRow: { flexDirection: "row", alignItems: "flex-end", gap: 10, backgroundColor: "#F9FAFB", borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: "#E5E7EB" },
-  aiInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 15, color: "#111111", maxHeight: 100, paddingTop: 4, paddingBottom: 4 },
+  aiInputContainer: { backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: "#E5E7EB", paddingTop: 12 },
+  aiInputRow: { flexDirection: "row", alignItems: "flex-end", gap: 10, backgroundColor: colors.surface, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: colors.border },
+  aiInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 15, color: colors.text, maxHeight: 100, paddingTop: 4, paddingBottom: 4 },
   aiSendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   aiSendBtnDisabled: { backgroundColor: "#999999" },
 });

@@ -44,6 +44,7 @@ function InputField({
   error?: string;
 }) {
   const colors = useColors();
+  const styles = getStyles(colors);
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>
@@ -72,6 +73,7 @@ export default function NewCamperScreen() {
   const { addCamper } = useData();
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const styles = getStyles(colors);
   const [isLoading, setIsLoading] = useState(false);
   const [section, setSection] = useState<"basic" | "medical">("basic");
 
@@ -346,27 +348,27 @@ export default function NewCamperScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   saveButton: {
     backgroundColor: Colors.primary,
@@ -384,7 +386,7 @@ const styles = StyleSheet.create({
   tabs: {
     flexDirection: "row",
     marginHorizontal: 20,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 12,
     padding: 4,
     marginBottom: 12,
@@ -399,7 +401,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   activeTab: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
@@ -409,7 +411,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: "#999999",
+    color: colors.textMuted,
   },
   activeTabText: {
     color: Colors.primary,
@@ -419,7 +421,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   card: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 20,
     gap: 14,
@@ -438,7 +440,7 @@ const styles = StyleSheet.create({
   sectionHeaderText: {
     fontSize: 14,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   divider: {
     height: 1,
@@ -450,18 +452,18 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   fieldInput: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: "#111111",
+    color: colors.text,
   },
   fieldInputError: {
     borderColor: Colors.danger,
@@ -486,8 +488,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F3F4F6",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSecondary,
   },
   bloodTypeSelected: {
     backgroundColor: Colors.primary,
@@ -496,7 +498,7 @@ const styles = StyleSheet.create({
   bloodTypeText: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   bloodTypeSelectedText: {
     color: "#fff",

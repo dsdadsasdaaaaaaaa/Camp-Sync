@@ -25,6 +25,7 @@ function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
   hasPendingUpdate: boolean;
 }) {
   const colors = useColors();
+  const styles = getStyles(colors);
   return (
     <Pressable
       style={({ pressed }) => [
@@ -105,6 +106,7 @@ function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
 export default function ParentChildrenScreen() {
   const { user } = useAuth();
   const colors = useColors();
+  const styles = getStyles(colors);
   const { campers, checkIns, pendingUpdates, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
 
@@ -254,7 +256,7 @@ export default function ParentChildrenScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     gap: 20,
@@ -265,18 +267,18 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   title: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   list: {
     gap: 14,
   },
   childCard: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 18,
     gap: 12,
@@ -305,12 +307,12 @@ const styles = StyleSheet.create({
   childName: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   childCabin: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     marginTop: 2,
   },
   pendingBadge: {
@@ -355,7 +357,7 @@ const styles = StyleSheet.create({
   lastCheckInText: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   wristbandRow: {
     flexDirection: "row",
@@ -388,17 +390,17 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   emptyText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     textAlign: "center",
     lineHeight: 21,
   },
   activitySection: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 18,
     gap: 14,
@@ -416,7 +418,7 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   activityEmpty: {
     alignItems: "center",
@@ -426,7 +428,7 @@ const styles = StyleSheet.create({
   activityEmptyText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#999999",
+    color: colors.textMuted,
   },
   activityItem: {
     flexDirection: "row",
@@ -444,7 +446,7 @@ const styles = StyleSheet.create({
   activityText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#111111",
+    color: colors.text,
   },
   activityBold: {
     fontFamily: "Outfit_600SemiBold",
@@ -452,7 +454,7 @@ const styles = StyleSheet.create({
   activityMeta: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#999999",
+    color: colors.textMuted,
     marginTop: 2,
   },
   infoCard: {
@@ -468,7 +470,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     lineHeight: 18,
   },
 });

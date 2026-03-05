@@ -58,6 +58,7 @@ function MessageBubble({ message }: { message: Message }) {
 export default function AIAssistantScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const styles = getStyles(colors);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -287,14 +288,14 @@ export default function AIAssistantScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   headerLeft: {
     flexDirection: "row",
@@ -312,18 +313,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   headerSub: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#999999",
+    color: colors.textMuted,
   },
   clearBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -365,13 +366,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 22,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
     textAlign: "center",
   },
   emptySubtitle: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     textAlign: "center",
     lineHeight: 20,
   },
@@ -383,18 +384,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
     gap: 10,
   },
   suggestionText: {
     flex: 1,
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: "#111111",
+    color: colors.text,
   },
   messageList: {
     paddingHorizontal: 16,
@@ -433,10 +434,10 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   aiBubbleContent: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderBottomLeftRadius: 4,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
   bubbleText: {
     fontSize: 15,
@@ -448,13 +449,13 @@ const styles = StyleSheet.create({
   },
   aiText: {
     fontFamily: "Outfit_400Regular",
-    color: "#111111",
+    color: colors.text,
   },
   cursor: {
     color: Colors.accent,
   },
   inputContainer: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
     paddingTop: 12,
@@ -463,18 +464,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 10,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
   input: {
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: "#111111",
+    color: colors.text,
     maxHeight: 100,
     paddingTop: 4,
     paddingBottom: 4,

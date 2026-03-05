@@ -31,6 +31,7 @@ function StatCard({
   onPress?: () => void;
 }) {
   const colors = useColors();
+  const styles = getStyles(colors);
   return (
     <Pressable
       style={({ pressed }) => [
@@ -58,6 +59,7 @@ function RecentCheckIn({
   time: string;
 }) {
   const colors = useColors();
+  const styles = getStyles(colors);
   return (
     <View style={styles.checkInRow}>
       <View style={[styles.checkInAvatar, { backgroundColor: Colors.primary + "20" }]}>
@@ -84,6 +86,7 @@ export default function DashboardScreen() {
     useData();
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const styles = getStyles(colors);
 
   const checkedInToday = checkIns.filter((ci) => {
     const today = new Date().toDateString();
@@ -263,7 +266,7 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     gap: 16,
@@ -276,12 +279,12 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   name: {
     fontSize: 26,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
     marginTop: 2,
   },
   roleBadge: {
@@ -304,7 +307,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
@@ -326,7 +329,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   statsGrid: {
     flexDirection: "row",
@@ -336,7 +339,7 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     minWidth: "44%",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     gap: 8,
@@ -356,12 +359,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   statLabel: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   actionsGrid: {
     flexDirection: "row",
@@ -371,7 +374,7 @@ const styles = StyleSheet.create({
   actionCard: {
     flex: 1,
     minWidth: "44%",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     alignItems: "center",
@@ -392,11 +395,11 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
     textAlign: "center",
   },
   card: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     gap: 0,
@@ -428,12 +431,12 @@ const styles = StyleSheet.create({
   checkInName: {
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   checkInTime: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     marginTop: 2,
   },
   checkInBadge: {

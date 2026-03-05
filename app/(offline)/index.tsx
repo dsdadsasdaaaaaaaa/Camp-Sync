@@ -19,6 +19,7 @@ import type { WristbandPayload } from "@/types";
 export default function OfflineScannerScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const styles = getStyles(colors);
   const [scannerVisible, setScannerVisible] = useState(false);
   const [result, setResult] = useState<WristbandPayload | null>(null);
 
@@ -170,7 +171,7 @@ export default function OfflineScannerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: 20,
@@ -205,12 +206,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   subtitle: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     lineHeight: 20,
     marginTop: -8,
   },
@@ -228,7 +229,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   scanArea: {
@@ -253,18 +254,18 @@ const styles = StyleSheet.create({
   scanTitle: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   scanSub: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     textAlign: "center",
     lineHeight: 20,
     paddingHorizontal: 20,
   },
   resultCard: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 20,
     gap: 12,
@@ -295,12 +296,12 @@ const styles = StyleSheet.create({
   resultName: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   resultDob: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   divider: {
     height: 1,
@@ -315,13 +316,13 @@ const styles = StyleSheet.create({
     width: 80,
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   medValue: {
     flex: 1,
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: "#111111",
+    color: colors.text,
   },
   scanAgainBtn: {
     flexDirection: "row",

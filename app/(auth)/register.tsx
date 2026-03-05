@@ -52,6 +52,7 @@ function Field({
   error?: string;
 }) {
   const colors = useColors();
+  const styles = getStyles(colors);
   return (
     <View style={styles.inputGroup}>
       <Text style={styles.label}>{label}</Text>
@@ -86,6 +87,7 @@ export default function RegisterScreen() {
   const { register } = useAuth();
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const styles = getStyles(colors);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -317,7 +319,7 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: 24,
@@ -331,7 +333,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -341,16 +343,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   subtitle: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     lineHeight: 20,
   },
   card: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 24,
     gap: 16,
@@ -366,20 +368,20 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   codeHint: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#999999",
+    color: colors.textMuted,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
     paddingHorizontal: 14,
     height: 52,
   },
@@ -390,7 +392,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: "#111111",
+    color: colors.text,
   },
   eyeButton: {
     padding: 4,
@@ -411,11 +413,11 @@ const styles = StyleSheet.create({
   },
   demoSection: {
     gap: 10,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
   demoHeader: {
     flexDirection: "row",
@@ -425,7 +427,7 @@ const styles = StyleSheet.create({
   demoTitle: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: "#999999",
+    color: colors.textMuted,
   },
   demoCodesRow: {
     flexDirection: "row",
@@ -449,7 +451,7 @@ const styles = StyleSheet.create({
   demoRoleText: {
     fontSize: 10,
     fontFamily: "Outfit_400Regular",
-    color: "#999999",
+    color: colors.textMuted,
   },
   registerButton: {
     backgroundColor: Colors.primary,
@@ -473,7 +475,7 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   footerLink: {
     fontSize: 14,

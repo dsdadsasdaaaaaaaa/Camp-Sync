@@ -28,6 +28,7 @@ export default function LoginScreen() {
   const { login, resetPassword } = useAuth();
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const styles = getStyles(colors);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -527,7 +528,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: 24,
@@ -546,10 +547,10 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   card: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 24,
     gap: 20,
@@ -562,12 +563,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   subtitle: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     marginTop: -12,
   },
   inputGroup: {
@@ -576,15 +577,15 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
     paddingHorizontal: 14,
     height: 52,
   },
@@ -595,7 +596,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: "#111111",
+    color: colors.text,
   },
   eyeButton: {
     padding: 4,
@@ -665,7 +666,7 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   footerLink: {
     fontSize: 14,
@@ -687,7 +688,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalSheet: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -705,28 +706,28 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   modalSub: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     marginBottom: 20,
     lineHeight: 20,
   },
   fieldLabel: {
     fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
     marginBottom: 8,
   },
   modalInputRow: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
     paddingHorizontal: 14,
     height: 48,
     marginBottom: 16,
@@ -735,7 +736,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: "#111111",
+    color: colors.text,
   },
   modalButtons: {
     flexDirection: "row" as const,
@@ -748,12 +749,12 @@ const styles = StyleSheet.create({
     alignItems: "center" as const,
     justifyContent: "center" as const,
     borderRadius: 14,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
   },
   cancelBtnText: {
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   confirmBtn: {
     flex: 2,
@@ -785,7 +786,7 @@ const styles = StyleSheet.create({
   demoSeparatorText: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#999999",
+    color: colors.textMuted,
   },
   demoButtons: {
     flexDirection: "row",
@@ -816,7 +817,7 @@ const styles = StyleSheet.create({
   },
   modeSwitcher: {
     flexDirection: "row",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 10,
     padding: 3,
     marginVertical: 12,
@@ -828,7 +829,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   modeBtnActive: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
@@ -838,7 +839,7 @@ const styles = StyleSheet.create({
   modeBtnText: {
     fontSize: 13,
     fontFamily: "Outfit_500Medium",
-    color: "#999999",
+    color: colors.textMuted,
   },
   modeBtnTextActive: {
     color: Colors.primary,

@@ -40,6 +40,7 @@ function CamperCheckInCard({
   onCheckOut: () => void;
 }) {
   const colors = useColors();
+  const styles = getStyles(colors);
   return (
     <View style={[styles.camperCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.camperInfo}>
@@ -94,6 +95,7 @@ function CamperCheckInCard({
 
 function MedicalInfoRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
   const colors = useColors();
+  const styles = getStyles(colors);
   if (!value || value.toLowerCase() === "none" || value.trim() === "") return null;
   return (
     <View style={styles.medRow}>
@@ -119,6 +121,7 @@ function EmergencyLookupModal({
 }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const styles = getStyles(colors);
   const [emSearch, setEmSearch] = useState("");
   const [selectedCamper, setSelectedCamper] = useState<Camper | null>(null);
 
@@ -313,6 +316,7 @@ export default function StaffCheckInScreen() {
   } = useData();
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const styles = getStyles(colors);
   const [search, setSearch] = useState("");
   const [selectedCabin, setSelectedCabin] = useState<string | null>(null);
   const [nfcScanVisible, setNfcScanVisible] = useState(false);
@@ -628,7 +632,7 @@ export default function StaffCheckInScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
@@ -761,12 +765,12 @@ const styles = StyleSheet.create({
   camperName: {
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   camperCabin: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     marginTop: 2,
   },
   allergyTag: {
@@ -821,17 +825,17 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   emptyText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     textAlign: "center",
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   modalHeader: {
     flexDirection: "row",
@@ -845,7 +849,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   modalBackBtn: {
     width: 36,
@@ -863,20 +867,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 46,
     marginHorizontal: 20,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
   modalSearchInput: {
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: "#111111",
+    color: colors.text,
   },
   emCamperRow: {
     flexDirection: "row",
@@ -913,15 +917,15 @@ const styles = StyleSheet.create({
   medSectionTitle: {
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   medCard: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     gap: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
   medRow: {
     flexDirection: "row",
@@ -940,26 +944,26 @@ const styles = StyleSheet.create({
   medLabel: {
     fontSize: 11,
     fontFamily: "Outfit_500Medium",
-    color: "#999999",
+    color: colors.textMuted,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   medValue: {
     fontSize: 15,
     fontFamily: "Outfit_500Medium",
-    color: "#111111",
+    color: colors.text,
     marginTop: 2,
   },
   medNoData: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#999999",
+    color: colors.textMuted,
     fontStyle: "italic",
   },
   medNotesText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#111111",
+    color: colors.text,
     lineHeight: 20,
   },
 });

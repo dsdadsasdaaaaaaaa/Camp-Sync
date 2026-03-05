@@ -26,6 +26,7 @@ export default function StaffAccountScreen() {
   const { isDark, toggleTheme, useSystem, setUseSystem } = useTheme();
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const styles = getStyles(colors);
   const isManagement = user?.role === "management";
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -269,7 +270,7 @@ export default function StaffAccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     gap: 16,
@@ -289,15 +290,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   profileCard: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 24,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
     gap: 8,
   },
   avatar: {
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 22,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   roleBadge: {
     flexDirection: "row",
@@ -336,14 +337,14 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   infoCard: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
     gap: 12,
   },
   infoRow: {
@@ -355,12 +356,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   infoSubText: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   toggleRow: {
     flexDirection: "row",
@@ -371,8 +372,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F3F4F6",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSecondary,
   },
   miniToggleActive: {
     backgroundColor: Colors.primary,
@@ -381,7 +382,7 @@ const styles = StyleSheet.create({
   miniToggleText: {
     fontSize: 12,
     fontFamily: "Outfit_600SemiBold",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   miniToggleTextActive: {
     color: "#fff",
@@ -394,11 +395,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
   changePasswordLeft: {
     flexDirection: "row",
@@ -408,10 +409,10 @@ const styles = StyleSheet.create({
   changePasswordText: {
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   passwordCard: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
@@ -424,26 +425,26 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 12,
     fontFamily: "Outfit_600SemiBold",
-    color: "#666666",
+    color: colors.textSecondary,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   passwordInputRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 46,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
     gap: 8,
   },
   passwordInput: {
     flex: 1,
     fontSize: 15,
     fontFamily: "Outfit_400Regular",
-    color: "#111111",
+    color: colors.text,
   },
   savePasswordBtn: {
     flexDirection: "row",
@@ -480,6 +481,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#999999",
+    color: colors.textMuted,
   },
 });

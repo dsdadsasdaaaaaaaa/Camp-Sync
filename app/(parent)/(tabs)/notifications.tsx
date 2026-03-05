@@ -27,6 +27,7 @@ interface ActivityEvent {
 export default function ParentNotificationsScreen() {
   const { user } = useAuth();
   const colors = useColors();
+  const styles = getStyles(colors);
   const { campers, checkIns, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
 
@@ -216,19 +217,19 @@ export default function ParentNotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   headerTitle: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   list: {
     paddingHorizontal: 20,
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     shadowColor: "#000",
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#111111",
+    color: colors.text,
     lineHeight: 20,
   },
   eventName: {
@@ -267,7 +268,7 @@ const styles = StyleSheet.create({
   eventMeta: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#999999",
+    color: colors.textMuted,
     marginTop: 3,
   },
   badge: {
@@ -290,12 +291,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   emptyText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     textAlign: "center",
     lineHeight: 20,
   },

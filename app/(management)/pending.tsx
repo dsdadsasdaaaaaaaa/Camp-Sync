@@ -31,6 +31,7 @@ function PendingCard({
   onViewCamper: () => void;
 }) {
   const colors = useColors();
+  const styles = getStyles(colors);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleUpdate = async () => {
@@ -137,6 +138,7 @@ export default function PendingUpdatesScreen() {
     useData();
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const styles = getStyles(colors);
   const [showResolved, setShowResolved] = useState(false);
 
   const unresolved = pendingUpdates.filter((p) => !p.resolved);
@@ -242,26 +244,26 @@ export default function PendingUpdatesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
     gap: 8,
   },
   headerTitle: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   headerSub: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   toggleRow: {
     flexDirection: "row",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 12,
     padding: 4,
     marginTop: 4,
@@ -273,7 +275,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   toggleBtnActive: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
@@ -283,7 +285,7 @@ const styles = StyleSheet.create({
   toggleBtnText: {
     fontSize: 14,
     fontFamily: "Outfit_500Medium",
-    color: "#999999",
+    color: colors.textMuted,
   },
   toggleBtnActiveText: {
     color: Colors.primary,
@@ -295,7 +297,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 16,
     gap: 14,
@@ -333,18 +335,18 @@ const styles = StyleSheet.create({
   camperName: {
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   requestedBy: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     marginTop: 2,
   },
   timeAgo: {
     fontSize: 11,
     fontFamily: "Outfit_400Regular",
-    color: "#999999",
+    color: colors.textMuted,
     marginTop: 1,
   },
   warningBadge: {
@@ -364,7 +366,7 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: "row",
     gap: 8,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 10,
     padding: 10,
   },
@@ -372,7 +374,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   buttonRow: {
@@ -383,18 +385,18 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
   viewButtonText: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   updateButton: {
     flex: 1.5,
@@ -420,12 +422,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   emptyText: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     textAlign: "center",
     paddingHorizontal: 20,
     lineHeight: 20,

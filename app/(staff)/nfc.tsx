@@ -24,6 +24,7 @@ type Screen = "home" | "readResult" | "confirmCheckout";
 export default function StaffNFCScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const styles = getStyles(colors);
   const { campers, checkIns, checkOutCamper, updateCamper } = useData();
   const [screen, setScreen] = useState<Screen>("home");
   const [scannerVisible, setScannerVisible] = useState(false);
@@ -506,7 +507,7 @@ export default function StaffNFCScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     gap: 16,
@@ -514,12 +515,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
   },
   subtitle: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     marginTop: -8,
   },
   modeGrid: {
@@ -528,7 +529,7 @@ const styles = StyleSheet.create({
   },
   modeCard: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 20,
     alignItems: "center",
@@ -550,13 +551,13 @@ const styles = StyleSheet.create({
   modeTitle: {
     fontSize: 16,
     fontFamily: "Outfit_700Bold",
-    color: "#111111",
+    color: colors.text,
     textAlign: "center",
   },
   modeSub: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     textAlign: "center",
   },
   infoCard: {
@@ -572,28 +573,28 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   instructionCard: {
     flexDirection: "row",
     gap: 8,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 12,
     padding: 12,
     alignSelf: "stretch",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
   instructionText: {
     flex: 1,
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     lineHeight: 17,
   },
   card: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 20,
     gap: 14,
@@ -623,7 +624,7 @@ const styles = StyleSheet.create({
   offlineLabel: {
     fontSize: 12,
     fontFamily: "Outfit_500Medium",
-    color: "#999999",
+    color: colors.textMuted,
   },
   camperBanner: {
     backgroundColor: Colors.primary + "10",
@@ -638,7 +639,7 @@ const styles = StyleSheet.create({
   camperBannerDob: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     marginTop: 4,
   },
   bloodHighlight: {
@@ -652,7 +653,7 @@ const styles = StyleSheet.create({
   bloodLabel: {
     fontSize: 12,
     fontFamily: "Outfit_500Medium",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   bloodValue: {
     fontSize: 26,
@@ -668,19 +669,19 @@ const styles = StyleSheet.create({
   dataSectionTitle: {
     fontSize: 11,
     fontFamily: "Outfit_700Bold",
-    color: "#999999",
+    color: colors.textMuted,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   dataValue: {
     fontSize: 15,
     fontFamily: "Outfit_500Medium",
-    color: "#111111",
+    color: colors.text,
   },
   dataValueSec: {
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   serverNote: {
     flexDirection: "row",
@@ -691,13 +692,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#999999",
+    color: colors.textMuted,
     fontStyle: "italic" as const,
   },
   programmedAt: {
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
-    color: "#999999",
+    color: colors.textMuted,
     textAlign: "center",
   },
   checkOutBtn: {
@@ -734,20 +735,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 14,
     height: 52,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
   cancelBtnText: {
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   modalHeader: {
     flexDirection: "row",
@@ -761,7 +762,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   modalCloseBtn: {
     width: 36,
@@ -773,20 +774,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 46,
     marginHorizontal: 20,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
   modalSearchInput: {
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-    color: "#111111",
+    color: colors.text,
   },
   camperRow: {
     flexDirection: "row",
@@ -810,7 +811,7 @@ const styles = StyleSheet.create({
   camperRowName: {
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   camperRowMeta: {
     flexDirection: "row",
@@ -821,7 +822,7 @@ const styles = StyleSheet.create({
   camperRowCabin: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
   },
   wristbandBadge: {
     flexDirection: "row",
@@ -845,12 +846,12 @@ const styles = StyleSheet.create({
   emptyPickerTitle: {
     fontSize: 17,
     fontFamily: "Outfit_600SemiBold",
-    color: "#111111",
+    color: colors.text,
   },
   emptyPickerSub: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: "#666666",
+    color: colors.textSecondary,
     textAlign: "center",
     paddingHorizontal: 20,
   },
