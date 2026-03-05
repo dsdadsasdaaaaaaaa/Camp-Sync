@@ -7,9 +7,11 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import Colors from "@/constants/colors";
 import { useData } from "@/contexts/DataContext";
+import { useTheme } from "@/app/_layout";
 
 function NativeTabLayout() {
   const { pendingUpdates } = useData();
+  const { isDark } = useTheme();
   const unresolved = pendingUpdates.filter((p) => !p.resolved).length;
 
   return (
@@ -46,8 +48,7 @@ function NativeTabLayout() {
 function ClassicTabLayout() {
   const { pendingUpdates } = useData();
   const unresolved = pendingUpdates.filter((p) => !p.resolved).length;
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { isDark } = useTheme();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const theme = isDark ? Colors.dark : Colors.light;

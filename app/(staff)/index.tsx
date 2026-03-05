@@ -20,6 +20,7 @@ import { router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 import NFCScanner from "@/components/NFCScanner";
 import type { Camper, WristbandPayload } from "@/types";
 
@@ -38,8 +39,9 @@ function CamperCheckInCard({
   onCheckIn: () => void;
   onCheckOut: () => void;
 }) {
+  const colors = useColors();
   return (
-    <View style={styles.camperCard}>
+    <View style={[styles.camperCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.camperInfo}>
         <View style={[
           styles.avatar,
@@ -53,10 +55,10 @@ function CamperCheckInCard({
           </Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.camperName}>{camper.firstName} {camper.lastName}</Text>
-          <Text style={styles.camperCabin}>{camper.cabinGroup || "No cabin"}</Text>
+          <Text style={[styles.camperName, { color: colors.text }]}>{camper.firstName} {camper.lastName}</Text>
+          <Text style={[styles.camperCabin, { color: colors.textSecondary }]}>{camper.cabinGroup || "No cabin"}</Text>
           {camper.medical.allergies && camper.medical.allergies.toLowerCase() !== "none" && (
-            <View style={styles.allergyTag}>
+            <View style={[styles.allergyTag, { backgroundColor: Colors.danger + "10" }]}>
               <Ionicons name="warning" size={11} color={Colors.danger} />
               <Text style={styles.allergyText}>
                 Allergy: {camper.medical.allergies.slice(0, 30)}
@@ -91,15 +93,16 @@ function CamperCheckInCard({
 }
 
 function MedicalInfoRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  const colors = useColors();
   if (!value || value.toLowerCase() === "none" || value.trim() === "") return null;
   return (
     <View style={styles.medRow}>
-      <View style={styles.medIconWrap}>
+      <View style={[styles.medIconWrap, { backgroundColor: colors.surfaceSecondary }]}>
         <Ionicons name={icon} size={16} color={Colors.primary} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.medLabel}>{label}</Text>
-        <Text style={styles.medValue}>{value}</Text>
+        <Text style={[styles.medLabel, { color: colors.textSecondary }]}>{label}</Text>
+        <Text style={[styles.medValue, { color: colors.text }]}>{value}</Text>
       </View>
     </View>
   );
@@ -115,6 +118,7 @@ function EmergencyLookupModal({
   campers: Camper[];
 }) {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [emSearch, setEmSearch] = useState("");
   const [selectedCamper, setSelectedCamper] = useState<Camper | null>(null);
 
@@ -138,7 +142,7 @@ function EmergencyLookupModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
-      <View style={[styles.modalContainer, { paddingTop: Platform.OS === "web" ? 67 : insets.top + 10 }]}>
+      <View style={[styles.modalContainer, { paddingTop: Platform.OS === "web" ? 67 : insets.top + 10, backgroundColor: colors.background }]}>
         <View style={styles.modalHeader}>
           {selectedCamper ? (
             <Pressable onPress={handleBack} style={styles.modalBackBtn}>
@@ -147,29 +151,29 @@ function EmergencyLookupModal({
           ) : (
             <View style={{ width: 36 }} />
           )}
-          <Text style={styles.modalTitle}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
             {selectedCamper ? `${selectedCamper.firstName} ${selectedCamper.lastName}` : "Emergency Lookup"}
           </Text>
           <Pressable onPress={handleClose} style={styles.modalCloseBtn}>
-            <Ionicons name="close" size={22} color={Colors.light.textSecondary} />
+            <Ionicons name="close" size={22} color={colors.textSecondary} />
           </Pressable>
         </View>
 
         {!selectedCamper ? (
           <>
-            <View style={styles.modalSearchContainer}>
-              <Ionicons name="search-outline" size={18} color={Colors.light.textMuted} />
+            <View style={[styles.modalSearchContainer, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+              <Ionicons name="search-outline" size={18} color={colors.textMuted} />
               <TextInput
-                style={styles.modalSearchInput}
+                style={[styles.modalSearchInput, { color: colors.text }]}
                 placeholder="Search by name or cabin..."
-                placeholderTextColor={Colors.light.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={emSearch}
                 onChangeText={setEmSearch}
                 autoFocus
               />
               {emSearch.length > 0 && (
                 <Pressable onPress={() => setEmSearch("")}>
-                  <Ionicons name="close-circle" size={18} color={Colors.light.textMuted} />
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                 </Pressable>
               )}
             </View>
@@ -180,7 +184,7 @@ function EmergencyLookupModal({
               scrollEnabled={!!filtered.length}
               renderItem={({ item }) => (
                 <Pressable
-                  style={({ pressed }) => [styles.emCamperRow, { opacity: pressed ? 0.7 : 1 }]}
+                  style={({ pressed }) => [styles.emCamperRow, { opacity: pressed ? 0.7 : 1, borderBottomColor: colors.border }]}
                   onPress={() => setSelectedCamper(item)}
                 >
                   <View style={[styles.emAvatar, { backgroundColor: Colors.accent + "20" }]}>
@@ -189,22 +193,22 @@ function EmergencyLookupModal({
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.camperName}>{item.firstName} {item.lastName}</Text>
-                    <Text style={styles.camperCabin}>{item.cabinGroup || "No cabin"}</Text>
+                    <Text style={[styles.camperName, { color: colors.text }]}>{item.firstName} {item.lastName}</Text>
+                    <Text style={[styles.camperCabin, { color: colors.textSecondary }]}>{item.cabinGroup || "No cabin"}</Text>
                   </View>
                   {item.medical.allergies && item.medical.allergies.toLowerCase() !== "none" && (
                     <View style={styles.emAllergyBadge}>
                       <Ionicons name="warning" size={12} color={Colors.danger} />
                     </View>
                   )}
-                  <Ionicons name="chevron-forward" size={18} color={Colors.light.textMuted} />
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </Pressable>
               )}
               ListEmptyComponent={
                 <View style={styles.empty}>
-                  <Ionicons name="search" size={40} color={Colors.light.textMuted} />
-                  <Text style={styles.emptyTitle}>No campers found</Text>
-                  <Text style={styles.emptyText}>Try a different search term</Text>
+                  <Ionicons name="search" size={40} color={colors.textMuted} />
+                  <Text style={[styles.emptyTitle, { color: colors.text }]}>No campers found</Text>
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Try a different search term</Text>
                 </View>
               }
             />
@@ -217,15 +221,15 @@ function EmergencyLookupModal({
             <View style={styles.medSection}>
               <View style={styles.medSectionHeader}>
                 <Ionicons name="alert-circle" size={18} color={Colors.danger} />
-                <Text style={styles.medSectionTitle}>Allergies & Conditions</Text>
+                <Text style={[styles.medSectionTitle, { color: colors.text }]}>Allergies & Conditions</Text>
               </View>
-              <View style={styles.medCard}>
+              <View style={[styles.medCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <MedicalInfoRow icon="warning-outline" label="Allergies" value={selectedCamper.medical.allergies} />
                 <MedicalInfoRow icon="medkit-outline" label="Medications" value={selectedCamper.medical.medications} />
                 <MedicalInfoRow icon="fitness-outline" label="Conditions" value={selectedCamper.medical.conditions} />
                 <MedicalInfoRow icon="water-outline" label="Blood Type" value={selectedCamper.medical.bloodType} />
                 {!selectedCamper.medical.allergies && !selectedCamper.medical.medications && !selectedCamper.medical.conditions && !selectedCamper.medical.bloodType && (
-                  <Text style={styles.medNoData}>No medical alerts on file</Text>
+                  <Text style={[styles.medNoData, { color: colors.textMuted }]}>No medical alerts on file</Text>
                 )}
               </View>
             </View>
@@ -233,9 +237,9 @@ function EmergencyLookupModal({
             <View style={styles.medSection}>
               <View style={styles.medSectionHeader}>
                 <Ionicons name="call" size={18} color={Colors.primary} />
-                <Text style={styles.medSectionTitle}>Emergency Contact</Text>
+                <Text style={[styles.medSectionTitle, { color: colors.text }]}>Emergency Contact</Text>
               </View>
-              <View style={styles.medCard}>
+              <View style={[styles.medCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 {selectedCamper.medical.emergencyContacts?.length > 0 ? (
                   selectedCamper.medical.emergencyContacts.map((ec, i) => (
                     <View key={i}>
@@ -254,9 +258,9 @@ function EmergencyLookupModal({
             <View style={styles.medSection}>
               <View style={styles.medSectionHeader}>
                 <Ionicons name="medical" size={18} color={Colors.accent} />
-                <Text style={styles.medSectionTitle}>Doctor & Insurance</Text>
+                <Text style={[styles.medSectionTitle, { color: colors.text }]}>Doctor & Insurance</Text>
               </View>
-              <View style={styles.medCard}>
+              <View style={[styles.medCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <MedicalInfoRow icon="person-circle-outline" label="Doctor" value={selectedCamper.medical.doctorName} />
                 <MedicalInfoRow icon="call-outline" label="Doctor Phone" value={selectedCamper.medical.doctorPhone} />
                 <MedicalInfoRow icon="shield-checkmark-outline" label="Insurance" value={selectedCamper.medical.insuranceProvider} />
@@ -267,22 +271,22 @@ function EmergencyLookupModal({
               <View style={styles.medSection}>
                 <View style={styles.medSectionHeader}>
                   <Ionicons name="document-text" size={18} color={Colors.warning} />
-                  <Text style={styles.medSectionTitle}>Additional Notes</Text>
+                  <Text style={[styles.medSectionTitle, { color: colors.text }]}>Additional Notes</Text>
                 </View>
-                <View style={styles.medCard}>
-                  <Text style={styles.medNotesText}>{selectedCamper.medical.notes}</Text>
+                <View style={[styles.medCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Text style={[styles.medNotesText, { color: colors.text }]}>{selectedCamper.medical.notes}</Text>
                 </View>
               </View>
             )}
 
             <View style={styles.medSection}>
               <View style={styles.medSectionHeader}>
-                <Ionicons name="information-circle" size={18} color={Colors.light.textMuted} />
-                <Text style={styles.medSectionTitle}>Camper Details</Text>
+                <Ionicons name="information-circle" size={18} color={colors.textMuted} />
+                <Text style={[styles.medSectionTitle, { color: colors.text }]}>Camper Details</Text>
               </View>
-              <View style={styles.medCard}>
+              <View style={[styles.medCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <MedicalInfoRow icon="calendar-outline" label="Date of Birth" value={selectedCamper.dateOfBirth} />
-                <MedicalInfoRow icon="home-outline" label="Cabin" value={selectedCamper.cabinGroup} />
+                <MedicalInfoRow icon="home-outline" label="Cabin" value={selectedCabin || selectedCamper.cabinGroup} />
               </View>
             </View>
           </ScrollView>

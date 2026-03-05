@@ -2,10 +2,11 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
-import { Platform, StyleSheet, useColorScheme, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/app/_layout";
 
 function NativeTabLayout() {
   return (
@@ -27,8 +28,7 @@ function NativeTabLayout() {
 }
 
 function ClassicTabLayout() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { isDark } = useTheme();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const theme = isDark ? Colors.dark : Colors.light;

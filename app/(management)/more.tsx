@@ -26,7 +26,7 @@ import DatePicker from "@/components/DatePicker";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { getToken } from "@/lib/auth-token";
-import type { Session, AuthCode, UserRole } from "@/types";
+import { useColors } from "@/hooks/useColors";
 
 type Tab = "sessions" | "codes" | "users" | "ai";
 
@@ -47,18 +47,19 @@ const SUGGESTION_QUESTIONS = [
 ];
 
 function MessageBubble({ message }: { message: Message }) {
+  const colors = useColors();
   const isUser = message.role === "user";
   return (
-    <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
+    <View style={[styles.bubble, isUser ? styles.userBubble : [styles.aiBubble, { backgroundColor: colors.surfaceSecondary }]]}>
       {!isUser && (
         <View style={styles.aiAvatar}>
           <Ionicons name="sparkles" size={14} color={Colors.accent} />
         </View>
       )}
       <View style={[styles.bubbleContent, isUser ? styles.userBubbleContent : styles.aiBubbleContent]}>
-        <Text style={[styles.bubbleText, isUser ? styles.userText : styles.aiText]}>
+        <Text style={[styles.bubbleText, { color: isUser ? "white" : colors.text }]}>
           {message.content}
-          {message.isStreaming && <Text style={styles.cursor}>▋</Text>}
+          {message.isStreaming && <Text style={[styles.cursor, { color: Colors.accent }]}>▋</Text>}
         </Text>
       </View>
     </View>
@@ -77,45 +78,46 @@ function SessionCard({
   onToggleActive: () => void;
   onViewRoster: () => void;
 }) {
+  const colors = useColors();
   return (
-    <View style={styles.sessionCard}>
+    <View style={[styles.sessionCard, { backgroundColor: colors.surface }]}>
       <View style={styles.sessionHeader}>
         <View>
-          <Text style={styles.sessionName}>{session.name}</Text>
-          <Text style={styles.sessionDates}>
+          <Text style={[styles.sessionName, { color: colors.text }]}>{session.name}</Text>
+          <Text style={[styles.sessionDates, { color: colors.textSecondary }]}>
             {new Date(session.startDate).toLocaleDateString()} —{" "}
             {new Date(session.endDate).toLocaleDateString()}
           </Text>
         </View>
         <Pressable
-          style={[styles.activeToggle, { backgroundColor: session.isActive ? Colors.success + "20" : Colors.light.surfaceSecondary }]}
+          style={[styles.activeToggle, { backgroundColor: session.isActive ? Colors.success + "20" : colors.surfaceSecondary }]}
           onPress={onToggleActive}
         >
-          <View style={[styles.activeDot, { backgroundColor: session.isActive ? Colors.success : Colors.light.textMuted }]} />
-          <Text style={[styles.activeText, { color: session.isActive ? Colors.success : Colors.light.textSecondary }]}>
+          <View style={[styles.activeDot, { backgroundColor: session.isActive ? Colors.success : colors.textMuted }]} />
+          <Text style={[styles.activeText, { color: session.isActive ? Colors.success : colors.textSecondary }]}>
             {session.isActive ? "Active" : "Inactive"}
           </Text>
         </Pressable>
       </View>
       <View style={styles.datesChips}>
         {session.authorizedDates.length === 0 ? (
-          <Text style={styles.noDatesText}>No check-in dates set</Text>
+          <Text style={[styles.noDatesText, { color: colors.textMuted }]}>No check-in dates set</Text>
         ) : (
           session.authorizedDates.slice(0, 4).map((d) => (
-            <View key={d} style={styles.dateChip}>
-              <Text style={styles.dateChipText}>
+            <View key={d} style={[styles.dateChip, { backgroundColor: colors.surfaceSecondary }]}>
+              <Text style={[styles.dateChipText, { color: colors.textSecondary }]}>
                 {new Date(d + "T12:00:00").toLocaleDateString([], { month: "short", day: "numeric" })}
               </Text>
             </View>
           ))
         )}
         {session.authorizedDates.length > 4 && (
-          <View style={styles.dateChip}>
-            <Text style={styles.dateChipText}>+{session.authorizedDates.length - 4} more</Text>
+          <View style={[styles.dateChip, { backgroundColor: colors.surfaceSecondary }]}>
+            <Text style={[styles.dateChipText, { color: colors.textSecondary }]}>+{session.authorizedDates.length - 4} more</Text>
           </View>
         )}
       </View>
-      <View style={styles.sessionCardActions}>
+      <View style={[styles.sessionCardActions, { borderTopColor: colors.border }]}>
         <Pressable onPress={onViewRoster} style={({ pressed }) => [styles.rosterBtn, { opacity: pressed ? 0.7 : 1 }]}>
           <Ionicons name="list-outline" size={15} color={Colors.primary} />
           <Text style={styles.rosterBtnText}>Roster</Text>
@@ -131,10 +133,11 @@ function SessionCard({
 
 // ── Auth Code Card ────────────────────────────────────────────────────────────
 function AuthCodeCard({ code, onEdit, onDelete }: { code: AuthCode; onEdit: () => void; onDelete: () => void }) {
-  const roleColors: Record<UserRole, string> = { management: Colors.primary, staff: Colors.accent, parent: "#8B5CF6" };
+  const colors = useColors();
+  const roleColors: Record<UserRole, string> = { management: colors.danger, staff: colors.primary, parent: "#8B5CF6" };
   const isFull = code.maxUses > 0 && code.usedCount >= code.maxUses;
   return (
-    <View style={styles.codeCard}>
+    <View style={[styles.codeCard, { backgroundColor: colors.surface }]}>
       <View style={styles.codeHeader}>
         <View style={[styles.roleIcon, { backgroundColor: roleColors[code.role] + "20" }]}>
           <Ionicons
@@ -144,14 +147,14 @@ function AuthCodeCard({ code, onEdit, onDelete }: { code: AuthCode; onEdit: () =
           />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.codeValue}>{code.code}</Text>
-          <Text style={styles.codeRole}>{code.role.charAt(0).toUpperCase() + code.role.slice(1)} · {code.usedCount} / {code.maxUses === 0 ? "∞" : code.maxUses} used</Text>
+          <Text style={[styles.codeValue, { color: colors.text }]}>{code.code}</Text>
+          <Text style={[styles.codeRole, { color: colors.textSecondary }]}>{code.role.charAt(0).toUpperCase() + code.role.slice(1)} · {code.usedCount} / {code.maxUses === 0 ? "∞" : code.maxUses} used</Text>
         </View>
         <View style={[styles.usedBadge, { backgroundColor: isFull ? Colors.danger + "15" : Colors.success + "15" }]}>
           <Text style={[styles.usedBadgeText, { color: isFull ? Colors.danger : Colors.success }]}>{isFull ? "Full" : "Active"}</Text>
         </View>
       </View>
-      <View style={styles.codeActions}>
+      <View style={[styles.codeActions, { borderTopColor: colors.border }]}>
         <Pressable onPress={onEdit} style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}>
           <Ionicons name="pencil-outline" size={16} color={Colors.primary} />
           <Text style={[styles.actionBtnText, { color: Colors.primary }]}>Edit</Text>
@@ -171,6 +174,8 @@ export default function MoreScreen() {
   const { sessions, authCodes, campers, checkIns, users, addSession, updateSession, deleteSession, createAuthCode, updateAuthCode, deleteAuthCode, updateUser, deleteUser, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
   const tabBarHeight = isLiquidGlassAvailable() ? insets.bottom : insets.bottom + 49;
+
+  const colors = useColors();
 
   const [activeTab, setActiveTab] = useState<Tab>("sessions");
 
@@ -382,29 +387,29 @@ export default function MoreScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.light.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Fixed header */}
-      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20) }]}>
+      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20), backgroundColor: colors.surface }]}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Management</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Management</Text>
           <Pressable onPress={handleLogout} style={styles.logoutBtn}>
-            <Ionicons name="log-out-outline" size={20} color={Colors.light.textSecondary} />
+            <Ionicons name="log-out-outline" size={20} color={colors.textSecondary} />
           </Pressable>
         </View>
 
-        <View style={styles.tabRow}>
+        <View style={[styles.tabRow, { borderBottomColor: colors.border }]}>
           {TABS.map((t) => (
             <Pressable
               key={t.key}
-              style={[styles.tabBtn, activeTab === t.key && styles.tabBtnActive]}
+              style={[styles.tabBtn, activeTab === t.key && [styles.tabBtnActive, { borderBottomColor: Colors.primary }]]}
               onPress={() => setActiveTab(t.key)}
             >
               <Ionicons
                 name={t.icon as any}
                 size={15}
-                color={activeTab === t.key ? Colors.primary : Colors.light.textMuted}
+                color={activeTab === t.key ? Colors.primary : colors.textMuted}
               />
-              <Text style={[styles.tabBtnText, activeTab === t.key && styles.tabBtnActiveText]}>
+              <Text style={[styles.tabBtnText, { color: activeTab === t.key ? Colors.primary : colors.textMuted }]}>
                 {t.label}
               </Text>
             </Pressable>
@@ -419,12 +424,12 @@ export default function MoreScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={0}
         >
-          <View style={styles.aiSecurityBadge}>
+          <View style={[styles.aiSecurityBadge, { backgroundColor: colors.surfaceSecondary }]}>
             <Ionicons name="lock-closed" size={12} color={Colors.success} />
-            <Text style={styles.aiSecurityText}>All data is accessed server-side only — nothing is sent from your device</Text>
+            <Text style={[styles.aiSecurityText, { color: colors.textSecondary }]}>All data is accessed server-side only — nothing is sent from your device</Text>
             {messages.length > 0 && (
               <Pressable onPress={clearChat} style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: "auto" }]}>
-                <Ionicons name="trash-outline" size={16} color={Colors.light.textSecondary} />
+                <Ionicons name="trash-outline" size={16} color={colors.textSecondary} />
               </Pressable>
             )}
           </View>
@@ -435,15 +440,15 @@ export default function MoreScreen() {
               contentContainerStyle={[styles.aiEmpty, { paddingBottom: insets.bottom + 120 }]}
               keyboardShouldPersistTaps="handled"
             >
-              <View style={styles.aiEmptyIcon}>
+              <View style={[styles.aiEmptyIcon, { backgroundColor: colors.surfaceSecondary }]}>
                 <Ionicons name="sparkles" size={32} color={Colors.accent} />
               </View>
-              <Text style={styles.aiEmptyTitle}>Ask anything about camp</Text>
-              <Text style={styles.aiEmptySub}>Full access to all camper records, medical data, and check-in history.</Text>
+              <Text style={[styles.aiEmptyTitle, { color: colors.text }]}>Ask anything about camp</Text>
+              <Text style={[styles.aiEmptySub, { color: colors.textSecondary }]}>Full access to all camper records, medical data, and check-in history.</Text>
               <View style={styles.aiSuggestions}>
                 {SUGGESTION_QUESTIONS.map((q, i) => (
-                  <Pressable key={i} style={({ pressed }) => [styles.aiSuggestion, { opacity: pressed ? 0.7 : 1 }]} onPress={() => sendQuestion(q)}>
-                    <Text style={styles.aiSuggestionText}>{q}</Text>
+                  <Pressable key={i} style={({ pressed }) => [styles.aiSuggestion, { backgroundColor: colors.surface, opacity: pressed ? 0.7 : 1 }]} onPress={() => sendQuestion(q)}>
+                    <Text style={[styles.aiSuggestionText, { color: colors.text }]}>{q}</Text>
                     <Ionicons name="arrow-forward" size={14} color={Colors.accent} />
                   </Pressable>
                 ))}
@@ -460,14 +465,14 @@ export default function MoreScreen() {
             />
           )}
 
-          <View style={[styles.aiInputContainer, { paddingBottom: (Platform.OS === "web" ? insets.bottom + 34 : tabBarHeight + 20), paddingHorizontal: 16 }]}>
-            <View style={styles.aiInputRow}>
+          <View style={[styles.aiInputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: (Platform.OS === "web" ? insets.bottom + 34 : tabBarHeight + 20), paddingHorizontal: 16 }]}>
+            <View style={[styles.aiInputRow, { backgroundColor: colors.surfaceSecondary }]}>
               <TextInput
-                style={styles.aiInput}
+                style={[styles.aiInput, { color: colors.text }]}
                 value={aiInput}
                 onChangeText={setAiInput}
                 placeholder="Ask about campers, allergies, check-ins..."
-                placeholderTextColor={Colors.light.textMuted}
+                placeholderTextColor={colors.textMuted}
                 multiline
                 maxLength={500}
                 editable={!aiLoading}
@@ -501,9 +506,9 @@ export default function MoreScreen() {
               </Pressable>
               {sessions.length === 0 && (
                 <View style={styles.empty}>
-                  <Ionicons name="calendar-outline" size={48} color={Colors.light.textMuted} />
-                  <Text style={styles.emptyTitle}>No Sessions Yet</Text>
-                  <Text style={styles.emptyText}>Create camp sessions to authorize check-in dates for staff</Text>
+                  <Ionicons name="calendar-outline" size={48} color={colors.textMuted} />
+                  <Text style={[styles.emptyTitle, { color: colors.text }]}>No Sessions Yet</Text>
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Create camp sessions to authorize check-in dates for staff</Text>
                 </View>
               )}
               {sessions.map((session) => (
@@ -514,7 +519,7 @@ export default function MoreScreen() {
                   onToggleActive={() => updateSession(session.id, { isActive: !session.isActive })}
                   onViewRoster={() => setRosterSession(session)}
                 />
-              ))}
+              )) || []}
             </>
           )}
 
@@ -527,9 +532,9 @@ export default function MoreScreen() {
               </Pressable>
               {authCodes.length === 0 && (
                 <View style={styles.empty}>
-                  <Ionicons name="key-outline" size={48} color={Colors.light.textMuted} />
-                  <Text style={styles.emptyTitle}>No Auth Codes</Text>
-                  <Text style={styles.emptyText}>Generate codes for staff and parents to register</Text>
+                  <Ionicons name="key-outline" size={48} color={colors.textMuted} />
+                  <Text style={[styles.emptyTitle, { color: colors.text }]}>No Auth Codes</Text>
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Generate codes for staff and parents to register</Text>
                 </View>
               )}
               {authCodes.map((code) => (
@@ -539,7 +544,7 @@ export default function MoreScreen() {
                   onEdit={() => openCodeModal(code)}
                   onDelete={() => Alert.alert("Revoke Code", `Revoke "${code.code}"?`, [{ text: "Cancel", style: "cancel" }, { text: "Revoke", style: "destructive", onPress: () => deleteAuthCode(code.code) }])}
                 />
-              ))}
+              )) || []}
             </>
           )}
 
@@ -548,38 +553,38 @@ export default function MoreScreen() {
             <>
               {users.length === 0 && (
                 <View style={styles.empty}>
-                  <Ionicons name="people-outline" size={48} color={Colors.light.textMuted} />
-                  <Text style={styles.emptyTitle}>No Users Yet</Text>
-                  <Text style={styles.emptyText}>Registered users will appear here</Text>
+                  <Ionicons name="people-outline" size={48} color={colors.textMuted} />
+                  <Text style={[styles.emptyTitle, { color: colors.text }]}>No Users Yet</Text>
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Registered users will appear here</Text>
                 </View>
               )}
               {users.map((u) => {
                 const initials = u.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-                const roleColor = ROLE_COLORS[u.role as UserRole] || Colors.light.textSecondary;
+                const roleColor = ROLE_COLORS[u.role as UserRole] || colors.textSecondary;
                 const linkedCamperNames = (u.linkedCamperIds || []).map((cid) => campers.find((c) => c.id === cid)).filter(Boolean).map((c) => `${c!.firstName} ${c!.lastName}`).join(", ");
                 return (
-                  <Pressable key={u.id} style={({ pressed }) => [styles.userCard, { opacity: pressed ? 0.85 : 1 }]} onPress={() => openUserEdit(u)}>
+                  <Pressable key={u.id} style={({ pressed }) => [styles.userCard, { backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 }]} onPress={() => openUserEdit(u)}>
                     <View style={[styles.userAvatar, { backgroundColor: roleColor + "20" }]}>
                       <Text style={[styles.userAvatarText, { color: roleColor }]}>{initials}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <Text style={styles.userName}>{u.name}</Text>
+                        <Text style={[styles.userName, { color: colors.text }]}>{u.name}</Text>
                         {u.id === user?.id && (
-                          <View style={[styles.rolePill, { backgroundColor: Colors.light.surfaceSecondary }]}>
-                            <Text style={[styles.rolePillText, { color: Colors.light.textMuted }]}>You</Text>
+                          <View style={[styles.rolePill, { backgroundColor: colors.surfaceSecondary }]}>
+                            <Text style={[styles.rolePillText, { color: colors.textMuted }]}>You</Text>
                           </View>
                         )}
                       </View>
-                      <Text style={styles.userEmail}>{u.email}</Text>
-                      {linkedCamperNames ? <Text style={styles.userMeta} numberOfLines={1}>Linked: {linkedCamperNames}</Text> : null}
+                      <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{u.email}</Text>
+                      {linkedCamperNames ? <Text style={[styles.userMeta, { color: colors.textMuted }]} numberOfLines={1}>Linked: {linkedCamperNames}</Text> : null}
                     </View>
                     <View style={[styles.rolePill, { backgroundColor: roleColor + "15" }]}>
                       <Text style={[styles.rolePillText, { color: roleColor }]}>{u.role}</Text>
                     </View>
                   </Pressable>
                 );
-              })}
+              }) || []}
             </>
           )}
         </ScrollView>

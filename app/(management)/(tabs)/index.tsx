@@ -29,19 +29,20 @@ function StatCard({
   color: string;
   onPress?: () => void;
 }) {
+  const colors = useColors();
   return (
     <Pressable
       style={({ pressed }) => [
         styles.statCard,
-        { opacity: pressed && onPress ? 0.85 : 1 },
+        { backgroundColor: colors.surface, opacity: pressed && onPress ? 0.85 : 1 },
       ]}
       onPress={onPress}
     >
       <View style={[styles.statIconContainer, { backgroundColor: color + "20" }]}>
         <Ionicons name={icon as any} size={22} color={color} />
       </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -55,16 +56,17 @@ function RecentCheckIn({
   camperName: string;
   time: string;
 }) {
+  const colors = useColors();
   return (
     <View style={styles.checkInRow}>
-      <View style={styles.checkInAvatar}>
-        <Text style={styles.checkInInitial}>
+      <View style={[styles.checkInAvatar, { backgroundColor: Colors.primary + "20" }]}>
+        <Text style={[styles.checkInInitial, { color: Colors.primary }]}>
           {camperName.charAt(0).toUpperCase()}
         </Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.checkInName}>{camperName}</Text>
-        <Text style={styles.checkInTime}>
+        <Text style={[styles.checkInName, { color: colors.text }]}>{camperName}</Text>
+        <Text style={[styles.checkInTime, { color: colors.textSecondary }]}>
           Checked in at {new Date(time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </Text>
       </View>
@@ -80,6 +82,7 @@ export default function DashboardScreen() {
   const { campers, checkIns, sessions, pendingUpdates, isLoading, refresh } =
     useData();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
 
   const checkedInToday = checkIns.filter((ci) => {
     const today = new Date().toDateString();
@@ -121,7 +124,7 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: Colors.light.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[
         styles.container,
         {
@@ -135,15 +138,15 @@ export default function DashboardScreen() {
     >
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Good day,</Text>
-          <Text style={styles.name}>{user?.name}</Text>
+          <Text style={[styles.greeting, { color: colors.textSecondary }]}>Good day,</Text>
+          <Text style={[styles.name, { color: colors.text }]}>{user?.name}</Text>
           <View style={styles.roleBadge}>
             <Ionicons name="shield-checkmark" size={12} color={Colors.accent} />
             <Text style={styles.roleText}>Management</Text>
           </View>
         </View>
-        <Pressable onPress={handleLogout} style={styles.logoutButton}>
-          <Ionicons name="log-out-outline" size={22} color={Colors.light.textSecondary} />
+        <Pressable onPress={handleLogout} style={[styles.logoutButton, { backgroundColor: colors.surfaceSecondary }]}>
+          <Ionicons name="log-out-outline" size={22} color={colors.textSecondary} />
         </Pressable>
       </View>
 
@@ -161,7 +164,7 @@ export default function DashboardScreen() {
         </Pressable>
       )}
 
-      <Text style={styles.sectionTitle}>Today's Overview</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Today's Overview</Text>
       <View style={styles.statsGrid}>
         <StatCard
           icon="people"
@@ -187,55 +190,55 @@ export default function DashboardScreen() {
           icon="time"
           label="Pending Updates"
           value={unresolved.length}
-          color={unresolved.length > 0 ? Colors.danger : Colors.light.textMuted}
+          color={unresolved.length > 0 ? Colors.danger : colors.textMuted}
           onPress={() => router.navigate({ pathname: "/(management)/(tabs)/pending" })}
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
       <View style={styles.actionsGrid}>
         <Pressable
-          style={({ pressed }) => [styles.actionCard, { opacity: pressed ? 0.85 : 1 }]}
+          style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 }]}
           onPress={() => router.navigate({ pathname: "/(management)/(tabs)/campers" })}
         >
           <View style={[styles.actionIcon, { backgroundColor: Colors.primary + "20" }]}>
             <Ionicons name="person-add" size={24} color={Colors.primary} />
           </View>
-          <Text style={styles.actionLabel}>Add Camper</Text>
+          <Text style={[styles.actionLabel, { color: colors.text }]}>Add Camper</Text>
         </Pressable>
         <Pressable
-          style={({ pressed }) => [styles.actionCard, { opacity: pressed ? 0.85 : 1 }]}
+          style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 }]}
           onPress={() => router.navigate({ pathname: "/(management)/(tabs)/nfc" })}
         >
           <View style={[styles.actionIcon, { backgroundColor: Colors.accent + "20" }]}>
             <Ionicons name="radio" size={24} color={Colors.accent} />
           </View>
-          <Text style={styles.actionLabel}>NFC Wristband</Text>
+          <Text style={[styles.actionLabel, { color: colors.text }]}>NFC Wristband</Text>
         </Pressable>
         <Pressable
-          style={({ pressed }) => [styles.actionCard, { opacity: pressed ? 0.85 : 1 }]}
+          style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 }]}
           onPress={() => router.navigate({ pathname: "/(management)/(tabs)/more" })}
         >
           <View style={[styles.actionIcon, { backgroundColor: Colors.warning + "20" }]}>
             <Ionicons name="calendar" size={24} color={Colors.warning} />
           </View>
-          <Text style={styles.actionLabel}>Sessions</Text>
+          <Text style={[styles.actionLabel, { color: colors.text }]}>Sessions</Text>
         </Pressable>
         <Pressable
-          style={({ pressed }) => [styles.actionCard, { opacity: pressed ? 0.85 : 1 }]}
+          style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 }]}
           onPress={() => router.navigate({ pathname: "/(management)/(tabs)/more" })}
         >
           <View style={[styles.actionIcon, { backgroundColor: "#8B5CF620" }]}>
             <Ionicons name="key" size={24} color="#8B5CF6" />
           </View>
-          <Text style={styles.actionLabel}>Auth Codes</Text>
+          <Text style={[styles.actionLabel, { color: colors.text }]}>Auth Codes</Text>
         </Pressable>
       </View>
 
       {recentCheckIns.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>Recent Check-ins</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Check-ins</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
             {recentCheckIns.map((ci, idx) => {
               const camper = campers.find((c) => c.id === ci.camperId);
               if (!camper) return null;
@@ -247,7 +250,7 @@ export default function DashboardScreen() {
                     time={ci.checkedInAt}
                   />
                   {idx < recentCheckIns.length - 1 && (
-                    <View style={styles.separator} />
+                    <View style={[styles.separator, { backgroundColor: colors.border }]} />
                   )}
                 </View>
               );
