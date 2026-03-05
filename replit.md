@@ -80,15 +80,18 @@ The app uses **Expo Router** with file-based routing. The route structure reflec
 
 ### Wristband/NFC System
 
-- Real Apple Core NFC integration via `react-native-nfc-manager` in `lib/nfc.native.ts` (Metro auto-selects `.native.ts` for native, `.ts` for web)
-- Web stub at `lib/nfc.ts` reports NFC as unsupported (no native module imports)
-- NFC tags store `CAMPSYNC:` prefix + XOR+Base64 encrypted `WristbandPayload` as NDEF text records
+- Real Apple Core NFC integration via `react-native-nfc-manager` in `lib/nfc.ts`
+- NFC tags store XOR+Base64 encrypted `WristbandPayload` as NDEF text records
 - `NFCScanner` component (`components/NFCScanner.tsx`) handles read, write, and erase modes with native iOS NFC overlay, pulse animation, and success/error states
 - Wristband programming in camper detail uses real NFCScanner in write mode
 - Checkout flow: scan wristband (read) → confirm camper → erase wristband (erase mode) → check out in DB → unlink wristband
 - Management NFC home screen has three options: Program, Scan, and Check Out
 - The management portal tracks "pending wristband updates" when camper data changes after wristband programming
-- NFC permissions configured in `app.json`: iOS NFCReaderUsageDescription + NDEF entitlements, Android NFC permission
+- NFC permissions configured in `app.json`: iOS NFCReaderUsageDescription + both NDEF and TAG entitlements, Android NFC permission
+- `react-native-nfc-manager` config plugin registered in app.json plugins array with `includeNdefEntitlement: true`
+- `ensureStarted()` tracks NFC manager state; only silently ignores "already started" errors — all other init failures propagate with descriptive messages
+- `requestTechnology` failures wrapped with "Could not start NFC session:" prefix for clear error reporting
+- **CRITICAL NFC patterns**: `requestTechnology([NfcTech.Ndef])` (array); `Ndef.text.decodePayload(record.payload as any)` (no Uint8Array wrapping); `writeNdefMessage([])` for erase
 
 ### Camper Management
 

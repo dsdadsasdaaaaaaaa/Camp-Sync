@@ -3,21 +3,27 @@ import { Platform } from 'react-native';
 import { encryptWristbandData, decryptWristbandData } from "./crypto";
 import type { WristbandPayload } from "@/types";
 
+let _nfcStarted = false;
+
 async function ensureStarted(): Promise<void> {
+  if (_nfcStarted) return;
   try {
     await NfcManager.start();
-  } catch {
-    // Already started or not supported — safe to ignore
+    _nfcStarted = true;
+  } catch (e: any) {
+    const msg = typeof e === 'string' ? e : e?.message ?? '';
+    console.warn('NfcManager.start() error:', msg);
+    throw new Error(`NFC initialization failed: ${msg || 'unknown error'}`);
   }
 }
 
 export async function initNFC(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   try {
-    await NfcManager.start();
+    await ensureStarted();
     return true;
   } catch (e) {
-    console.warn('NFC initialization failed', e);
+    console.warn('NFC initNFC failed:', e);
     return false;
   }
 }
@@ -26,8 +32,10 @@ export async function isNFCSupported(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   try {
     await ensureStarted();
-    return await NfcManager.isSupported();
-  } catch {
+    const supported = await NfcManager.isSupported();
+    return supported;
+  } catch (e) {
+    console.warn('NFC isSupported check failed:', e);
     return false;
   }
 }
@@ -53,6 +61,13 @@ export async function readNFCTag(): Promise<WristbandPayload | null> {
 
   try {
     await NfcManager.requestTechnology([NfcTech.Ndef]);
+  } catch (e: any) {
+    const msg = typeof e === 'string' ? e : e?.message ?? 'unknown';
+    console.warn('NFC requestTechnology failed:', msg);
+    throw new Error(`Could not start NFC session: ${msg}`);
+  }
+
+  try {
     const tag = await NfcManager.getTag();
     if (tag && tag.ndefMessage && tag.ndefMessage.length > 0) {
       const record = tag.ndefMessage[0];
@@ -78,6 +93,13 @@ export async function writeNFCTag(payload: WristbandPayload, lock: boolean = fal
 
   try {
     await NfcManager.requestTechnology([NfcTech.Ndef]);
+  } catch (e: any) {
+    const msg = typeof e === 'string' ? e : e?.message ?? 'unknown';
+    console.warn('NFC requestTechnology failed:', msg);
+    throw new Error(`Could not start NFC session: ${msg}`);
+  }
+
+  try {
     await NfcManager.ndefHandler.writeNdefMessage(bytes);
 
     if (lock) {
@@ -101,6 +123,13 @@ export async function eraseNFCTag(): Promise<void> {
 
   try {
     await NfcManager.requestTechnology([NfcTech.Ndef]);
+  } catch (e: any) {
+    const msg = typeof e === 'string' ? e : e?.message ?? 'unknown';
+    console.warn('NFC requestTechnology failed:', msg);
+    throw new Error(`Could not start NFC session: ${msg}`);
+  }
+
+  try {
     await NfcManager.ndefHandler.writeNdefMessage([]);
   } catch (e) {
     throw e;
