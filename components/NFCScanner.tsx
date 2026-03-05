@@ -129,7 +129,7 @@ export default function NFCScanner(props: NFCScannerProps) {
       return;
     }
 
-    if (Platform.OS === "web" || isExpoGo) {
+    if (Platform.OS === "web") {
       setStatus("unsupported");
       return;
     }
@@ -250,7 +250,9 @@ export default function NFCScanner(props: NFCScannerProps) {
               </View>
               <Text style={scanStyles.title}>NFC Not Available</Text>
               <Text style={scanStyles.subtitle}>
-                This device does not support NFC, or NFC is disabled. Please enable NFC in Settings.
+                {Platform.OS === "web"
+                  ? "NFC is not supported in web browsers. Open the app on your iPhone or Android device to use NFC wristband features."
+                  : "NFC could not be initialized on this device. Make sure NFC is enabled in your device Settings and that you are using a native build (not Expo Go)."}
               </Text>
               <Pressable
                 style={({ pressed }) => [scanStyles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
