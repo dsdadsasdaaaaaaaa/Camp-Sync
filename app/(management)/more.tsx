@@ -392,8 +392,8 @@ export default function MoreScreen() {
       <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20), backgroundColor: colors.surface }]}>
         <View style={styles.headerTop}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Management</Text>
-          <Pressable onPress={handleLogout} style={styles.logoutBtn}>
-            <Ionicons name="log-out-outline" size={20} color={colors.textSecondary} />
+          <Pressable onPress={() => router.push("/(management)/(tabs)/account")} style={styles.logoutBtn}>
+            <Ionicons name="person-circle-outline" size={24} color={colors.textSecondary} />
           </Pressable>
         </View>
 

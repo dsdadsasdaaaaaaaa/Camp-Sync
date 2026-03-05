@@ -99,7 +99,13 @@ export default function StaffAccountScreen() {
         },
       ]}
     >
-      <Text style={styles.title}>Account</Text>
+      <View style={styles.headerRow}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
+        </Pressable>
+        <Text style={[styles.title, { marginBottom: 0 }]}>Account</Text>
+        <View style={{ width: 38 }} />
+      </View>
 
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
@@ -268,8 +274,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 16,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontFamily: "Outfit_700Bold",
     color: "#111111",
   },
