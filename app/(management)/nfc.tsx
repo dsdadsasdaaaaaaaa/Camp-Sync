@@ -535,8 +535,8 @@ export default function NFCScreen() {
         transparent
         onRequestClose={() => setCheckoutPickerVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+        <Pressable style={styles.modalOverlay} onPress={() => setCheckoutPickerVisible(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Select Camper to Check Out</Text>
             <Text style={styles.modalSub}>{checkedInCampers.length} camper{checkedInCampers.length !== 1 ? "s" : ""} currently checked in</Text>
@@ -597,8 +597,8 @@ export default function NFCScreen() {
             >
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </ScrollView>
   );

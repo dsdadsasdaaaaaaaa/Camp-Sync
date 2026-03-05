@@ -589,8 +589,8 @@ export default function MoreScreen() {
 
       {/* New Session */}
       <Modal visible={showNewSession} animationType="slide" transparent onRequestClose={() => setShowNewSession(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowNewSession(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>New Camp Session</Text>
             <Text style={styles.modalSub}>Set the dates when staff are authorized to check in campers</Text>
@@ -607,14 +607,14 @@ export default function MoreScreen() {
                 <Text style={styles.confirmBtnText}>Create Session</Text>
               </Pressable>
             </View>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Auth Code Modal */}
       <Modal visible={showCodeModal} animationType="slide" transparent onRequestClose={() => { setShowCodeModal(false); setEditingCode(null); }}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+        <Pressable style={styles.modalOverlay} onPress={() => { setShowCodeModal(false); setEditingCode(null); }}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>{editingCode ? "Edit Auth Code" : "Generate Auth Code"}</Text>
             <Text style={styles.modalSub}>{editingCode ? `Editing code: ${editingCode.code}` : "Select the role and usage limits"}</Text>
@@ -653,14 +653,14 @@ export default function MoreScreen() {
                 <Text style={styles.confirmBtnText}>{editingCode ? "Save Changes" : "Generate"}</Text>
               </Pressable>
             </View>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* User Edit Modal */}
       <Modal visible={!!editingUser} animationType="slide" transparent onRequestClose={closeUserEdit}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, { maxHeight: "90%" }]}>
+        <Pressable style={styles.modalOverlay} onPress={closeUserEdit}>
+          <Pressable style={[styles.modalSheet, { maxHeight: "90%" }]} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHandle} />
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
               <Text style={styles.modalTitle}>{editingUser?.name}</Text>
@@ -768,14 +768,14 @@ export default function MoreScreen() {
                 </View>
               )}
             </ScrollView>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Roster Modal */}
       <Modal visible={!!rosterSession} animationType="slide" transparent onRequestClose={() => setRosterSession(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, { maxHeight: "85%" }]}>
+        <Pressable style={styles.modalOverlay} onPress={() => setRosterSession(null)}>
+          <Pressable style={[styles.modalSheet, { maxHeight: "85%" }]} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>{rosterSession?.name ?? ""}</Text>
             <Text style={styles.modalSub}>{rosterSession ? `${new Date(rosterSession.startDate).toLocaleDateString()} — ${new Date(rosterSession.endDate).toLocaleDateString()}` : ""}</Text>
@@ -823,8 +823,8 @@ export default function MoreScreen() {
             <Pressable style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={() => setRosterSession(null)}>
               <Text style={styles.confirmBtnText}>Close</Text>
             </Pressable>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
