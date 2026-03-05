@@ -408,7 +408,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: colors.border,
     marginVertical: 4,
   },
   demoSection: {

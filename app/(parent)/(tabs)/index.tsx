@@ -436,7 +436,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     gap: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
+    borderTopColor: colors.border,
   },
   activityDot: {
     width: 8,

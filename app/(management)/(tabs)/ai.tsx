@@ -457,7 +457,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   inputContainer: {
     backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
+    borderTopColor: colors.border,
     paddingTop: 12,
   },
   inputRow: {
@@ -490,6 +490,6 @@ const getStyles = (colors: any) => StyleSheet.create({
     flexShrink: 0,
   },
   sendBtnDisabled: {
-    backgroundColor: "#999999",
+    backgroundColor: colors.textMuted,
   },
 });

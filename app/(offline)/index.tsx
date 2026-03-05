@@ -181,7 +181,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#999999",
+    backgroundColor: colors.textMuted,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -305,7 +305,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: colors.border,
   },
   medRow: {
     flexDirection: "row",

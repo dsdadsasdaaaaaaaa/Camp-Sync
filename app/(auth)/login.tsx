@@ -698,7 +698,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   modalHandle: {
     width: 40,
     height: 5,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: colors.border,
     borderRadius: 2.5,
     alignSelf: "center",
     marginBottom: 16,
@@ -781,7 +781,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   demoLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: colors.border,
   },
   demoSeparatorText: {
     fontSize: 12,

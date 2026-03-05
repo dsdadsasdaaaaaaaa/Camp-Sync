@@ -664,7 +664,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     gap: 4,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: colors.border,
   },
   dataSectionTitle: {
     fontSize: 11,
@@ -757,7 +757,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 17,
@@ -795,7 +795,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     gap: 12,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: colors.border,
   },
   camperRowAvatar: {
     width: 44,

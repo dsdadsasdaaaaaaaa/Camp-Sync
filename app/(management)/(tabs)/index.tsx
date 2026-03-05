@@ -452,6 +452,6 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: colors.border,
   },
 });

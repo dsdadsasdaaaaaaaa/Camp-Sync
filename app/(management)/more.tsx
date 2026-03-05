@@ -877,7 +877,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   codeRole: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textSecondary, marginTop: 2 },
   usedBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
   usedBadgeText: { fontSize: 11, fontFamily: "Outfit_700Bold" },
-  codeActions: { flexDirection: "row", gap: 16, borderTopWidth: 1, borderTopColor: "#E5E7EB", paddingTop: 12 },
+  codeActions: { flexDirection: "row", gap: 16, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
   actionBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
   actionBtnText: { fontSize: 13, fontFamily: "Outfit_600SemiBold" },
   // Users
@@ -896,7 +896,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   // Modals
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   modalSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingTop: 12, maxHeight: "90%" },
-  modalHandle: { width: 40, height: 5, backgroundColor: "#E5E7EB", borderRadius: 2.5, alignSelf: "center", marginBottom: 16 },
+  modalHandle: { width: 40, height: 5, backgroundColor: colors.border, borderRadius: 2.5, alignSelf: "center", marginBottom: 16 },
   modalTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", color: colors.text },
   modalSub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: colors.textSecondary, marginBottom: 20, lineHeight: 20 },
   fieldLabel: { fontSize: 14, fontFamily: "Outfit_600SemiBold", color: colors.text, marginBottom: 8 },
@@ -906,7 +906,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   roleOptionSelected: { borderColor: Colors.primary, backgroundColor: Colors.primary + "05" },
   roleName: { fontSize: 15, fontFamily: "Outfit_600SemiBold", color: colors.text },
   roleDesc: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textSecondary, marginTop: 2 },
-  camperSelectRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
+  camperSelectRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   camperSelectRowActive: { backgroundColor: Colors.primary + "05" },
   camperSelectName: { fontSize: 14, fontFamily: "Outfit_500Medium", color: colors.text },
   modalButtons: { flexDirection: "row", gap: 12, marginTop: 8 },
@@ -933,7 +933,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   rosterTime: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textMuted, marginTop: 2 },
   historyBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   historyBadgeText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
-  divider: { height: 1, backgroundColor: "#E5E7EB" },
+  divider: { height: 1, backgroundColor: colors.border },
   // AI
   aiSecurityBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginHorizontal: 20, marginBottom: 8, backgroundColor: Colors.success + "12", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: Colors.success + "25" },
   aiSecurityText: { flex: 1, fontSize: 11, fontFamily: "Outfit_400Regular", color: Colors.success, lineHeight: 15 },
@@ -956,9 +956,9 @@ const getStyles = (colors: any) => StyleSheet.create({
   userText: { fontFamily: "Outfit_400Regular", color: "#fff" },
   aiText: { fontFamily: "Outfit_400Regular", color: colors.text },
   cursor: { color: Colors.accent },
-  aiInputContainer: { backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: "#E5E7EB", paddingTop: 12 },
+  aiInputContainer: { backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
   aiInputRow: { flexDirection: "row", alignItems: "flex-end", gap: 10, backgroundColor: colors.surface, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: colors.border },
   aiInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 15, color: colors.text, maxHeight: 100, paddingTop: 4, paddingBottom: 4 },
   aiSendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  aiSendBtnDisabled: { backgroundColor: "#999999" },
+  aiSendBtnDisabled: { backgroundColor: colors.textMuted },
 });
