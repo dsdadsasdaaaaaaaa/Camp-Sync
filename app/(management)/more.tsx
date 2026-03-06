@@ -520,7 +520,7 @@ export default function MoreScreen() {
                     onPress={() => { sendQuestion(q); inputRef.current?.focus(); }}
                   >
                     <Text style={[styles.aiSuggestionText, { color: colors.text }]}>{q}</Text>
-                    <Ionicons name="arrow-forward" size={13} color={Colors.accent} />
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                   </Pressable>
                 ))}
               </View>
@@ -1042,16 +1042,16 @@ const getStyles = (colors: any) => StyleSheet.create({
   historyBadgeText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
   divider: { height: 1, backgroundColor: colors.border },
   // AI
-  aiSecurityBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginHorizontal: 16, marginBottom: 6, backgroundColor: Colors.success + "10", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: Colors.success + "20" },
-  aiSecurityText: { flex: 1, fontSize: 11, fontFamily: "Outfit_400Regular", lineHeight: 14 },
-  aiEmpty: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, paddingVertical: 40, gap: 12 },
-  aiEmptyIcon: { width: 72, height: 72, borderRadius: 20, backgroundColor: Colors.accent + "18", alignItems: "center", justifyContent: "center", marginBottom: 8 },
-  aiEmptyTitle: { fontSize: 24, fontFamily: "Outfit_700Bold", textAlign: "center", letterSpacing: -0.5 },
-  aiEmptySub: { fontSize: 14, fontFamily: "Outfit_400Regular", textAlign: "center", lineHeight: 20, marginBottom: 12, opacity: 0.8 },
-  aiSuggestions: { width: "100%", gap: 8, marginTop: 4 },
-  aiSuggestion: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, gap: 8 },
-  aiSuggestionText: { flex: 1, fontSize: 13, fontFamily: "Outfit_400Regular" },
-  aiMessageList: { paddingHorizontal: 14, paddingTop: 12, gap: 10, flexGrow: 1 },
+  aiSecurityBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginHorizontal: 20, marginBottom: 12, backgroundColor: Colors.success + "08", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: Colors.success + "15" },
+  aiSecurityText: { flex: 1, fontSize: 12, fontFamily: "Outfit_500Medium", lineHeight: 16 },
+  aiEmpty: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, paddingVertical: 20, gap: 16 },
+  aiEmptyIcon: { width: 80, height: 80, borderRadius: 24, backgroundColor: Colors.accent + "12", alignItems: "center", justifyContent: "center", marginBottom: 4, shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 4 },
+  aiEmptyTitle: { fontSize: 28, fontFamily: "Outfit_700Bold", textAlign: "center", letterSpacing: -0.8 },
+  aiEmptySub: { fontSize: 15, fontFamily: "Outfit_400Regular", textAlign: "center", lineHeight: 22, marginBottom: 12, opacity: 0.7, paddingHorizontal: 10 },
+  aiSuggestions: { width: "100%", gap: 10, marginTop: 4 },
+  aiSuggestion: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 16, paddingHorizontal: 18, paddingVertical: 16, borderWidth: 1.5, gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
+  aiSuggestionText: { flex: 1, fontSize: 14, fontFamily: "Outfit_500Medium" },
+  aiMessageList: { paddingHorizontal: 16, paddingTop: 12, gap: 12, flexGrow: 1 },
   bubble: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   userBubble: { justifyContent: "flex-end" },
   aiBubble: { justifyContent: "flex-start" },
@@ -1061,8 +1061,8 @@ const getStyles = (colors: any) => StyleSheet.create({
   aiBubbleContent: { backgroundColor: colors.surfaceSecondary, borderBottomLeftRadius: 3, borderWidth: 1, borderColor: colors.border },
   bubbleText: { fontSize: 15, fontFamily: "Outfit_400Regular", lineHeight: 21 },
   aiInputContainer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10 },
-  aiInputRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 28, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1.5 },
-  aiInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 16, maxHeight: 120, paddingVertical: 8 },
-  aiSendBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  aiInputRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 32, paddingHorizontal: 18, paddingVertical: 10, borderWidth: 1.5 },
+  aiInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 16, maxHeight: 120, paddingVertical: 10 },
+  aiSendBtn: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   aiSendBtnDisabled: {},
 });
