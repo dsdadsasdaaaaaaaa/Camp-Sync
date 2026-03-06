@@ -1279,8 +1279,10 @@ RULES:
 
       // Stream the response
       res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
       res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders();
 
       const stream = await openai.chat.completions.create({
         model: "gpt-5.2",

@@ -52,17 +52,31 @@ function MessageBubble({ message }: { message: Message }) {
   const styles = getStyles(colors);
   const isUser = message.role === "user";
   return (
-    <View style={[styles.bubble, isUser ? styles.userBubble : [styles.aiBubble, { backgroundColor: colors.surfaceSecondary }]]}>
+    <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
       {!isUser && (
         <View style={styles.aiAvatar}>
-          <Ionicons name="sparkles" size={14} color={Colors.accent} />
+          <Ionicons name="sparkles" size={13} color={Colors.accent} />
         </View>
       )}
       <View style={[styles.bubbleContent, isUser ? styles.userBubbleContent : styles.aiBubbleContent]}>
-        <Text style={[styles.bubbleText, { color: isUser ? "white" : colors.text }]}>
+        <Text style={[styles.bubbleText, { color: isUser ? "#fff" : colors.text }]}>
           {message.content}
-          {message.isStreaming && <Text style={[styles.cursor, { color: Colors.accent }]}>▋</Text>}
+          {message.isStreaming && <Text style={{ color: Colors.accent }}>▋</Text>}
         </Text>
+      </View>
+    </View>
+  );
+}
+
+function TypingIndicator() {
+  const colors = useColors();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 16, marginBottom: 8 }}>
+      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.accent + "20", alignItems: "center", justifyContent: "center" }}>
+        <Ionicons name="sparkles" size={13} color={Colors.accent} />
+      </View>
+      <View style={{ backgroundColor: colors.surfaceSecondary, borderRadius: 18, borderBottomLeftRadius: 4, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: colors.border }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 22, letterSpacing: 2, lineHeight: 22 }}>···</Text>
       </View>
     </View>
   );
@@ -226,7 +240,9 @@ export default function MoreScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [showTyping, setShowTyping] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const inputRef = useRef<TextInput>(null);
   const abortRef = useRef<boolean>(false);
   const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 6);
 
@@ -238,17 +254,19 @@ export default function MoreScreen() {
     abortRef.current = false;
 
     const userMsg: Message = { id: generateId(), role: "user", content: trimmed };
+    setMessages((prev) => [...prev, userMsg]);
+    setShowTyping(true);
+
     const assistantId = generateId();
-    const assistantMsg: Message = { id: assistantId, role: "assistant", content: "", isStreaming: true };
-    setMessages((prev) => [...prev, userMsg, assistantMsg]);
-    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+    let assistantAdded = false;
+    let fullContent = "";
 
     try {
       const url = new URL("/api/ai/query", getApiUrl()).toString();
       const token = getToken();
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", "Accept": "text/event-stream", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ question: trimmed }),
       });
       if (!res.ok) {
@@ -259,7 +277,6 @@ export default function MoreScreen() {
       if (!reader) throw new Error("No response stream");
       const decoder = new TextDecoder();
       let buffer = "";
-      let fullContent = "";
       while (true) {
         if (abortRef.current) break;
         const { done, value } = await reader.read();
@@ -273,10 +290,15 @@ export default function MoreScreen() {
             const event = JSON.parse(line.slice(6));
             if (event.content) {
               fullContent += event.content;
-              setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: fullContent, isStreaming: true } : m));
-              listRef.current?.scrollToEnd({ animated: false });
+              if (!assistantAdded) {
+                setShowTyping(false);
+                setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: fullContent, isStreaming: true }]);
+                assistantAdded = true;
+              } else {
+                setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: fullContent } : m));
+              }
             }
-            if (event.done) {
+            if (event.done || event.error) {
               setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, isStreaming: false } : m));
             }
           } catch {}
@@ -284,14 +306,19 @@ export default function MoreScreen() {
       }
       setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, isStreaming: false } : m));
     } catch (err: any) {
-      setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: `Error: ${err.message || "Something went wrong"}`, isStreaming: false } : m));
+      setShowTyping(false);
+      if (!assistantAdded) {
+        setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: `Something went wrong. Please try again.`, isStreaming: false }]);
+      } else {
+        setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: fullContent || "Something went wrong. Please try again.", isStreaming: false } : m));
+      }
     } finally {
+      setShowTyping(false);
       setAiLoading(false);
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }, [aiLoading]);
 
-  const clearChat = () => { abortRef.current = true; setMessages([]); setAiLoading(false); };
+  const clearChat = () => { abortRef.current = true; setMessages([]); setAiLoading(false); setShowTyping(false); };
 
   // Sessions
   const handleAddSession = async () => {
@@ -459,52 +486,66 @@ export default function MoreScreen() {
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior="padding"
-          keyboardVerticalOffset={tabBarHeight}
+          keyboardVerticalOffset={0}
         >
+          {/* Security banner */}
           <View style={[styles.aiSecurityBadge, { backgroundColor: colors.surfaceSecondary }]}>
-            <Ionicons name="lock-closed" size={12} color={Colors.success} />
-            <Text style={[styles.aiSecurityText, { color: colors.textSecondary }]}>All data is accessed server-side only — nothing is sent from your device</Text>
-            {messages.length > 0 && (
-              <Pressable onPress={clearChat} style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: "auto" }]}>
-                <Ionicons name="trash-outline" size={16} color={colors.textSecondary} />
+            <Ionicons name="lock-closed" size={11} color={Colors.success} />
+            <Text style={[styles.aiSecurityText, { color: colors.textSecondary }]}>Data accessed server-side only</Text>
+            {(messages.length > 0 || showTyping) && (
+              <Pressable onPress={clearChat} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, marginLeft: "auto", padding: 4 }]}>
+                <Ionicons name="trash-outline" size={15} color={colors.textSecondary} />
               </Pressable>
             )}
           </View>
 
-          {messages.length === 0 ? (
+          {/* Empty state */}
+          {messages.length === 0 && !showTyping ? (
             <ScrollView
               style={{ flex: 1 }}
-              contentContainerStyle={[styles.aiEmpty, { paddingBottom: insets.bottom + 120 }]}
+              contentContainerStyle={styles.aiEmpty}
               keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
             >
-              <View style={[styles.aiEmptyIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                <Ionicons name="sparkles" size={32} color={Colors.accent} />
+              <View style={styles.aiEmptyIcon}>
+                <Ionicons name="sparkles" size={30} color={Colors.accent} />
               </View>
-              <Text style={[styles.aiEmptyTitle, { color: colors.text }]}>Ask anything about camp</Text>
-              <Text style={[styles.aiEmptySub, { color: colors.textSecondary }]}>Full access to all camper records, medical data, and check-in history.</Text>
+              <Text style={[styles.aiEmptyTitle, { color: colors.text }]}>Ask about camp</Text>
+              <Text style={[styles.aiEmptySub, { color: colors.textSecondary }]}>Full access to camper records, medical data, and check-in history.</Text>
               <View style={styles.aiSuggestions}>
                 {SUGGESTION_QUESTIONS.map((q, i) => (
-                  <Pressable key={i} style={({ pressed }) => [styles.aiSuggestion, { backgroundColor: colors.surface, opacity: pressed ? 0.7 : 1 }]} onPress={() => sendQuestion(q)}>
+                  <Pressable
+                    key={i}
+                    style={({ pressed }) => [styles.aiSuggestion, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                    onPress={() => { sendQuestion(q); inputRef.current?.focus(); }}
+                  >
                     <Text style={[styles.aiSuggestionText, { color: colors.text }]}>{q}</Text>
-                    <Ionicons name="arrow-forward" size={14} color={Colors.accent} />
+                    <Ionicons name="arrow-forward" size={13} color={Colors.accent} />
                   </Pressable>
                 ))}
               </View>
             </ScrollView>
           ) : (
+            /* Messages list — inverted so newest appears at bottom */
             <FlatList
               ref={listRef}
-              data={messages}
+              data={[...messages].reverse()}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={[styles.aiMessageList, { paddingBottom: insets.bottom + 120 }]}
+              inverted={messages.length > 0}
+              contentContainerStyle={styles.aiMessageList}
               showsVerticalScrollIndicator={false}
+              keyboardDismissMode="interactive"
+              keyboardShouldPersistTaps="handled"
+              ListHeaderComponent={showTyping ? <TypingIndicator /> : null}
               renderItem={({ item }) => <MessageBubble message={item} />}
             />
           )}
 
-          <View style={[styles.aiInputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom + 90, paddingHorizontal: 16 }]}>
-            <View style={[styles.aiInputRow, { backgroundColor: colors.surfaceSecondary }]}>
+          {/* Input bar */}
+          <View style={[styles.aiInputContainer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: insets.bottom + 10, paddingHorizontal: 14 }]}>
+            <View style={[styles.aiInputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <TextInput
+                ref={inputRef}
                 style={[styles.aiInput, { color: colors.text }]}
                 value={aiInput}
                 onChangeText={setAiInput}
@@ -513,15 +554,21 @@ export default function MoreScreen() {
                 multiline
                 maxLength={500}
                 editable={!aiLoading}
+                blurOnSubmit={false}
                 returnKeyType="send"
-                onSubmitEditing={() => sendQuestion(aiInput)}
+                onSubmitEditing={() => { sendQuestion(aiInput); inputRef.current?.focus(); }}
               />
               <Pressable
-                style={({ pressed }) => [styles.aiSendBtn, !aiInput.trim() || aiLoading ? styles.aiSendBtnDisabled : {}, { opacity: pressed ? 0.85 : 1 }]}
-                onPress={() => sendQuestion(aiInput)}
+                style={({ pressed }) => [
+                  styles.aiSendBtn,
+                  { backgroundColor: !aiInput.trim() || aiLoading ? colors.textMuted : Colors.primary, opacity: pressed ? 0.85 : 1 },
+                ]}
+                onPress={() => { sendQuestion(aiInput); inputRef.current?.focus(); }}
                 disabled={!aiInput.trim() || aiLoading}
               >
-                {aiLoading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="arrow-up" size={20} color="#fff" />}
+                {aiLoading
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Ionicons name="arrow-up" size={18} color="#fff" />}
               </Pressable>
             </View>
           </View>
@@ -993,30 +1040,27 @@ const getStyles = (colors: any) => StyleSheet.create({
   historyBadgeText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
   divider: { height: 1, backgroundColor: colors.border },
   // AI
-  aiSecurityBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginHorizontal: 20, marginBottom: 8, backgroundColor: Colors.success + "12", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: Colors.success + "25" },
-  aiSecurityText: { flex: 1, fontSize: 11, fontFamily: "Outfit_400Regular", color: Colors.success, lineHeight: 15 },
-  aiEmpty: { paddingHorizontal: 20, paddingTop: 16, gap: 12 },
-  aiEmptyIcon: { width: 64, height: 64, borderRadius: 18, backgroundColor: Colors.accent + "15", alignItems: "center", justifyContent: "center", alignSelf: "center" },
-  aiEmptyTitle: { fontSize: 22, fontFamily: "Outfit_700Bold", color: colors.text, textAlign: "center" },
-  aiEmptySub: { fontSize: 14, fontFamily: "Outfit_400Regular", color: colors.textSecondary, textAlign: "center", lineHeight: 20 },
-  aiSuggestions: { gap: 8, marginTop: 8 },
-  aiSuggestion: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border, gap: 10 },
-  aiSuggestionText: { flex: 1, fontSize: 14, fontFamily: "Outfit_500Medium", color: colors.text },
-  aiMessageList: { paddingHorizontal: 16, paddingTop: 8, gap: 12 },
-  bubble: { flexDirection: "row", alignItems: "flex-end", gap: 8, marginBottom: 4 },
+  aiSecurityBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginHorizontal: 16, marginBottom: 6, backgroundColor: Colors.success + "10", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: Colors.success + "20" },
+  aiSecurityText: { flex: 1, fontSize: 11, fontFamily: "Outfit_400Regular", lineHeight: 14 },
+  aiEmpty: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, paddingVertical: 32, gap: 10 },
+  aiEmptyIcon: { width: 60, height: 60, borderRadius: 16, backgroundColor: Colors.accent + "18", alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  aiEmptyTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", textAlign: "center" },
+  aiEmptySub: { fontSize: 13, fontFamily: "Outfit_400Regular", textAlign: "center", lineHeight: 18, marginBottom: 8 },
+  aiSuggestions: { width: "100%", gap: 8, marginTop: 4 },
+  aiSuggestion: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, gap: 8 },
+  aiSuggestionText: { flex: 1, fontSize: 13, fontFamily: "Outfit_400Regular" },
+  aiMessageList: { paddingHorizontal: 14, paddingTop: 12, gap: 10, flexGrow: 1 },
+  bubble: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   userBubble: { justifyContent: "flex-end" },
   aiBubble: { justifyContent: "flex-start" },
-  aiAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.accent + "15", alignItems: "center", justifyContent: "center", flexShrink: 0, marginBottom: 2 },
-  bubbleContent: { maxWidth: "80%", borderRadius: 18, padding: 12 },
-  userBubbleContent: { backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
-  aiBubbleContent: { backgroundColor: colors.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: colors.border },
-  bubbleText: { fontSize: 15, lineHeight: 21 },
-  userText: { fontFamily: "Outfit_400Regular", color: "#fff" },
-  aiText: { fontFamily: "Outfit_400Regular", color: colors.text },
-  cursor: { color: Colors.accent },
-  aiInputContainer: { backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
-  aiInputRow: { flexDirection: "row", alignItems: "flex-end", gap: 10, backgroundColor: colors.surface, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: colors.border },
-  aiInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 15, color: colors.text, maxHeight: 100, paddingTop: 4, paddingBottom: 4 },
-  aiSendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  aiSendBtnDisabled: { backgroundColor: colors.textMuted },
+  aiAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.accent + "18", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  bubbleContent: { maxWidth: "78%", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
+  userBubbleContent: { backgroundColor: Colors.primary, borderBottomRightRadius: 3 },
+  aiBubbleContent: { backgroundColor: colors.surfaceSecondary, borderBottomLeftRadius: 3, borderWidth: 1, borderColor: colors.border },
+  bubbleText: { fontSize: 15, fontFamily: "Outfit_400Regular", lineHeight: 21 },
+  aiInputContainer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10 },
+  aiInputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1 },
+  aiInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 15, maxHeight: 100, paddingTop: 3, paddingBottom: 3 },
+  aiSendBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  aiSendBtnDisabled: {},
 });
