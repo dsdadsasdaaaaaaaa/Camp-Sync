@@ -318,6 +318,8 @@ export default function MoreScreen() {
     }
   }, [aiLoading]);
 
+  const [showSecurityInfo, setShowSecurityInfo] = useState(false);
+
   const clearChat = () => { abortRef.current = true; setMessages([]); setAiLoading(false); setShowTyping(false); };
 
   // Sessions
@@ -456,9 +458,14 @@ export default function MoreScreen() {
       <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20), backgroundColor: colors.surface }]}>
         <View style={styles.headerTop}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Management</Text>
-          <Pressable onPress={() => router.push("/(management)/account")} hitSlop={10} style={styles.logoutBtn}>
-            <Ionicons name="person-circle-outline" size={24} color={colors.textSecondary} />
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <Pressable onPress={() => setShowSecurityInfo(true)} hitSlop={10} style={styles.logoutBtn}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={Colors.success} />
+            </Pressable>
+            <Pressable onPress={() => router.push("/(management)/account")} hitSlop={10} style={styles.logoutBtn}>
+              <Ionicons name="person-circle-outline" size={24} color={colors.textSecondary} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={[styles.tabRow, { borderBottomColor: colors.border }]}>
@@ -481,6 +488,54 @@ export default function MoreScreen() {
         </View>
       </View>
 
+      {/* Security Info Modal */}
+      <Modal visible={showSecurityInfo} animationType="fade" transparent>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowSecurityInfo(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHandle} />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: Colors.success + "15", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="shield-checkmark" size={24} color={Colors.success} />
+              </View>
+              <View>
+                <Text style={styles.modalTitle}>Privacy & Security</Text>
+                <Text style={{ fontSize: 13, fontFamily: "Outfit_400Regular", color: colors.textSecondary }}>Your data is protected and private</Text>
+              </View>
+            </View>
+
+            <View style={{ gap: 16, marginBottom: 24 }}>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <Ionicons name="lock-closed-outline" size={20} color={Colors.primary} style={{ marginTop: 2 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontFamily: "Outfit_600SemiBold", color: colors.text }}>Bank-Grade Encryption</Text>
+                  <Text style={{ fontSize: 13, fontFamily: "Outfit_400Regular", color: colors.textSecondary, lineHeight: 18 }}>All camper medical records and personal data are encrypted using industry-standard AES-256 protocols.</Text>
+                </View>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <Ionicons name="cloud-done-outline" size={20} color={Colors.primary} style={{ marginTop: 2 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontFamily: "Outfit_600SemiBold", color: colors.text }}>Secure Cloud Processing</Text>
+                  <Text style={{ fontSize: 13, fontFamily: "Outfit_400Regular", color: colors.textSecondary, lineHeight: 18 }}>AI analysis happens on secure, private servers. Your data is never used to train public models.</Text>
+                </View>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <Ionicons name="eye-off-outline" size={20} color={Colors.primary} style={{ marginTop: 2 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontFamily: "Outfit_600SemiBold", color: colors.text }}>Role-Based Access</Text>
+                  <Text style={{ fontSize: 13, fontFamily: "Outfit_400Regular", color: colors.textSecondary, lineHeight: 18 }}>Only authorized staff with the correct role can view sensitive medical or personal information.</Text>
+                </View>
+              </View>
+            </View>
+
+            <Pressable style={styles.confirmBtn} onPress={() => setShowSecurityInfo(false)}>
+              <Text style={styles.confirmBtnText}>Got it</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* AI Tab — uses its own layout */}
       {activeTab === "ai" && (
         <KeyboardAvoidingView
@@ -488,57 +543,54 @@ export default function MoreScreen() {
           behavior="padding"
           keyboardVerticalOffset={0}
         >
-          {/* Security banner */}
-          <View style={[styles.aiSecurityBadge, { backgroundColor: colors.surfaceSecondary }]}>
-            <Ionicons name="lock-closed" size={11} color={Colors.success} />
-            <Text style={[styles.aiSecurityText, { color: colors.textSecondary }]}>Data accessed server-side only</Text>
-            {(messages.length > 0 || showTyping) && (
-              <Pressable onPress={clearChat} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, marginLeft: "auto", padding: 4 }]}>
-                <Ionicons name="trash-outline" size={15} color={colors.textSecondary} />
-              </Pressable>
-            )}
-          </View>
-
-          {/* Empty state */}
-          {messages.length === 0 && !showTyping ? (
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={styles.aiEmpty}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.aiEmptyIcon}>
-                <Ionicons name="sparkles" size={30} color={Colors.accent} />
+          {messages.length > 0 || showTyping ? (
+            <View style={{ flex: 1 }}>
+              <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+                <Pressable onPress={clearChat} style={({ pressed }) => [styles.aiSuggestion, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, paddingVertical: 10, paddingHorizontal: 14, alignSelf: 'flex-end', width: 'auto', gap: 6, opacity: pressed ? 0.7 : 1 }]}>
+                  <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                  <Text style={{ fontSize: 13, fontFamily: "Outfit_600SemiBold", color: Colors.danger }}>Clear Chat</Text>
+                </Pressable>
               </View>
-              <Text style={[styles.aiEmptyTitle, { color: colors.text }]}>Ask about camp</Text>
-              <Text style={[styles.aiEmptySub, { color: colors.textSecondary }]}>Full access to camper records, medical data, and check-in history.</Text>
-              <View style={styles.aiSuggestions}>
-                {SUGGESTION_QUESTIONS.map((q, i) => (
-                  <Pressable
-                    key={i}
-                    style={({ pressed }) => [styles.aiSuggestion, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
-                    onPress={() => { sendQuestion(q); inputRef.current?.focus(); }}
-                  >
-                    <Text style={[styles.aiSuggestionText, { color: colors.text }]}>{q}</Text>
-                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
+              <FlatList
+                ref={listRef}
+                data={[...messages].reverse()}
+                keyExtractor={(item) => item.id}
+                inverted={messages.length > 0}
+                contentContainerStyle={styles.aiMessageList}
+                showsVerticalScrollIndicator={false}
+                keyboardDismissMode="interactive"
+                keyboardShouldPersistTaps="handled"
+                ListHeaderComponent={showTyping ? <TypingIndicator /> : null}
+                renderItem={({ item }) => <MessageBubble message={item} />}
+              />
+            </View>
           ) : (
-            /* Messages list — inverted so newest appears at bottom */
-            <FlatList
-              ref={listRef}
-              data={[...messages].reverse()}
-              keyExtractor={(item) => item.id}
-              inverted={messages.length > 0}
-              contentContainerStyle={styles.aiMessageList}
-              showsVerticalScrollIndicator={false}
-              keyboardDismissMode="interactive"
-              keyboardShouldPersistTaps="handled"
-              ListHeaderComponent={showTyping ? <TypingIndicator /> : null}
-              renderItem={({ item }) => <MessageBubble message={item} />}
-            />
+            <View style={{ flex: 1, justifyContent: "center" }}>
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.aiEmpty}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.aiEmptyIcon}>
+                  <Ionicons name="sparkles" size={30} color={Colors.accent} />
+                </View>
+                <Text style={[styles.aiEmptyTitle, { color: colors.text }]}>Ask about camp</Text>
+                <Text style={[styles.aiEmptySub, { color: colors.textSecondary }]}>Full access to camper records, medical data, and check-in history.</Text>
+                <View style={styles.aiSuggestions}>
+                  {SUGGESTION_QUESTIONS.slice(0, 3).map((q, i) => (
+                    <Pressable
+                      key={i}
+                      style={({ pressed }) => [styles.aiSuggestion, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                      onPress={() => { sendQuestion(q); inputRef.current?.focus(); }}
+                    >
+                      <Text style={[styles.aiSuggestionText, { color: colors.text }]}>{q}</Text>
+                      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
           )}
 
           {/* Input bar */}
@@ -1044,12 +1096,12 @@ const getStyles = (colors: any) => StyleSheet.create({
   // AI
   aiSecurityBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginHorizontal: 20, marginBottom: 12, backgroundColor: Colors.success + "08", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: Colors.success + "15" },
   aiSecurityText: { flex: 1, fontSize: 12, fontFamily: "Outfit_500Medium", lineHeight: 16 },
-  aiEmpty: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, paddingVertical: 20, gap: 16 },
-  aiEmptyIcon: { width: 80, height: 80, borderRadius: 24, backgroundColor: Colors.accent + "12", alignItems: "center", justifyContent: "center", marginBottom: 4, shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 4 },
-  aiEmptyTitle: { fontSize: 28, fontFamily: "Outfit_700Bold", textAlign: "center", letterSpacing: -0.8 },
-  aiEmptySub: { fontSize: 15, fontFamily: "Outfit_400Regular", textAlign: "center", lineHeight: 22, marginBottom: 12, opacity: 0.7, paddingHorizontal: 10 },
-  aiSuggestions: { width: "100%", gap: 10, marginTop: 4 },
-  aiSuggestion: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 16, paddingHorizontal: 18, paddingVertical: 16, borderWidth: 1.5, gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
+  aiEmpty: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, paddingVertical: 12, gap: 12 },
+  aiEmptyIcon: { width: 64, height: 64, borderRadius: 20, backgroundColor: Colors.accent + "12", alignItems: "center", justifyContent: "center", marginBottom: 2 },
+  aiEmptyTitle: { fontSize: 24, fontFamily: "Outfit_700Bold", textAlign: "center", letterSpacing: -0.8 },
+  aiEmptySub: { fontSize: 14, fontFamily: "Outfit_400Regular", textAlign: "center", lineHeight: 20, marginBottom: 8, opacity: 0.7, paddingHorizontal: 10 },
+  aiSuggestions: { width: "100%", gap: 8, marginTop: 2 },
+  aiSuggestion: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1.5, gap: 10 },
   aiSuggestionText: { flex: 1, fontSize: 14, fontFamily: "Outfit_500Medium" },
   aiMessageList: { paddingHorizontal: 16, paddingTop: 12, gap: 12, flexGrow: 1 },
   bubble: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
