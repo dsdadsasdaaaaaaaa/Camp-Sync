@@ -141,7 +141,7 @@ export default function DashboardScreen() {
       contentContainerStyle={[
         styles.container,
         {
-          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20),
+          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 6),
           paddingBottom: insets.bottom + 100,
         },
       ]}

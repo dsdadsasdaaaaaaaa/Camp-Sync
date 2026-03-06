@@ -38,6 +38,8 @@ function formatDOBDisplay(dateStr: string): string {
 }
 
 function InfoField({ label, value }: { label: string; value: string }) {
+  const colors = useColors();
+  const styles = getStyles(colors);
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
@@ -98,14 +100,15 @@ export default function CamperDetailScreen() {
   const [nfcScanVisible, setNfcScanVisible] = useState(false);
   const [nfcWritePayload, setNfcWritePayload] = useState<WristbandPayload | null>(null);
 
+  const camper = campers.find((c) => c.id === id);
+  const activeCheckIn = camper ? getActiveCheckIn(camper.id) : undefined;
+
   useEffect(() => {
     if (autoProgram === "true" && camper && !nfcScanVisible) {
       handleProgramWristband();
     }
   }, [autoProgram, camper]);
 
-  const camper = campers.find((c) => c.id === id);
-  const activeCheckIn = camper ? getActiveCheckIn(camper.id) : undefined;
   const hasPending = pendingUpdates.some((p) => p.camperId === id && !p.resolved);
   const canEdit = user?.role === "management";
 
@@ -626,7 +629,7 @@ export default function CamperDetailScreen() {
                     );
                   }}
                 >
-                  <Ionicons name="log-out-outline" size={18} color={Colors.danger} />
+                  <Ionicons name="log-out-outline" size={18} color="#fff" />
                   <Text style={styles.checkOutBtnText}>Check Out Now</Text>
                 </Pressable>
               ) : (
@@ -1008,15 +1011,13 @@ const getStyles = (colors: any) => StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: Colors.danger + "12",
+    backgroundColor: Colors.danger,
     borderRadius: 12,
     height: 48,
-    borderWidth: 1,
-    borderColor: Colors.danger + "30",
     marginTop: 4,
   },
   checkOutBtnText: {
-    color: Colors.danger,
+    color: "#fff",
     fontSize: 15,
     fontFamily: "Outfit_600SemiBold",
   },

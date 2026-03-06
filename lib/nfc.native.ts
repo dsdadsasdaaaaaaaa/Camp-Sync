@@ -36,14 +36,22 @@ function loadNfc(): { manager: NfcManagerType; NfcTech: NfcTechType } | null {
 //
 // NTAG READ (0x30): returns 16 bytes (4 pages) starting at given page
 // NTAG WRITE (0xA2): writes exactly 4 bytes to one page
+// PWD_AUTH (0x1B): authenticate with 4-byte password, returns 2-byte PACK
 
 const NTAG_READ = 0x30;
 const NTAG_WRITE = 0xa2;
+const PWD_AUTH = 0x1b;
 const MAGIC_1 = 0xca;
 const MAGIC_2 = 0x0f;
 const HEADER_PAGE = 4;
 const DATA_START_PAGE = 5;
 const MAX_PAYLOAD_BYTES = 480;
+
+// Fixed 4-byte wristband password — temporary (can be removed), not permanent lock bits.
+// All CampSync wristbands share this password so read/erase don't need camper ID.
+const WRISTBAND_PWD = [0xca, 0x0f, 0x1a, 0x2b];
+// PACK response + 2 reserved bytes written to PACK page
+const WRISTBAND_PACK = [0xca, 0x0f, 0x00, 0x00];
 
 let nfcInitialized = false;
 
@@ -108,6 +116,66 @@ async function writePage(
   await (manager as any).nfcAHandler.transceive([NTAG_WRITE, page, ...payload]);
 }
 
+// Detect NTAG21x variant from Capability Container (CC) at page 3.
+// CC byte 2 encodes tag size in 8-byte units:
+//   0x12 = NTAG213 (144 bytes, 45 pages)
+//   0x3E = NTAG215 (496 bytes, 135 pages)
+//   0x6D = NTAG216 (888 bytes, 231 pages)
+async function getConfigAddresses(manager: NfcManagerType): Promise<{
+  cfgPage: number;
+  pwdPage: number;
+  packPage: number;
+}> {
+  const cc = await readPages(manager, 3);
+  const sizeCode = cc[2];
+  if (sizeCode <= 0x12) {
+    return { cfgPage: 0x29, pwdPage: 0x2b, packPage: 0x2c }; // NTAG213
+  } else if (sizeCode <= 0x3e) {
+    return { cfgPage: 0x83, pwdPage: 0x85, packPage: 0x86 }; // NTAG215
+  } else {
+    return { cfgPage: 0xe3, pwdPage: 0xe5, packPage: 0xe6 }; // NTAG216
+  }
+}
+
+// Attempt password authentication. Safe to call on unprotected tags — if auth
+// is not required the tag may NAK or succeed; either way we proceed.
+async function authenticateTag(manager: NfcManagerType): Promise<boolean> {
+  try {
+    await (manager as any).nfcAHandler.transceive([PWD_AUTH, ...WRISTBAND_PWD]);
+    return true;
+  } catch {
+    return false; // Tag may be unprotected or use a different password
+  }
+}
+
+// Write password + PACK, then set AUTH0 = 0x04 to protect all user pages.
+// This is a temporary software lock — it can be reversed (unlike OTP lock bits).
+async function setPasswordProtection(manager: NfcManagerType): Promise<void> {
+  const addrs = await getConfigAddresses(manager);
+  // Write password
+  await writePage(manager, addrs.pwdPage, WRISTBAND_PWD);
+  // Write PACK
+  await writePage(manager, addrs.packPage, WRISTBAND_PACK);
+  // Read existing CFG 0 and set AUTH0 byte (last byte) to 0x04
+  // AUTH0 = 0x04: all user-data pages (4 and above) require PWD_AUTH
+  const cfg = await readPages(manager, addrs.cfgPage);
+  await writePage(manager, addrs.cfgPage, [cfg[0], cfg[1], cfg[2], 0x04]);
+}
+
+// Set AUTH0 = 0xFF to disable password protection.
+// Caller must have already authenticated (called authenticateTag) if the tag
+// was locked, so we can write to config pages freely.
+async function removePasswordProtection(manager: NfcManagerType): Promise<void> {
+  try {
+    const addrs = await getConfigAddresses(manager);
+    const cfg = await readPages(manager, addrs.cfgPage);
+    // AUTH0 = 0xFF: no page requires authentication
+    await writePage(manager, addrs.cfgPage, [cfg[0], cfg[1], cfg[2], 0xff]);
+  } catch {
+    // Non-fatal: tag may not support config modification or was never locked
+  }
+}
+
 export async function readNFCTag(): Promise<WristbandPayload | null> {
   if (Platform.OS === "web") return null;
   const nfc = loadNfc();
@@ -117,6 +185,9 @@ export async function readNFCTag(): Promise<WristbandPayload | null> {
     await nfc.manager.requestTechnology(nfc.NfcTech.NfcA, {
       alertMessage: "Hold your iPhone near a CampSync wristband",
     } as any);
+
+    // Authenticate first — handles both locked and unlocked tags gracefully
+    await authenticateTag(nfc.manager);
 
     const headerBytes = await readPages(nfc.manager, HEADER_PAGE);
     if (headerBytes[0] !== MAGIC_1 || headerBytes[1] !== MAGIC_2) {
@@ -157,6 +228,9 @@ export async function writeNFCTag(payload: WristbandPayload): Promise<void> {
       alertMessage: "Hold iPhone near the blank wristband to program it",
     } as any);
 
+    // Authenticate in case the tag was previously programmed and still locked
+    await authenticateTag(nfc.manager);
+
     const encrypted = encryptPayloadForTag(payload);
     const payloadBytes = encodeBytes(encrypted);
 
@@ -171,6 +245,44 @@ export async function writeNFCTag(payload: WristbandPayload): Promise<void> {
     for (let i = 0; i < payloadBytes.length; i += 4) {
       const chunk = payloadBytes.slice(i, i + 4);
       await writePage(nfc.manager, DATA_START_PAGE + Math.floor(i / 4), chunk);
+    }
+
+    // Lock the tag with a password after writing data.
+    // This is a temporary lock — it can be reversed on checkout/erase.
+    await setPasswordProtection(nfc.manager);
+  } finally {
+    try {
+      await nfc.manager.cancelTechnologyRequest();
+    } catch {}
+  }
+}
+
+export async function eraseNFCTag(): Promise<void> {
+  if (Platform.OS === "web") throw new Error("NFC not supported on web");
+  const nfc = loadNfc();
+  if (!nfc) throw new Error("NFC module not available on this build");
+
+  try {
+    await nfc.manager.requestTechnology(nfc.NfcTech.NfcA, {
+      alertMessage: "Hold iPhone near the wristband to erase it",
+    } as any);
+
+    // Authenticate to gain write access to protected pages
+    await authenticateTag(nfc.manager);
+
+    // Remove password protection so the blank tag can be freely reprogrammed
+    await removePasswordProtection(nfc.manager);
+
+    // Erase header page (invalidates magic bytes — app treats tag as blank)
+    await writePage(nfc.manager, HEADER_PAGE, [0x00, 0x00, 0x00, 0x00]);
+
+    // Clear first several data pages as well
+    for (let p = DATA_START_PAGE; p < DATA_START_PAGE + 10; p++) {
+      try {
+        await writePage(nfc.manager, p, [0x00, 0x00, 0x00, 0x00]);
+      } catch {
+        break; // Stop if we hit a page boundary
+      }
     }
   } finally {
     try {
