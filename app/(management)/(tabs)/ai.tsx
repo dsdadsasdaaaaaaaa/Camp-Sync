@@ -35,6 +35,8 @@ const SUGGESTION_QUESTIONS = [
 ];
 
 function MessageBubble({ message }: { message: Message }) {
+  const colors = useColors();
+  const styles = getStyles(colors);
   const isUser = message.role === "user";
   return (
     <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>

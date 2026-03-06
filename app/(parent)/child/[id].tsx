@@ -22,6 +22,8 @@ import { useColors } from "@/hooks/useColors";
 import type { MedicalInfo, EmergencyContact } from "@/types";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
+  const colors = useColors();
+  const styles = getStyles(colors);
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
