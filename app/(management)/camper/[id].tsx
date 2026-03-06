@@ -207,7 +207,20 @@ export default function CamperDetailScreen() {
       setLastName(camper.lastName);
       setDateOfBirth(camper.dateOfBirth || "");
       setCabinGroup(camper.cabinGroup || "");
-      setMedical(camper.medical);
+      const m = camper.medical || {};
+      setMedical({
+        allergies: Array.isArray(m.allergies) ? m.allergies : [],
+        medications: Array.isArray(m.medications) ? m.medications : [],
+        conditions: Array.isArray(m.conditions) ? m.conditions : [],
+        emergencyContacts: Array.isArray(m.emergencyContacts) && m.emergencyContacts.length > 0
+          ? m.emergencyContacts
+          : [{ name: "", relationship: "", phone: "", email: "" }],
+        doctorName: m.doctorName ?? "",
+        doctorPhone: m.doctorPhone ?? "",
+        insuranceProvider: m.insuranceProvider ?? "",
+        bloodType: m.bloodType ?? "Unknown",
+        notes: m.notes ?? "",
+      });
     }
   }, [camper]);
 
@@ -239,7 +252,7 @@ export default function CamperDetailScreen() {
         errors[`emergencyPhone_${i}`] = "Please enter a valid phone number";
       }
     });
-    if (medical.doctorPhone.trim() && !isValidPhone(medical.doctorPhone)) {
+    if ((medical.doctorPhone ?? "").trim() && !isValidPhone(medical.doctorPhone ?? "")) {
       errors.doctorPhone = "Please enter a valid phone number";
     }
     if (Object.keys(errors).length > 0) {

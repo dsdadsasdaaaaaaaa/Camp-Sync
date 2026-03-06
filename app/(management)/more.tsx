@@ -484,7 +484,7 @@ export default function MoreScreen() {
       {/* AI Tab — uses its own layout */}
       {activeTab === "ai" && (
         <KeyboardAvoidingView
-          style={{ flex: 1 }}
+          style={{ flex: 1, marginBottom: isLiquidGlassAvailable() ? 0 : (insets.bottom + 49) }}
           behavior="padding"
           keyboardVerticalOffset={0}
         >
@@ -542,7 +542,7 @@ export default function MoreScreen() {
           )}
 
           {/* Input bar */}
-          <View style={[styles.aiInputContainer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: tabBarHeight + 10, paddingHorizontal: 14 }]}>
+          <View style={[styles.aiInputContainer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: isLiquidGlassAvailable() ? insets.bottom + 8 : 8, paddingHorizontal: 14 }]}>
             <View style={[styles.aiInputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <TextInput
                 ref={inputRef}
