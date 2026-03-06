@@ -650,10 +650,10 @@ export default function CamperDetailScreen() {
                 <TagInput label="Allergies" values={Array.isArray(medical.allergies) ? medical.allergies : []} onChange={(v) => updateMedical("allergies", v)} placeholder="Type and press return to add" />
                 <TagInput label="Medications" values={Array.isArray(medical.medications) ? medical.medications : []} onChange={(v) => updateMedical("medications", v)} placeholder="Type and press return to add" />
                 <TagInput label="Medical Conditions" values={Array.isArray(medical.conditions) ? medical.conditions : []} onChange={(v) => updateMedical("conditions", v)} placeholder="Type and press return to add" />
-                <EditField label="Doctor Name" value={medical.doctorName} onChange={(v: string) => updateMedical("doctorName", v)} placeholder="Doctor" />
-                <EditField label="Doctor Phone" value={medical.doctorPhone} onChange={(v: string) => updateMedical("doctorPhone", v)} placeholder="Phone" keyboardType="phone-pad" error={fieldErrors.doctorPhone} />
-                <EditField label="Insurance Provider" value={medical.insuranceProvider} onChange={(v: string) => updateMedical("insuranceProvider", v)} placeholder="Provider" />
-                <EditField label="Notes" value={medical.notes} onChange={(v: string) => updateMedical("notes", v)} placeholder="Additional notes" multiline />
+                <EditField label="Doctor Name" value={medical.doctorName ?? ""} onChange={(v: string) => updateMedical("doctorName", v)} placeholder="Doctor" />
+                <EditField label="Doctor Phone" value={medical.doctorPhone ?? ""} onChange={(v: string) => updateMedical("doctorPhone", v)} placeholder="Phone" keyboardType="phone-pad" error={fieldErrors.doctorPhone} />
+                <EditField label="Insurance Provider" value={medical.insuranceProvider ?? ""} onChange={(v: string) => updateMedical("insuranceProvider", v)} placeholder="Provider" />
+                <EditField label="Notes" value={medical.notes ?? ""} onChange={(v: string) => updateMedical("notes", v)} placeholder="Additional notes" multiline />
               </>
             ) : (
               <>

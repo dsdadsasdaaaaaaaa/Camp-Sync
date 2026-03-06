@@ -542,7 +542,7 @@ export default function MoreScreen() {
           )}
 
           {/* Input bar */}
-          <View style={[styles.aiInputContainer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: insets.bottom + 10, paddingHorizontal: 14 }]}>
+          <View style={[styles.aiInputContainer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: tabBarHeight + 10, paddingHorizontal: 14 }]}>
             <View style={[styles.aiInputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <TextInput
                 ref={inputRef}
