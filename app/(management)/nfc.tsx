@@ -8,7 +8,6 @@ import {
   TextInput,
   Alert,
   Platform,
-  Modal,
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,7 +18,7 @@ import { useColors } from "@/hooks/useColors";
 import NFCScanner from "@/components/NFCScanner";
 import type { Camper, WristbandPayload } from "@/types";
 
-type Screen = "home" | "selectCamper" | "readResult" | "confirmCheckout";
+type Screen = "home" | "selectCamper" | "selectCheckout" | "readResult" | "confirmCheckout";
 
 export default function NFCScreen() {
   const { campers, checkIns, programWristband, checkOutCamper, updateCamper } = useData();
@@ -36,7 +35,6 @@ export default function NFCScreen() {
   const [camperSearch, setCamperSearch] = useState("");
 
   // Checkout-specific state
-  const [checkoutPickerVisible, setCheckoutPickerVisible] = useState(false);
   const [checkoutCamper, setCheckoutCamper] = useState<Camper | null>(null);
   const [checkoutSearch, setCheckoutSearch] = useState("");
   const [manualOverrideLoading, setManualOverrideLoading] = useState(false);
@@ -99,12 +97,11 @@ export default function NFCScreen() {
   // ── Checkout — select camper first ────────────────────────────────────────
   const handleOpenCheckoutPicker = () => {
     setCheckoutSearch("");
-    setCheckoutPickerVisible(true);
+    setScreen("selectCheckout");
   };
 
   const handleSelectCheckoutCamper = (camper: Camper) => {
     setCheckoutCamper(camper);
-    setCheckoutPickerVisible(false);
     setScreen("confirmCheckout");
   };
 
@@ -192,7 +189,6 @@ export default function NFCScreen() {
     setReadScanVisible(false);
     setWriteScanVisible(false);
     setEraseScanVisible(false);
-    setCheckoutPickerVisible(false);
   };
 
   return (
@@ -333,6 +329,60 @@ export default function NFCScreen() {
             >
               <Ionicons name="radio" size={18} color="#fff" />
               <Text style={styles.primaryBtnText}>Check In Camper</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* ── SELECT CAMPER (CHECK OUT) ── */}
+      {screen === "selectCheckout" && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Check Out Camper</Text>
+          <Text style={styles.cardSub}>Select a checked-in camper to begin the check-out process</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Search by name or cabin..."
+            placeholderTextColor={colors.textMuted}
+            value={checkoutSearch}
+            onChangeText={setCheckoutSearch}
+          />
+          {checkedInCampers.length === 0 && (
+            <Text style={[styles.cardSub, { textAlign: "center", paddingVertical: 16 }]}>No campers are currently checked in.</Text>
+          )}
+          {filteredCheckoutCampers.slice(0, 8).map((camper) => (
+            <Pressable
+              key={camper.id}
+              style={({ pressed }) => [styles.camperOption, { opacity: pressed ? 0.85 : 1 }]}
+              onPress={() => handleSelectCheckoutCamper(camper)}
+            >
+              <View style={[styles.camperAvatar, { backgroundColor: Colors.danger + "20" }]}>
+                <Text style={[styles.camperInitial, { color: Colors.danger }]}>{camper.firstName.charAt(0)}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.camperName}>{camper.firstName} {camper.lastName}</Text>
+                <Text style={styles.camperSub}>
+                  {camper.cabinGroup || "No cabin"}
+                  {camper.wristbandId ? " · Wristband active" : " · No wristband"}
+                </Text>
+              </View>
+              {camper.wristbandId ? (
+                <View style={styles.activeBadge}>
+                  <Text style={styles.activeBadgeText}>NFC</Text>
+                </View>
+              ) : (
+                <View style={[styles.activeBadge, { backgroundColor: Colors.warning + "20" }]}>
+                  <Text style={[styles.activeBadgeText, { color: Colors.warning }]}>Manual</Text>
+                </View>
+              )}
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </Pressable>
+          ))}
+          {filteredCheckoutCampers.length === 0 && checkoutSearch.length > 0 && (
+            <Text style={[styles.cardSub, { textAlign: "center", paddingVertical: 12 }]}>No results for "{checkoutSearch}"</Text>
+          )}
+          <View style={styles.buttonRow}>
+            <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={resetAll}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
           </View>
         </View>
@@ -531,78 +581,6 @@ export default function NFCScreen() {
         />
       )}
 
-      {/* ── Checkout Camper Picker Modal ── */}
-      <Modal
-        visible={checkoutPickerVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setCheckoutPickerVisible(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setCheckoutPickerVisible(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Select Camper to Check Out</Text>
-            <Text style={styles.modalSub}>{checkedInCampers.length} camper{checkedInCampers.length !== 1 ? "s" : ""} currently checked in</Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="Search by name or cabin..."
-              placeholderTextColor={colors.textMuted}
-              value={checkoutSearch}
-              onChangeText={setCheckoutSearch}
-              autoFocus
-            />
-
-            {checkedInCampers.length === 0 ? (
-              <View style={styles.emptyPicker}>
-                <Ionicons name="people-outline" size={36} color={colors.textMuted} />
-                <Text style={styles.emptyPickerText}>No campers are currently checked in</Text>
-              </View>
-            ) : (
-              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
-                {filteredCheckoutCampers.map((camper) => (
-                  <Pressable
-                    key={camper.id}
-                    style={({ pressed }) => [styles.pickerRow, { opacity: pressed ? 0.8 : 1 }]}
-                    onPress={() => handleSelectCheckoutCamper(camper)}
-                  >
-                    <View style={[styles.camperAvatar, { backgroundColor: Colors.danger + "20" }]}>
-                      <Text style={[styles.camperInitial, { color: Colors.danger }]}>{camper.firstName.charAt(0)}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.camperName}>{camper.firstName} {camper.lastName}</Text>
-                      <Text style={styles.camperSub}>
-                        {camper.cabinGroup || "No cabin"}
-                        {camper.wristbandId ? " · Wristband active" : " · No wristband"}
-                      </Text>
-                    </View>
-                    {camper.wristbandId ? (
-                      <View style={styles.activeBadge}>
-                        <Text style={styles.activeBadgeText}>NFC</Text>
-                      </View>
-                    ) : (
-                      <View style={[styles.activeBadge, { backgroundColor: Colors.warning + "20" }]}>
-                        <Text style={[styles.activeBadgeText, { color: Colors.warning }]}>Manual</Text>
-                      </View>
-                    )}
-                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                  </Pressable>
-                ))}
-                {filteredCheckoutCampers.length === 0 && checkoutSearch.length > 0 && (
-                  <Text style={[styles.emptyPickerText, { paddingVertical: 20, textAlign: "center" }]}>No results for "{checkoutSearch}"</Text>
-                )}
-              </ScrollView>
-            )}
-
-            <Pressable
-              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1, marginTop: 12 }]}
-              onPress={() => setCheckoutPickerVisible(false)}
-            >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </ScrollView>
   );
 }

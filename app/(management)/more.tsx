@@ -12,8 +12,8 @@ import {
   RefreshControl,
   Modal,
   ActivityIndicator,
-  KeyboardAvoidingView,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Ionicons } from "@expo/vector-icons";
@@ -425,8 +425,8 @@ export default function MoreScreen() {
       {activeTab === "ai" && (
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={0}
+          behavior="padding"
+          keyboardVerticalOffset={tabBarHeight}
         >
           <View style={[styles.aiSecurityBadge, { backgroundColor: colors.surfaceSecondary }]}>
             <Ionicons name="lock-closed" size={12} color={Colors.success} />
