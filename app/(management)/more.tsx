@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useContext } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { BottomTabBarHeightContext } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -199,7 +199,8 @@ export default function MoreScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = getStyles(colors);
-  const bottomTabBarHeight = useBottomTabBarHeight();
+  const bottomTabBarHeightCtx = useContext(BottomTabBarHeightContext);
+  const bottomTabBarHeight = bottomTabBarHeightCtx ?? 0;
 
   const [activeTab, setActiveTab] = useState<Tab>("sessions");
 
