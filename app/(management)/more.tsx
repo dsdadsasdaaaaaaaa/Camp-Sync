@@ -13,7 +13,9 @@ import {
   Modal,
   ActivityIndicator,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView, useKeyboardHandler } from "react-native-keyboard-controller";
+import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
+import Animated, { useAnimatedStyle, interpolate, Extrapolate } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BottomTabBarHeightContext } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
@@ -201,6 +203,21 @@ export default function MoreScreen() {
   const styles = getStyles(colors);
   const bottomTabBarHeightCtx = useContext(BottomTabBarHeightContext);
   const bottomTabBarHeight = bottomTabBarHeightCtx ?? 0;
+
+  const { height } = useReanimatedKeyboardAnimation();
+  const animatedInputStyle = useAnimatedStyle(() => {
+    // height.value is 0 when closed, and negative (e.g. -300) when open
+    // We want the large padding only when height.value is 0
+    const padding = interpolate(
+      height.value,
+      [-300, 0],
+      [insets.bottom + 12, insets.bottom + (Platform.OS === 'ios' ? 70 : 12)],
+      Extrapolate.CLAMP
+    );
+    return {
+      paddingBottom: padding,
+    };
+  });
 
   const [activeTab, setActiveTab] = useState<Tab>("sessions");
 
@@ -594,7 +611,7 @@ export default function MoreScreen() {
           )}
 
           {/* Input bar */}
-          <View style={[styles.aiInputContainer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: insets.bottom + (Platform.OS === 'ios' ? 70 : 12), paddingHorizontal: 14 }]}>
+          <Animated.View style={[styles.aiInputContainer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingHorizontal: 14 }, animatedInputStyle]}>
             <View style={[styles.aiInputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <TextInput
                 ref={inputRef}
@@ -625,7 +642,7 @@ export default function MoreScreen() {
                 </Pressable>
               </View>
             </View>
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       )}
 

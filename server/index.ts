@@ -208,6 +208,12 @@ function configureExpoAndLanding(app: express.Application) {
 
   const staticBuildPath = path.resolve(process.cwd(), "static-build");
   if (fs.existsSync(staticBuildPath)) {
+    app.use((req, res, next) => {
+      if (req.path.endsWith(".bundle")) {
+        res.setHeader("Content-Type", "application/javascript");
+      }
+      next();
+    });
     app.use(express.static(staticBuildPath));
   }
 
