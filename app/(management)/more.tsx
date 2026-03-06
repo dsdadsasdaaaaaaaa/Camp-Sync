@@ -542,14 +542,14 @@ export default function MoreScreen() {
           )}
 
           {/* Input bar */}
-          <View style={[styles.aiInputContainer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: insets.bottom + 8, paddingHorizontal: 14 }]}>
+          <View style={[styles.aiInputContainer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: insets.bottom + 12, paddingHorizontal: 14 }]}>
             <View style={[styles.aiInputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <TextInput
                 ref={inputRef}
                 style={[styles.aiInput, { color: colors.text }]}
                 value={aiInput}
                 onChangeText={setAiInput}
-                placeholder="Ask about campers, allergies, check-ins..."
+                placeholder="Ask about campers, medical, or check-ins..."
                 placeholderTextColor={colors.textMuted}
                 multiline
                 maxLength={500}
@@ -558,18 +558,20 @@ export default function MoreScreen() {
                 returnKeyType="send"
                 onSubmitEditing={() => { sendQuestion(aiInput); inputRef.current?.focus(); }}
               />
-              <Pressable
-                style={({ pressed }) => [
-                  styles.aiSendBtn,
-                  { backgroundColor: !aiInput.trim() || aiLoading ? colors.textMuted : Colors.primary, opacity: pressed ? 0.85 : 1 },
-                ]}
-                onPress={() => { sendQuestion(aiInput); inputRef.current?.focus(); }}
-                disabled={!aiInput.trim() || aiLoading}
-              >
-                {aiLoading
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : <Ionicons name="arrow-up" size={18} color="#fff" />}
-              </Pressable>
+              <View style={{ justifyContent: "center", paddingBottom: 2 }}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.aiSendBtn,
+                    { backgroundColor: !aiInput.trim() || aiLoading ? colors.border : Colors.primary, opacity: pressed ? 0.85 : 1 },
+                  ]}
+                  onPress={() => { sendQuestion(aiInput); inputRef.current?.focus(); }}
+                  disabled={!aiInput.trim() || aiLoading}
+                >
+                  {aiLoading
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Ionicons name="arrow-up" size={24} color="#fff" />}
+                </Pressable>
+              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -1042,10 +1044,10 @@ const getStyles = (colors: any) => StyleSheet.create({
   // AI
   aiSecurityBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginHorizontal: 16, marginBottom: 6, backgroundColor: Colors.success + "10", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: Colors.success + "20" },
   aiSecurityText: { flex: 1, fontSize: 11, fontFamily: "Outfit_400Regular", lineHeight: 14 },
-  aiEmpty: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, paddingVertical: 32, gap: 10 },
-  aiEmptyIcon: { width: 60, height: 60, borderRadius: 16, backgroundColor: Colors.accent + "18", alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  aiEmptyTitle: { fontSize: 20, fontFamily: "Outfit_700Bold", textAlign: "center" },
-  aiEmptySub: { fontSize: 13, fontFamily: "Outfit_400Regular", textAlign: "center", lineHeight: 18, marginBottom: 8 },
+  aiEmpty: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, paddingVertical: 40, gap: 12 },
+  aiEmptyIcon: { width: 72, height: 72, borderRadius: 20, backgroundColor: Colors.accent + "18", alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  aiEmptyTitle: { fontSize: 24, fontFamily: "Outfit_700Bold", textAlign: "center", letterSpacing: -0.5 },
+  aiEmptySub: { fontSize: 14, fontFamily: "Outfit_400Regular", textAlign: "center", lineHeight: 20, marginBottom: 12, opacity: 0.8 },
   aiSuggestions: { width: "100%", gap: 8, marginTop: 4 },
   aiSuggestion: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, gap: 8 },
   aiSuggestionText: { flex: 1, fontSize: 13, fontFamily: "Outfit_400Regular" },
@@ -1059,8 +1061,8 @@ const getStyles = (colors: any) => StyleSheet.create({
   aiBubbleContent: { backgroundColor: colors.surfaceSecondary, borderBottomLeftRadius: 3, borderWidth: 1, borderColor: colors.border },
   bubbleText: { fontSize: 15, fontFamily: "Outfit_400Regular", lineHeight: 21 },
   aiInputContainer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10 },
-  aiInputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1 },
-  aiInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 15, maxHeight: 100, paddingTop: 3, paddingBottom: 3 },
-  aiSendBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  aiInputRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 28, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1.5 },
+  aiInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 16, maxHeight: 120, paddingVertical: 8 },
+  aiSendBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   aiSendBtnDisabled: {},
 });

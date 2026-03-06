@@ -141,7 +141,7 @@ export default function DashboardScreen() {
       contentContainerStyle={[
         styles.container,
         {
-          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 6),
+          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0),
           paddingBottom: insets.bottom + 100,
         },
       ]}
@@ -290,6 +290,8 @@ const getStyles = (colors: any) => StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   headerLeft: {
     flexDirection: "row",
