@@ -1240,9 +1240,10 @@ ${campersForAI.map((c) => {
     `Cabin: ${c.cabinGroup || "unassigned"}`,
     `Wristband: ${c.wristbandId ? "programmed" : "none"}`,
   ];
-  if (med.allergies && med.allergies.toLowerCase() !== "none") parts.push(`Allergies: ${med.allergies}`);
-  if (med.medications && med.medications.toLowerCase() !== "none") parts.push(`Medications: ${med.medications}`);
-  if (med.conditions && med.conditions.toLowerCase() !== "none") parts.push(`Conditions: ${med.conditions}`);
+  const toMedStr = (v: any): string => Array.isArray(v) ? v.join(", ") : (typeof v === "string" ? v : "");
+  const allergyStr = toMedStr(med.allergies); if (allergyStr && allergyStr.toLowerCase() !== "none") parts.push(`Allergies: ${allergyStr}`);
+  const medStr = toMedStr(med.medications); if (medStr && medStr.toLowerCase() !== "none") parts.push(`Medications: ${medStr}`);
+  const condStr = toMedStr(med.conditions); if (condStr && condStr.toLowerCase() !== "none") parts.push(`Conditions: ${condStr}`);
   if (med.bloodType && med.bloodType !== "Unknown") parts.push(`Blood type: ${med.bloodType}`);
   if (med.emergencyContacts && med.emergencyContacts.length > 0) {
     const ec = med.emergencyContacts[0];

@@ -159,6 +159,7 @@ export default function CamperDetailScreen() {
   const { id, autoProgram } = useLocalSearchParams<{ id: string; autoProgram?: string }>();
   const { campers, checkIns, sessions, pendingUpdates, users, updateCamper, updateUser, programWristband, createAuthCode, getActiveCheckIn, checkInCamper, checkOutCamper, resolvePendingUpdate } = useData();
   const [showParentPicker, setShowParentPicker] = useState(false);
+  const [parentSearch, setParentSearch] = useState("");
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const colors = useColors();
@@ -489,12 +490,18 @@ export default function CamperDetailScreen() {
                   const availableParents = users.filter(
                     (u) => u.role === "parent" && !(Array.isArray(u.linkedCamperIds) && u.linkedCamperIds.includes(camper.id))
                   );
+                  const filteredParents = parentSearch.trim()
+                    ? availableParents.filter((u) =>
+                        u.name.toLowerCase().includes(parentSearch.toLowerCase()) ||
+                        u.email.toLowerCase().includes(parentSearch.toLowerCase())
+                      )
+                    : availableParents;
                   return (
                     <View style={{ gap: 8 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                         <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Linked Parent Accounts</Text>
                         <Pressable
-                          onPress={() => setShowParentPicker((v) => !v)}
+                          onPress={() => { setShowParentPicker((v) => !v); setParentSearch(""); }}
                           style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
                         >
                           <Ionicons name={showParentPicker ? "close-circle-outline" : "person-add-outline"} size={18} color={Colors.primary} />
@@ -527,11 +534,21 @@ export default function CamperDetailScreen() {
                         </View>
                       ))}
                       {showParentPicker && (
-                        <View style={[styles.card, { backgroundColor: colors.surfaceSecondary, marginTop: 4 }]}>
-                          {availableParents.length === 0 ? (
-                            <Text style={[styles.infoValue, { textAlign: "center", paddingVertical: 8 }]}>No other parent accounts available</Text>
+                        <View style={[styles.card, { backgroundColor: colors.surfaceSecondary, marginTop: 4, gap: 8 }]}>
+                          <TextInput
+                            style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, fontFamily: "Outfit_400Regular", color: colors.text }}
+                            placeholder="Search by name or email..."
+                            placeholderTextColor={colors.textMuted}
+                            value={parentSearch}
+                            onChangeText={setParentSearch}
+                            autoCapitalize="none"
+                          />
+                          {filteredParents.length === 0 ? (
+                            <Text style={[styles.infoValue, { textAlign: "center", paddingVertical: 8 }]}>
+                              {availableParents.length === 0 ? "No other parent accounts available" : "No parents match your search"}
+                            </Text>
                           ) : (
-                            availableParents.map((p) => (
+                            filteredParents.map((p) => (
                               <Pressable
                                 key={p.id}
                                 style={({ pressed }) => [styles.actionRow, { opacity: pressed ? 0.8 : 1, paddingVertical: 10 }]}

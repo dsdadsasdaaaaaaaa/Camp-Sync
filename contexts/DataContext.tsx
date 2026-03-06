@@ -58,8 +58,8 @@ function normalizeMedical(m: any): MedicalInfo {
     return { allergies: [], medications: [], conditions: [], emergencyContacts: [], doctorName: "", doctorPhone: "", insuranceProvider: "", bloodType: "Unknown", notes: "" };
   }
   const toArr = (v: any): string[] => {
-    if (Array.isArray(v)) return v;
-    if (typeof v === "string" && v.trim()) return v.split(",").map((s: string) => s.trim()).filter(Boolean);
+    if (Array.isArray(v)) return v.filter((s: string) => s && s.trim().toLowerCase() !== "none");
+    if (typeof v === "string" && v.trim()) return v.split(",").map((s: string) => s.trim()).filter((s) => s && s.toLowerCase() !== "none");
     return [];
   };
   return { ...m, allergies: toArr(m.allergies), medications: toArr(m.medications), conditions: toArr(m.conditions) };

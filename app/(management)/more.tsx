@@ -22,6 +22,7 @@ import { router } from "expo-router";
 import { fetch } from "expo/fetch";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
+import type { Session, AuthCode, UserRole } from "@/types";
 import DatePicker from "@/components/DatePicker";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
@@ -70,11 +71,13 @@ function MessageBubble({ message }: { message: Message }) {
 // ── Session Card ──────────────────────────────────────────────────────────────
 function SessionCard({
   session,
+  onEdit,
   onDelete,
   onToggleActive,
   onViewRoster,
 }: {
   session: Session;
+  onEdit: () => void;
   onDelete: () => void;
   onToggleActive: () => void;
   onViewRoster: () => void;
@@ -123,6 +126,10 @@ function SessionCard({
         <Pressable onPress={onViewRoster} style={({ pressed }) => [styles.rosterBtn, { opacity: pressed ? 0.7 : 1 }]}>
           <Ionicons name="list-outline" size={15} color={Colors.primary} />
           <Text style={styles.rosterBtnText}>Roster</Text>
+        </Pressable>
+        <Pressable onPress={onEdit} style={({ pressed }) => [styles.rosterBtn, { opacity: pressed ? 0.7 : 1 }]}>
+          <Ionicons name="pencil-outline" size={15} color={Colors.primary} />
+          <Text style={styles.rosterBtnText}>Edit</Text>
         </Pressable>
         <Pressable onPress={onDelete} style={({ pressed }) => [styles.deleteSessionBtn, { opacity: pressed ? 0.7 : 1 }]}>
           <Ionicons name="trash-outline" size={16} color={Colors.danger} />
@@ -190,6 +197,11 @@ export default function MoreScreen() {
   const [sessionEnd, setSessionEnd] = useState("");
   const [authorizedDates, setAuthorizedDates] = useState<string[]>([]);
   const [rosterSession, setRosterSession] = useState<Session | null>(null);
+  const [editingSession, setEditingSession] = useState<Session | null>(null);
+  const [editSessionName, setEditSessionName] = useState("");
+  const [editSessionStart, setEditSessionStart] = useState("");
+  const [editSessionEnd, setEditSessionEnd] = useState("");
+  const [editSessionDates, setEditSessionDates] = useState<string[]>([]);
 
   // Auth Codes
   const [showCodeModal, setShowCodeModal] = useState(false);
@@ -291,6 +303,27 @@ export default function MoreScreen() {
       await addSession({ name: sessionName.trim(), startDate: sessionStart.trim(), endDate: sessionEnd.trim(), authorizedDates, isActive: true, createdBy: user?.id || "" });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSessionName(""); setSessionStart(""); setSessionEnd(""); setAuthorizedDates([]); setShowNewSession(false);
+    } catch (err: any) { Alert.alert("Error", err.message); }
+  };
+
+  const openEditSession = (session: Session) => {
+    setEditingSession(session);
+    setEditSessionName(session.name);
+    setEditSessionStart(session.startDate);
+    setEditSessionEnd(session.endDate);
+    setEditSessionDates(session.authorizedDates);
+  };
+
+  const handleEditSession = async () => {
+    if (!editingSession) return;
+    if (!editSessionName.trim() || !editSessionStart.trim() || !editSessionEnd.trim()) {
+      Alert.alert("Missing Info", "Please fill in session name, start date, and end date.");
+      return;
+    }
+    try {
+      await updateSession(editingSession.id, { name: editSessionName.trim(), startDate: editSessionStart.trim(), endDate: editSessionEnd.trim(), authorizedDates: editSessionDates });
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setEditingSession(null);
     } catch (err: any) { Alert.alert("Error", err.message); }
   };
 
@@ -396,7 +429,7 @@ export default function MoreScreen() {
       <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20), backgroundColor: colors.surface }]}>
         <View style={styles.headerTop}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Management</Text>
-          <Pressable onPress={() => router.push("/(management)/account")} hitSlop={10} style={styles.logoutBtn}>
+          <Pressable onPress={() => router.navigate({ pathname: "/(management)/account" })} hitSlop={10} style={styles.logoutBtn}>
             <Ionicons name="person-circle-outline" size={24} color={colors.textSecondary} />
           </Pressable>
         </View>
@@ -519,6 +552,7 @@ export default function MoreScreen() {
                 <SessionCard
                   key={session.id}
                   session={session}
+                  onEdit={() => openEditSession(session)}
                   onDelete={() => Alert.alert("Delete Session", `Remove "${session.name}"?`, [{ text: "Cancel", style: "cancel" }, { text: "Delete", style: "destructive", onPress: () => deleteSession(session.id) }])}
                   onToggleActive={() => updateSession(session.id, { isActive: !session.isActive })}
                   onViewRoster={() => setRosterSession(session)}
@@ -614,6 +648,30 @@ export default function MoreScreen() {
               </Pressable>
               <Pressable style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={handleAddSession}>
                 <Text style={styles.confirmBtnText}>Create Session</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Edit Session Modal */}
+      <Modal visible={!!editingSession} animationType="slide" transparent onRequestClose={() => setEditingSession(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setEditingSession(null)}>
+          <Pressable style={[styles.modalSheet, { backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
+            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Session</Text>
+            <Text style={[styles.modalSub, { color: colors.textSecondary }]}>Update the session name, dates, and authorized check-in days</Text>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Session Name</Text>
+            <TextInput style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]} value={editSessionName} onChangeText={setEditSessionName} placeholder="e.g. Week 1 - Summer 2025" placeholderTextColor={colors.textMuted} />
+            <DatePicker mode="single" value={editSessionStart} onChange={setEditSessionStart} label="Start Date" placeholder="Select start date" maxDate={editSessionEnd || undefined} />
+            <DatePicker mode="single" value={editSessionEnd} onChange={setEditSessionEnd} label="End Date" placeholder="Select end date" minDate={editSessionStart || undefined} />
+            <DatePicker mode="multi" value={editSessionDates} onChange={setEditSessionDates} label="Authorized Check-in Dates" placeholder="Select check-in dates" minDate={editSessionStart || undefined} maxDate={editSessionEnd || undefined} />
+            <View style={styles.modalButtons}>
+              <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={() => setEditingSession(null)}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={handleEditSession}>
+                <Text style={styles.confirmBtnText}>Save Changes</Text>
               </Pressable>
             </View>
           </Pressable>

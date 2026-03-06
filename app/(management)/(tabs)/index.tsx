@@ -150,7 +150,7 @@ export default function DashboardScreen() {
       }
     >
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
+        <Pressable style={styles.headerLeft} onPress={() => router.navigate({ pathname: "/(management)/account" })} hitSlop={8}>
           <View style={[styles.avatar, { backgroundColor: Colors.primary + "25" }]}>
             <Text style={styles.avatarText}>{initials}</Text>
           </View>
@@ -158,7 +158,7 @@ export default function DashboardScreen() {
             <Text style={[styles.greeting, { color: colors.textMuted }]}>Welcome back</Text>
             <Text style={[styles.name, { color: colors.text }]}>{user?.name}</Text>
           </View>
-        </View>
+        </Pressable>
         <View style={styles.headerActions}>
           <Pressable onPress={handleToggleDark} hitSlop={8} style={[styles.headerBtn, { backgroundColor: colors.surfaceSecondary }]}>
             <Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={18} color={colors.textSecondary} />
