@@ -202,6 +202,7 @@ export default function CamperDetailScreen() {
   );
 
   useEffect(() => {
+    if (isEditing) return;
     if (camper) {
       setFirstName(camper.firstName);
       setLastName(camper.lastName);
@@ -222,7 +223,7 @@ export default function CamperDetailScreen() {
         notes: m.notes ?? "",
       });
     }
-  }, [camper]);
+  }, [camper, isEditing]);
 
   if (!camper) {
     return (

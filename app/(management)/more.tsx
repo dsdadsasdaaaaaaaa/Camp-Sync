@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -197,10 +197,9 @@ export default function MoreScreen() {
   const { user, logout, adminResetPassword } = useAuth();
   const { sessions, authCodes, campers, checkIns, users, addSession, updateSession, deleteSession, createAuthCode, updateAuthCode, deleteAuthCode, updateUser, deleteUser, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
-  const tabBarHeight = isLiquidGlassAvailable() ? insets.bottom : insets.bottom + 49;
-
   const colors = useColors();
   const styles = getStyles(colors);
+  const bottomTabBarHeight = useBottomTabBarHeight();
 
   const [activeTab, setActiveTab] = useState<Tab>("sessions");
 
@@ -456,7 +455,7 @@ export default function MoreScreen() {
       <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20), backgroundColor: colors.surface }]}>
         <View style={styles.headerTop}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Management</Text>
-          <Pressable onPress={() => router.navigate({ pathname: "/(management)/account" })} hitSlop={10} style={styles.logoutBtn}>
+          <Pressable onPress={() => router.push("/(management)/account")} hitSlop={10} style={styles.logoutBtn}>
             <Ionicons name="person-circle-outline" size={24} color={colors.textSecondary} />
           </Pressable>
         </View>
@@ -484,7 +483,7 @@ export default function MoreScreen() {
       {/* AI Tab — uses its own layout */}
       {activeTab === "ai" && (
         <KeyboardAvoidingView
-          style={{ flex: 1, marginBottom: isLiquidGlassAvailable() ? 0 : (insets.bottom + 49) }}
+          style={{ flex: 1, marginBottom: bottomTabBarHeight }}
           behavior="padding"
           keyboardVerticalOffset={0}
         >
@@ -542,7 +541,7 @@ export default function MoreScreen() {
           )}
 
           {/* Input bar */}
-          <View style={[styles.aiInputContainer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: isLiquidGlassAvailable() ? insets.bottom + 8 : 8, paddingHorizontal: 14 }]}>
+          <View style={[styles.aiInputContainer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: insets.bottom + 8, paddingHorizontal: 14 }]}>
             <View style={[styles.aiInputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <TextInput
                 ref={inputRef}
