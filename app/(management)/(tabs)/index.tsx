@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/app/_layout";
 
 function StatCard({
   icon,
@@ -87,6 +88,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = getStyles(colors);
+  const { isDark, toggleTheme, setUseSystem } = useTheme();
 
   const checkedInToday = checkIns.filter((ci) => {
     const today = new Date().toDateString();
@@ -126,6 +128,13 @@ export default function DashboardScreen() {
     ]);
   };
 
+  const handleToggleDark = () => {
+    setUseSystem(false);
+    toggleTheme(!isDark);
+  };
+
+  const initials = user?.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -141,17 +150,23 @@ export default function DashboardScreen() {
       }
     >
       <View style={styles.header}>
-        <View>
-          <Text style={[styles.greeting, { color: colors.textSecondary }]}>Good day,</Text>
-          <Text style={[styles.name, { color: colors.text }]}>{user?.name}</Text>
-          <View style={styles.roleBadge}>
-            <Ionicons name="shield-checkmark" size={12} color={Colors.accent} />
-            <Text style={styles.roleText}>Management</Text>
+        <View style={styles.headerLeft}>
+          <View style={[styles.avatar, { backgroundColor: Colors.primary + "25" }]}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
+          <View>
+            <Text style={[styles.greeting, { color: colors.textMuted }]}>Welcome back</Text>
+            <Text style={[styles.name, { color: colors.text }]}>{user?.name}</Text>
           </View>
         </View>
-        <Pressable onPress={handleLogout} style={[styles.logoutButton, { backgroundColor: colors.surfaceSecondary }]}>
-          <Ionicons name="log-out-outline" size={22} color={colors.textSecondary} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable onPress={handleToggleDark} hitSlop={8} style={[styles.headerBtn, { backgroundColor: colors.surfaceSecondary }]}>
+            <Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={18} color={colors.textSecondary} />
+          </Pressable>
+          <Pressable onPress={handleLogout} hitSlop={8} style={[styles.headerBtn, { backgroundColor: colors.surfaceSecondary }]}>
+            <Ionicons name="log-out-outline" size={18} color={colors.textSecondary} />
+          </Pressable>
+        </View>
       </View>
 
       {unresolved.length > 0 && (
@@ -274,43 +289,46 @@ const getStyles = (colors: any) => StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
   },
-  greeting: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: colors.textSecondary,
-  },
-  name: {
-    fontSize: 26,
-    fontFamily: "Outfit_700Bold",
-    color: colors.text,
-    marginTop: 2,
-  },
-  roleBadge: {
+  headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: Colors.accent + "20",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    alignSelf: "flex-start",
-    marginTop: 6,
+    gap: 12,
   },
-  roleText: {
-    fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.accent,
-  },
-  logoutButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceSecondary,
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 4,
+  },
+  avatarText: {
+    fontSize: 16,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.accent,
+  },
+  headerActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  headerBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  greeting: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: colors.textMuted,
+  },
+  name: {
+    fontSize: 18,
+    fontFamily: "Outfit_700Bold",
+    color: colors.text,
+    marginTop: 1,
   },
   alertBanner: {
     flexDirection: "row",

@@ -5,6 +5,7 @@ export default function ManagementLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="account" />
       <Stack.Screen name="camper" />
       <Stack.Screen name="index" />
       <Stack.Screen name="campers" />

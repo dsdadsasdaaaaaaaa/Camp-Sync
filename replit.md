@@ -39,7 +39,7 @@ Preferred communication style: Simple, everyday language.
 The app uses **Expo Router** with file-based routing. The route structure reflects user roles:
 
 - `app/(auth)/` — Login and registration screens
-- `app/(management)/` — Management portal with tabs: Dashboard, Campers, Wristband, Pending Updates, Manage (Account accessible via profile icon in Manage header)
+- `app/(management)/` — Management portal with tabs: Dashboard, Campers, Wristband, Pending Updates, Manage; Account is a stack screen at `app/(management)/account.tsx`, navigated via the profile icon in the Manage tab header. Dashboard has a compact header with avatar initials + inline dark mode toggle (moon/sun) + logout buttons.
 - `app/(staff)/` — Staff portal with tabs: Check-in, Wristband
 - `app/(parent)/` — Parent portal with tabs: My Children, Account
 - `app/index.tsx` — Entry point that redirects based on auth state and user role

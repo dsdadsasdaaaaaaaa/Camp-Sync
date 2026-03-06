@@ -127,7 +127,6 @@ function ClassicTabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="account" options={{ href: null }} />
       <Tabs.Screen name="ai" options={{ href: null }} />
     </Tabs>
   );

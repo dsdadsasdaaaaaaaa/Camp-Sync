@@ -396,7 +396,7 @@ export default function MoreScreen() {
       <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20), backgroundColor: colors.surface }]}>
         <View style={styles.headerTop}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Management</Text>
-          <Pressable onPress={() => router.push("/(management)/(tabs)/account")} style={styles.logoutBtn}>
+          <Pressable onPress={() => router.push("/(management)/account")} hitSlop={10} style={styles.logoutBtn}>
             <Ionicons name="person-circle-outline" size={24} color={colors.textSecondary} />
           </Pressable>
         </View>
@@ -469,7 +469,7 @@ export default function MoreScreen() {
             />
           )}
 
-          <View style={[styles.aiInputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: (Platform.OS === "web" ? insets.bottom + 34 : tabBarHeight + 20), paddingHorizontal: 16 }]}>
+          <View style={[styles.aiInputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom + 90, paddingHorizontal: 16 }]}>
             <View style={[styles.aiInputRow, { backgroundColor: colors.surfaceSecondary }]}>
               <TextInput
                 style={[styles.aiInput, { color: colors.text }]}
