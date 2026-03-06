@@ -53,6 +53,22 @@ interface DataContextValue {
 
 const DataContext = createContext<DataContextValue | null>(null);
 
+function normalizeMedical(m: any): MedicalInfo {
+  if (!m || typeof m !== "object") {
+    return { allergies: [], medications: [], conditions: [], emergencyContacts: [], doctorName: "", doctorPhone: "", insuranceProvider: "", bloodType: "Unknown", notes: "" };
+  }
+  const toArr = (v: any): string[] => {
+    if (Array.isArray(v)) return v;
+    if (typeof v === "string" && v.trim()) return v.split(",").map((s: string) => s.trim()).filter(Boolean);
+    return [];
+  };
+  return { ...m, allergies: toArr(m.allergies), medications: toArr(m.medications), conditions: toArr(m.conditions) };
+}
+
+function normalizeCampers(raw: Camper[]): Camper[] {
+  return raw.map((c) => ({ ...c, medical: normalizeMedical(c.medical) }));
+}
+
 async function safeGet<T>(path: string, fallback: T): Promise<T> {
   try {
     const res = await apiRequest("GET", path);
@@ -89,7 +105,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         safeGet<PendingWristbandUpdate[]>("/api/pending-updates", []),
         safeGet<AuthCode[]>("/api/auth/codes", []),
       ]);
-      setCampers(c);
+      setCampers(normalizeCampers(c));
       setSessions(s);
       setCheckIns(ci);
       setPendingUpdates(pu);
@@ -128,7 +144,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           safeGet<PendingWristbandUpdate[]>("/api/pending-updates", []),
           safeGet<AuthCode[]>("/api/auth/codes", []),
         ]);
-        setCampers(c);
+        setCampers(normalizeCampers(c));
         setSessions(s);
         setCheckIns(ci);
         setPendingUpdates(pu);
@@ -159,7 +175,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const updateCamper = useCallback(
     async (id: string, data: Partial<Camper>) => {
       const res = await apiRequest("PATCH", `/api/campers/${id}`, data);
-      const updated: Camper = await res.json();
+      const raw: Camper = await res.json();
+      const updated = { ...raw, medical: normalizeMedical(raw.medical) };
       setCampers((prev) => prev.map((c) => (c.id === id ? updated : c)));
 
       // If camper is currently checked in and data on wristband changed, create a pending update

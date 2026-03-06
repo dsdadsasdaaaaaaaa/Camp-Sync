@@ -6,7 +6,7 @@ export default function ParentLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="child" />
+      <Stack.Screen name="child/[id]" />
     </Stack>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -22,7 +22,7 @@ import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import NFCScanner from "@/components/NFCScanner";
 import DatePicker from "@/components/DatePicker";
-import type { Camper, MedicalInfo, EmergencyContact, WristbandPayload } from "@/types";
+import type { Camper, MedicalInfo, EmergencyContact, WristbandPayload, User } from "@/types";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"];
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -37,13 +37,82 @@ function formatDOBDisplay(dateStr: string): string {
   return dateStr;
 }
 
-function InfoField({ label, value }: { label: string; value: string }) {
+function InfoField({ label, value }: { label: string; value: string | string[] }) {
   const colors = useColors();
   const styles = getStyles(colors);
+  const displayValue = Array.isArray(value) ? value.join(", ") || "—" : value || "—";
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value || "—"}</Text>
+      {Array.isArray(value) && value.length > 0 ? (
+        <View style={styles.chipRow}>
+          {value.map((item, i) => (
+            <View key={i} style={styles.chip}>
+              <Text style={styles.chipText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.infoValue}>{displayValue}</Text>
+      )}
+    </View>
+  );
+}
+
+function TagInput({ label, values, onChange, placeholder }: {
+  label: string;
+  values: string[];
+  onChange: (v: string[]) => void;
+  placeholder?: string;
+}) {
+  const colors = useColors();
+  const styles = getStyles(colors);
+  const [inputVal, setInputVal] = useState("");
+  const inputRef = useRef<TextInput>(null);
+
+  const addTag = () => {
+    const trimmed = inputVal.trim();
+    if (trimmed && !values.includes(trimmed)) {
+      onChange([...values, trimmed]);
+    }
+    setInputVal("");
+  };
+
+  const removeTag = (index: number) => {
+    onChange(values.filter((_, i) => i !== index));
+  };
+
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.tagContainer}>
+        {values.map((tag, i) => (
+          <View key={i} style={styles.tagChip}>
+            <Text style={styles.tagChipText}>{tag}</Text>
+            <Pressable onPress={() => removeTag(i)} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color={Colors.primary} />
+            </Pressable>
+          </View>
+        ))}
+        <View style={styles.tagInputRow}>
+          <TextInput
+            ref={inputRef}
+            style={styles.tagInput}
+            value={inputVal}
+            onChangeText={setInputVal}
+            placeholder={placeholder || `Add ${label.toLowerCase()}`}
+            placeholderTextColor={colors.textMuted}
+            onSubmitEditing={addTag}
+            returnKeyType="done"
+            blurOnSubmit={false}
+          />
+          {inputVal.trim().length > 0 && (
+            <Pressable onPress={addTag} style={styles.tagAddBtn}>
+              <Ionicons name="add-circle" size={22} color={Colors.primary} />
+            </Pressable>
+          )}
+        </View>
+      </View>
     </View>
   );
 }
@@ -88,7 +157,8 @@ function EditField({
 
 export default function CamperDetailScreen() {
   const { id, autoProgram } = useLocalSearchParams<{ id: string; autoProgram?: string }>();
-  const { campers, checkIns, sessions, pendingUpdates, updateCamper, programWristband, createAuthCode, getActiveCheckIn, checkInCamper, checkOutCamper, resolvePendingUpdate } = useData();
+  const { campers, checkIns, sessions, pendingUpdates, users, updateCamper, updateUser, programWristband, createAuthCode, getActiveCheckIn, checkInCamper, checkOutCamper, resolvePendingUpdate } = useData();
+  const [showParentPicker, setShowParentPicker] = useState(false);
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const colors = useColors();
@@ -118,9 +188,9 @@ export default function CamperDetailScreen() {
   const [cabinGroup, setCabinGroup] = useState(camper?.cabinGroup || "");
   const [medical, setMedical] = useState<MedicalInfo>(
     camper?.medical || {
-      allergies: "",
-      medications: "",
-      conditions: "",
+      allergies: [],
+      medications: [],
+      conditions: [],
       emergencyContacts: [{ name: "", relationship: "", phone: "", email: "" }],
       doctorName: "",
       doctorPhone: "",
@@ -150,7 +220,7 @@ export default function CamperDetailScreen() {
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const updateMedical = (key: keyof MedicalInfo, value: string) => {
+  const updateMedical = (key: keyof MedicalInfo, value: any) => {
     setMedical((prev) => ({ ...prev, [key]: value }));
     if (fieldErrors[key]) {
       setFieldErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
@@ -391,6 +461,98 @@ export default function CamperDetailScreen() {
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </Pressable>
+                <View style={styles.divider} />
+                {(() => {
+                  const linkedParents = users.filter(
+                    (u) => u.role === "parent" && Array.isArray(u.linkedCamperIds) && u.linkedCamperIds.includes(camper.id)
+                  );
+                  const unlinkParent = async (parentUser: User) => {
+                    try {
+                      await updateUser(parentUser.id, { linkedCamperIds: parentUser.linkedCamperIds.filter((cid) => cid !== camper.id) });
+                      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    } catch (err: any) {
+                      Alert.alert("Error", err.message || "Failed to unlink parent.");
+                    }
+                  };
+                  const linkParent = async (parentUser: User) => {
+                    try {
+                      const existing = Array.isArray(parentUser.linkedCamperIds) ? parentUser.linkedCamperIds : [];
+                      if (!existing.includes(camper.id)) {
+                        await updateUser(parentUser.id, { linkedCamperIds: [...existing, camper.id] });
+                      }
+                      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      setShowParentPicker(false);
+                    } catch (err: any) {
+                      Alert.alert("Error", err.message || "Failed to link parent.");
+                    }
+                  };
+                  const availableParents = users.filter(
+                    (u) => u.role === "parent" && !(Array.isArray(u.linkedCamperIds) && u.linkedCamperIds.includes(camper.id))
+                  );
+                  return (
+                    <View style={{ gap: 8 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                        <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Linked Parent Accounts</Text>
+                        <Pressable
+                          onPress={() => setShowParentPicker((v) => !v)}
+                          style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                        >
+                          <Ionicons name={showParentPicker ? "close-circle-outline" : "person-add-outline"} size={18} color={Colors.primary} />
+                          <Text style={{ fontSize: 13, fontFamily: "Outfit_600SemiBold", color: Colors.primary }}>
+                            {showParentPicker ? "Cancel" : "Link Parent"}
+                          </Text>
+                        </Pressable>
+                      </View>
+                      {linkedParents.length === 0 && !showParentPicker && (
+                        <Text style={[styles.infoValue, { fontSize: 13 }]}>No parent accounts linked yet</Text>
+                      )}
+                      {linkedParents.map((p) => (
+                        <View key={p.id} style={[styles.actionRow, { paddingVertical: 10 }]}>
+                          <View style={[styles.actionIcon, { backgroundColor: Colors.primary + "15" }]}>
+                            <Ionicons name="person" size={18} color={Colors.primary} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.actionTitle}>{p.name}</Text>
+                            <Text style={styles.actionSub}>{p.email}</Text>
+                          </View>
+                          <Pressable
+                            onPress={() => Alert.alert("Unlink Parent", `Remove ${p.name}'s access to ${camper.firstName}?`, [
+                              { text: "Cancel", style: "cancel" },
+                              { text: "Unlink", style: "destructive", onPress: () => unlinkParent(p) },
+                            ])}
+                            hitSlop={8}
+                          >
+                            <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+                          </Pressable>
+                        </View>
+                      ))}
+                      {showParentPicker && (
+                        <View style={[styles.card, { backgroundColor: colors.surfaceSecondary, marginTop: 4 }]}>
+                          {availableParents.length === 0 ? (
+                            <Text style={[styles.infoValue, { textAlign: "center", paddingVertical: 8 }]}>No other parent accounts available</Text>
+                          ) : (
+                            availableParents.map((p) => (
+                              <Pressable
+                                key={p.id}
+                                style={({ pressed }) => [styles.actionRow, { opacity: pressed ? 0.8 : 1, paddingVertical: 10 }]}
+                                onPress={() => linkParent(p)}
+                              >
+                                <View style={[styles.actionIcon, { backgroundColor: Colors.accent + "20" }]}>
+                                  <Ionicons name="person-add" size={18} color={Colors.accent} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.actionTitle}>{p.name}</Text>
+                                  <Text style={styles.actionSub}>{p.email}</Text>
+                                </View>
+                                <Ionicons name="add-circle-outline" size={20} color={Colors.accent} />
+                              </Pressable>
+                            ))
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })()}
               </>
             )}
           </View>
@@ -468,9 +630,9 @@ export default function CamperDetailScreen() {
                   <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
                   <Text style={{ fontSize: 14, fontFamily: "Outfit_600SemiBold", color: Colors.primary }}>Add Another Contact</Text>
                 </Pressable>
-                <EditField label="Allergies" value={medical.allergies} onChange={(v: string) => updateMedical("allergies", v)} placeholder="Allergies" multiline />
-                <EditField label="Medications" value={medical.medications} onChange={(v: string) => updateMedical("medications", v)} placeholder="Medications" multiline />
-                <EditField label="Medical Conditions" value={medical.conditions} onChange={(v: string) => updateMedical("conditions", v)} placeholder="Conditions" multiline />
+                <TagInput label="Allergies" values={Array.isArray(medical.allergies) ? medical.allergies : []} onChange={(v) => updateMedical("allergies", v)} placeholder="Type and press return to add" />
+                <TagInput label="Medications" values={Array.isArray(medical.medications) ? medical.medications : []} onChange={(v) => updateMedical("medications", v)} placeholder="Type and press return to add" />
+                <TagInput label="Medical Conditions" values={Array.isArray(medical.conditions) ? medical.conditions : []} onChange={(v) => updateMedical("conditions", v)} placeholder="Type and press return to add" />
                 <EditField label="Doctor Name" value={medical.doctorName} onChange={(v: string) => updateMedical("doctorName", v)} placeholder="Doctor" />
                 <EditField label="Doctor Phone" value={medical.doctorPhone} onChange={(v: string) => updateMedical("doctorPhone", v)} placeholder="Phone" keyboardType="phone-pad" error={fieldErrors.doctorPhone} />
                 <EditField label="Insurance Provider" value={medical.insuranceProvider} onChange={(v: string) => updateMedical("insuranceProvider", v)} placeholder="Provider" />
@@ -888,6 +1050,66 @@ const getStyles = (colors: any) => StyleSheet.create({
   multilineInput: {
     height: 80,
     textAlignVertical: "top",
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    flex: 2,
+    justifyContent: "flex-end",
+  },
+  chip: {
+    backgroundColor: Colors.primary + "20",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  chipText: {
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.primary,
+  },
+  tagContainer: {
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 10,
+    gap: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  tagChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.primary + "20",
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  tagChipText: {
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.primary,
+  },
+  tagInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    minWidth: 120,
+    gap: 4,
+  },
+  tagInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: colors.text,
+    paddingVertical: 2,
+  },
+  tagAddBtn: {
+    padding: 2,
   },
   bloodTypeGrid: {
     flexDirection: "row",

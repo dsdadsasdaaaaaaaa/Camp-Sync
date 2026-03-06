@@ -21,7 +21,8 @@ import type { Camper, WristbandPayload } from "@/types";
 type Screen = "home" | "selectCamper" | "selectCheckout" | "readResult" | "confirmCheckout";
 
 export default function NFCScreen() {
-  const { campers, checkIns, programWristband, checkOutCamper, updateCamper } = useData();
+  const { campers, checkIns, programWristband, checkOutCamper, updateCamper, checkInCamper, getTodaySessions } = useData();
+  const [manualCheckInLoading, setManualCheckInLoading] = useState(false);
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = getStyles(colors);
@@ -57,6 +58,37 @@ export default function NFCScreen() {
 
   const getCamperCheckInStatus = (camperId: string) =>
     checkIns.some((ci) => ci.camperId === camperId && !ci.checkedOutAt);
+
+  // ── Manual Check-In (no NFC) ──────────────────────────────────────────────
+  const handleManualCheckIn = async () => {
+    if (!selectedCamper) { Alert.alert("Select Camper", "Please select a camper first."); return; }
+    const isAlreadyCheckedIn = checkIns.some((ci) => ci.camperId === selectedCamper.id && !ci.checkedOutAt);
+    if (isAlreadyCheckedIn) { Alert.alert("Already Checked In", `${selectedCamper.firstName} is already checked in.`); return; }
+    const todaySessions = getTodaySessions();
+    const sessionId = todaySessions.length > 0 ? todaySessions[0].id : "MANAGEMENT_OVERRIDE";
+    Alert.alert(
+      "Manual Check-In",
+      `Check in ${selectedCamper.firstName} ${selectedCamper.lastName} without an NFC wristband?${!todaySessions.length ? "\n\nNo session is scheduled today — management override will be used." : ""}`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Check In",
+          onPress: async () => {
+            setManualCheckInLoading(true);
+            try {
+              await checkInCamper(selectedCamper.id, sessionId);
+              Alert.alert("Checked In", `${selectedCamper.firstName} ${selectedCamper.lastName} has been manually checked in.`);
+              resetAll();
+            } catch (err: any) {
+              Alert.alert("Error", err.message || "Failed to check in.");
+            } finally {
+              setManualCheckInLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // ── Check In ───────────────────────────────────────────────────────────────
   const handleStartWrite = () => {
@@ -247,11 +279,13 @@ export default function NFCScreen() {
           <View style={styles.statsCard}>
             <View style={styles.statRow}>
               <View style={[styles.statIcon, { backgroundColor: Colors.success + "15" }]}>
-                <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+                <Ionicons name="radio" size={20} color={Colors.success} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.statLabel}>Programmed Wristbands</Text>
-                <Text style={styles.statValue}>{programmedWristbands.length} of {campers.length}</Text>
+                <Text style={styles.statLabel}>NFC Wristbands</Text>
+                <Text style={[styles.statValue, { color: colors.textSecondary }]}>
+                  {programmedWristbands.length} of {campers.length} programmed
+                </Text>
               </View>
             </View>
             <View style={styles.statRow}>
@@ -259,8 +293,13 @@ export default function NFCScreen() {
                 <Ionicons name="people" size={20} color={Colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.statLabel}>Currently Checked In</Text>
-                <Text style={styles.statValue}>{checkedInCampers.length}</Text>
+                <Text style={styles.statLabel}>Currently at Camp</Text>
+                <Text style={[styles.statValue, { color: colors.textSecondary }]}>
+                  {checkedInCampers.length} checked in
+                  {checkedInCampers.filter((c) => c.wristbandId).length > 0
+                    ? ` · ${checkedInCampers.filter((c) => c.wristbandId).length} with NFC`
+                    : ""}
+                </Text>
               </View>
             </View>
           </View>
@@ -328,9 +367,25 @@ export default function NFCScreen() {
               disabled={!selectedCamper}
             >
               <Ionicons name="radio" size={18} color="#fff" />
-              <Text style={styles.primaryBtnText}>Check In Camper</Text>
+              <Text style={styles.primaryBtnText}>NFC Check In</Text>
             </Pressable>
           </View>
+          <Pressable
+            style={({ pressed }) => [
+              styles.cancelBtn,
+              { opacity: pressed ? 0.8 : 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+              !selectedCamper && styles.disabledBtn,
+            ]}
+            onPress={handleManualCheckIn}
+            disabled={!selectedCamper || manualCheckInLoading}
+          >
+            {manualCheckInLoading ? (
+              <ActivityIndicator size="small" color={Colors.primary} />
+            ) : (
+              <Ionicons name="hand-left-outline" size={16} color={Colors.primary} />
+            )}
+            <Text style={[styles.cancelBtnText, { color: Colors.primary }]}>Manual Override (No NFC)</Text>
+          </Pressable>
         </View>
       )}
 
@@ -497,19 +552,47 @@ export default function NFCScreen() {
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Allergies</Text>
-            <Text style={[styles.dataValue, readResult.medical?.allergies && readResult.medical.allergies.toLowerCase() !== "none" ? { color: Colors.danger } : {}]}>
-              {readResult.medical?.allergies || "None reported"}
-            </Text>
+            {Array.isArray(readResult.medical?.allergies) && readResult.medical.allergies.length > 0 ? (
+              <View style={styles.chipRow}>
+                {readResult.medical.allergies.map((a, i) => (
+                  <View key={i} style={[styles.chip, { backgroundColor: Colors.danger + "20" }]}>
+                    <Text style={[styles.chipText, { color: Colors.danger }]}>{a}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.dataValue}>None reported</Text>
+            )}
           </View>
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Medications</Text>
-            <Text style={styles.dataValue}>{readResult.medical?.medications || "None reported"}</Text>
+            {Array.isArray(readResult.medical?.medications) && readResult.medical.medications.length > 0 ? (
+              <View style={styles.chipRow}>
+                {readResult.medical.medications.map((m, i) => (
+                  <View key={i} style={styles.chip}>
+                    <Text style={styles.chipText}>{m}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.dataValue}>None reported</Text>
+            )}
           </View>
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Medical Conditions</Text>
-            <Text style={styles.dataValue}>{readResult.medical?.conditions || "None reported"}</Text>
+            {Array.isArray(readResult.medical?.conditions) && readResult.medical.conditions.length > 0 ? (
+              <View style={styles.chipRow}>
+                {readResult.medical.conditions.map((c, i) => (
+                  <View key={i} style={styles.chip}>
+                    <Text style={styles.chipText}>{c}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.dataValue}>None reported</Text>
+            )}
           </View>
 
           <View style={[styles.dataSection, { borderBottomWidth: 0 }]}>
@@ -647,6 +730,9 @@ const getStyles = (colors: any) => StyleSheet.create({
   dataSectionTitle: { fontSize: 11, fontFamily: "Outfit_700Bold", color: colors.textMuted, textTransform: "uppercase", letterSpacing: 0.8 },
   dataValue: { fontSize: 15, fontFamily: "Outfit_500Medium", color: colors.text },
   dataValueSec: { fontSize: 14, fontFamily: "Outfit_400Regular", color: colors.textSecondary },
+  chipRow: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 6 },
+  chip: { backgroundColor: Colors.primary + "20", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 },
+  chipText: { fontSize: 13, fontFamily: "Outfit_500Medium", color: Colors.primary },
   programmedAt: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textMuted, textAlign: "center" },
   serverNote: { flexDirection: "row" as const, alignItems: "center" as const, gap: 6 },
   serverNoteText: { flex: 1, fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textMuted, fontStyle: "italic" as const },

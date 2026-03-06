@@ -149,9 +149,17 @@ export default function ParentChildrenScreen() {
         />
       }
     >
-      <View style={styles.header}>
-        <Text style={[styles.greeting, { color: colors.textSecondary }]}>Hello, {user?.name?.split(" ")[0]}</Text>
-        <Text style={[styles.title, { color: colors.text }]}>My Children</Text>
+      <View style={styles.headerRow}>
+        <View style={styles.header}>
+          <Text style={[styles.greeting, { color: colors.textSecondary }]}>Hello, {user?.name?.split(" ")[0]}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>My Children</Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [styles.accountBtn, { opacity: pressed ? 0.7 : 1 }]}
+          onPress={() => router.push("/(parent)/(tabs)/profile")}
+        >
+          <Ionicons name="person-circle-outline" size={30} color={colors.text} />
+        </Pressable>
       </View>
 
       {!hasLoadedOnce ? (
@@ -261,8 +269,17 @@ const getStyles = (colors: any) => StyleSheet.create({
     paddingHorizontal: 20,
     gap: 20,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
   header: {
     gap: 4,
+    flex: 1,
+  },
+  accountBtn: {
+    paddingTop: 4,
   },
   greeting: {
     fontSize: 14,

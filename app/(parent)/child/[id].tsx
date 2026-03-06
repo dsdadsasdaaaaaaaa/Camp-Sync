@@ -21,13 +21,24 @@ import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import type { MedicalInfo, EmergencyContact } from "@/types";
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value }: { label: string; value: string | string[] }) {
   const colors = useColors();
   const styles = getStyles(colors);
+  const displayValue = Array.isArray(value) ? value.join(", ") || "—" : value || "—";
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value || "—"}</Text>
+      {Array.isArray(value) && value.length > 0 ? (
+        <View style={styles.chipRow}>
+          {value.map((item, i) => (
+            <View key={i} style={styles.chip}>
+              <Text style={styles.chipText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.infoValue}>{displayValue}</Text>
+      )}
     </View>
   );
 }
@@ -67,6 +78,62 @@ function EditField({
   );
 }
 
+function TagInput({ label, values, onChange, placeholder }: {
+  label: string;
+  values: string[];
+  onChange: (v: string[]) => void;
+  placeholder?: string;
+}) {
+  const colors = useColors();
+  const styles = getStyles(colors);
+  const [inputVal, setInputVal] = useState("");
+
+  const addTag = () => {
+    const trimmed = inputVal.trim();
+    if (trimmed && !values.includes(trimmed)) {
+      onChange([...values, trimmed]);
+    }
+    setInputVal("");
+  };
+
+  const removeTag = (index: number) => {
+    onChange(values.filter((_, i) => i !== index));
+  };
+
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.tagContainer}>
+        {values.map((tag, i) => (
+          <View key={i} style={styles.tagChip}>
+            <Text style={styles.tagChipText}>{tag}</Text>
+            <Pressable onPress={() => removeTag(i)} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color={Colors.primary} />
+            </Pressable>
+          </View>
+        ))}
+        <View style={styles.tagInputRow}>
+          <TextInput
+            style={styles.tagInput}
+            value={inputVal}
+            onChangeText={setInputVal}
+            placeholder={placeholder || `Add ${label.toLowerCase()}`}
+            placeholderTextColor={colors.textMuted}
+            onSubmitEditing={addTag}
+            returnKeyType="done"
+            blurOnSubmit={false}
+          />
+          {inputVal.trim().length > 0 && (
+            <Pressable onPress={addTag} style={{ padding: 2 }}>
+              <Ionicons name="add-circle" size={22} color={Colors.primary} />
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const emptyContact = (): EmergencyContact => ({ name: "", relationship: "", phone: "", email: "" });
 
 export default function ParentChildDetailScreen() {
@@ -85,9 +152,9 @@ export default function ParentChildDetailScreen() {
   const hasPending = pendingUpdates.some((p) => p.camperId === id && !p.resolved);
 
   const defaultMedical: MedicalInfo = {
-    allergies: "",
-    medications: "",
-    conditions: "",
+    allergies: [],
+    medications: [],
+    conditions: [],
     emergencyContacts: [emptyContact()],
     doctorName: "",
     doctorPhone: "",
@@ -301,9 +368,9 @@ export default function ParentChildDetailScreen() {
                 </Pressable>
 
                 <View style={styles.divider} />
-                <EditField label="Allergies" value={medical.allergies} onChange={(v) => updateMedical("allergies", v)} placeholder="Allergies (or None)" multiline />
-                <EditField label="Medications" value={medical.medications} onChange={(v) => updateMedical("medications", v)} placeholder="Medications (or None)" multiline />
-                <EditField label="Medical Conditions" value={medical.conditions} onChange={(v) => updateMedical("conditions", v)} placeholder="Conditions (or None)" multiline />
+                <TagInput label="Allergies" values={Array.isArray(medical.allergies) ? medical.allergies : []} onChange={(v) => updateMedical("allergies", v)} placeholder="Type and press return to add" />
+                <TagInput label="Medications" values={Array.isArray(medical.medications) ? medical.medications : []} onChange={(v) => updateMedical("medications", v)} placeholder="Type and press return to add" />
+                <TagInput label="Medical Conditions" values={Array.isArray(medical.conditions) ? medical.conditions : []} onChange={(v) => updateMedical("conditions", v)} placeholder="Type and press return to add" />
                 <View style={styles.divider} />
                 <EditField label="Doctor Name" value={medical.doctorName} onChange={(v) => updateMedical("doctorName", v)} placeholder="Doctor name" />
                 <EditField label="Doctor Phone" value={medical.doctorPhone} onChange={(v) => updateMedical("doctorPhone", v)} placeholder="Phone" keyboardType="phone-pad" />
@@ -635,6 +702,63 @@ const getStyles = (colors: any) => StyleSheet.create({
   multilineInput: {
     height: 80,
     textAlignVertical: "top",
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    flex: 2,
+    justifyContent: "flex-end",
+  },
+  chip: {
+    backgroundColor: Colors.primary + "20",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  chipText: {
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.primary,
+  },
+  tagContainer: {
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 10,
+    gap: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  tagChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.primary + "20",
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  tagChipText: {
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.primary,
+  },
+  tagInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    minWidth: 120,
+    gap: 4,
+  },
+  tagInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: colors.text,
+    paddingVertical: 2,
   },
   historyRow: {
     flexDirection: "row",

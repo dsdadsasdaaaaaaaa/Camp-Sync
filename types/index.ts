@@ -19,9 +19,9 @@ export interface EmergencyContact {
 }
 
 export interface MedicalInfo {
-  allergies: string;
-  medications: string;
-  conditions: string;
+  allergies: string[];
+  medications: string[];
+  conditions: string[];
   emergencyContacts: EmergencyContact[];
   doctorName: string;
   doctorPhone: string;
