@@ -25,6 +25,12 @@ import NFCScanner from "@/components/NFCScanner";
 import { useSiren } from "@/lib/useSiren";
 import type { Camper, WristbandPayload } from "@/types";
 
+function medStr(value: any): string {
+  if (!value) return "";
+  if (Array.isArray(value)) return value.join(", ");
+  return String(value);
+}
+
 function CamperCheckInCard({
   camper,
   isCheckedIn,
@@ -59,12 +65,12 @@ function CamperCheckInCard({
         <View style={{ flex: 1 }}>
           <Text style={[styles.camperName, { color: colors.text }]}>{camper.firstName} {camper.lastName}</Text>
           <Text style={[styles.camperCabin, { color: colors.textSecondary }]}>{camper.cabinGroup || "No cabin"}</Text>
-          {camper.medical.allergies && camper.medical.allergies.toLowerCase() !== "none" && (
+          {medStr(camper.medical.allergies) && medStr(camper.medical.allergies).toLowerCase() !== "none" && (
             <View style={[styles.allergyTag, { backgroundColor: Colors.danger + "10" }]}>
               <Ionicons name="warning" size={11} color={Colors.danger} />
               <Text style={styles.allergyText}>
-                Allergy: {camper.medical.allergies.slice(0, 30)}
-                {camper.medical.allergies.length > 30 ? "..." : ""}
+                Allergy: {medStr(camper.medical.allergies).slice(0, 30)}
+                {medStr(camper.medical.allergies).length > 30 ? "..." : ""}
               </Text>
             </View>
           )}
@@ -94,10 +100,11 @@ function CamperCheckInCard({
   );
 }
 
-function MedicalInfoRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+function MedicalInfoRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: any }) {
   const colors = useColors();
   const styles = getStyles(colors);
-  if (!value || value.toLowerCase() === "none" || value.trim() === "") return null;
+  const strVal = medStr(value);
+  if (!strVal || strVal.toLowerCase() === "none" || strVal.trim() === "") return null;
   return (
     <View style={styles.medRow}>
       <View style={[styles.medIconWrap, { backgroundColor: colors.surfaceSecondary }]}>
@@ -105,7 +112,7 @@ function MedicalInfoRow({ icon, label, value }: { icon: keyof typeof Ionicons.gl
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.medLabel, { color: colors.textSecondary }]}>{label}</Text>
-        <Text style={[styles.medValue, { color: colors.text }]}>{value}</Text>
+        <Text style={[styles.medValue, { color: colors.text }]}>{strVal}</Text>
       </View>
     </View>
   );
@@ -202,7 +209,7 @@ function EmergencyLookupModal({
                     <Text style={[styles.camperName, { color: colors.text }]}>{item.firstName} {item.lastName}</Text>
                     <Text style={[styles.camperCabin, { color: colors.textSecondary }]}>{item.cabinGroup || "No cabin"}</Text>
                   </View>
-                  {item.medical.allergies && item.medical.allergies.toLowerCase() !== "none" && (
+                  {medStr(item.medical.allergies) && medStr(item.medical.allergies).toLowerCase() !== "none" && (
                     <View style={styles.emAllergyBadge}>
                       <Ionicons name="warning" size={12} color={Colors.danger} />
                     </View>
@@ -273,14 +280,14 @@ function EmergencyLookupModal({
               </View>
             </View>
 
-            {selectedCamper.medical.notes && selectedCamper.medical.notes.toLowerCase() !== "none" && selectedCamper.medical.notes.trim() !== "" && (
+            {medStr(selectedCamper.medical.notes) && medStr(selectedCamper.medical.notes).toLowerCase() !== "none" && (
               <View style={styles.medSection}>
                 <View style={styles.medSectionHeader}>
                   <Ionicons name="document-text" size={18} color={Colors.warning} />
                   <Text style={[styles.medSectionTitle, { color: colors.text }]}>Additional Notes</Text>
                 </View>
                 <View style={[styles.medCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <Text style={[styles.medNotesText, { color: colors.text }]}>{selectedCamper.medical.notes}</Text>
+                  <Text style={[styles.medNotesText, { color: colors.text }]}>{medStr(selectedCamper.medical.notes)}</Text>
                 </View>
               </View>
             )}

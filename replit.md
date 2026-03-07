@@ -23,6 +23,11 @@ Key features include:
 - Input validation (email, phone format validation with inline error messages)
 - Local notifications on check-in/out events via expo-notifications
 - Parent activity feed showing recent check-in/check-out history
+- **Broadcast system**: Management can send announcements to staff, parents, or everyone via the dashboard. Broadcasts appear on staff/parent screens. Emails sent via SMTP (nodemailer) when configured.
+- **Emergency mode**: Management can trigger an emergency alert that plays a siren (bypasses iOS silent mode via expo-av) and shows a red banner across all staff/parent devices.
+- **Parent check-in emails**: Parents receive an email notification when their child checks in or out.
+- **Parent profile page**: Standalone stack screen at `/(parent)/profile` with account info, change-password, and sign-out.
+- **Broadcasting**: `cs_broadcasts` table in PostgreSQL stores broadcasts. `GET/POST /api/broadcasts` and `POST /api/emergency-mode/deactivate` endpoints.
 
 The app runs on iOS, Android, and Web via Expo Router, with an Express.js backend that handles authentication and auth code management via a PostgreSQL database.
 

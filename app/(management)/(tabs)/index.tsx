@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -8,9 +8,11 @@ import {
   Platform,
   Alert,
   RefreshControl,
-  Modal,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Animated,
+  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -124,152 +126,158 @@ function BroadcastCard({ broadcast, isManagement, onDeactivate }: { broadcast: B
   );
 }
 
-function BroadcastModal({
+function BroadcastSheet({
   visible,
   onClose,
-  onSend,
   initialEmergency,
+  onSend,
 }: {
   visible: boolean;
   onClose: () => void;
-  onSend: (title: string, message: string, audience: string, isEmergency: boolean) => Promise<void>;
   initialEmergency: boolean;
+  onSend: (title: string, message: string, audience: string, isEmergency: boolean) => Promise<Broadcast>;
 }) {
   const colors = useColors();
   const styles = getStyles(colors);
-  const [title, setTitle] = useState(initialEmergency ? "EMERGENCY ALERT" : "");
+  const insets = useSafeAreaInsets();
+  const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState<"staff" | "parents" | "all">("all");
-  const [isEmergency, setIsEmergency] = useState(initialEmergency);
+  const [isEmergency, setIsEmergency] = useState(false);
   const [sending, setSending] = useState(false);
-  const insets = useSafeAreaInsets();
+  const [errorMsg, setErrorMsg] = useState("");
+
+  React.useEffect(() => {
+    if (visible) {
+      setTitle(initialEmergency ? "EMERGENCY ALERT" : "");
+      setMessage("");
+      setAudience("all");
+      setIsEmergency(initialEmergency);
+      setSending(false);
+      setErrorMsg("");
+    }
+  }, [visible, initialEmergency]);
 
   const handleSend = async () => {
+    setErrorMsg("");
     if (!title.trim() || !message.trim()) {
-      Alert.alert("Missing Fields", "Please fill in a title and message.");
+      setErrorMsg("Please fill in a title and message.");
       return;
     }
     setSending(true);
     try {
       await onSend(title.trim(), message.trim(), audience, isEmergency);
-      setTitle("");
-      setMessage("");
-      setAudience("all");
-      setIsEmergency(false);
+      setSending(false);
       onClose();
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to send broadcast.");
-    } finally {
+      setErrorMsg(err.message || "Failed to send broadcast. Please try again.");
       setSending(false);
     }
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <ScrollView
-        style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={[
-          { paddingHorizontal: 20, paddingBottom: insets.bottom + 40 },
-          { paddingTop: Platform.OS === "web" ? 67 : insets.top + 16 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>Send Broadcast</Text>
-          <Pressable onPress={onClose} hitSlop={8}>
-            <Ionicons name="close" size={24} color={colors.textSecondary} />
-          </Pressable>
-        </View>
-
-        <View style={[styles.emergencyToggle, { backgroundColor: isEmergency ? Colors.danger + "15" : colors.surface, borderColor: isEmergency ? Colors.danger + "40" : colors.border }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.fieldLabel, { color: isEmergency ? Colors.danger : colors.text }]}>Emergency Alert</Text>
-            <Text style={[styles.emergencySubtext, { color: colors.textSecondary }]}>
-              Bypasses silent mode, triggers siren on all devices
-            </Text>
+    <View style={[StyleSheet.absoluteFillObject, { zIndex: 1000, justifyContent: "flex-end" }]}>
+      <Pressable style={{ ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)" } as any} onPress={onClose} />
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <View style={[styles.sheetContainer, { backgroundColor: colors.background, paddingBottom: insets.bottom + 20, paddingTop: Platform.OS === "web" ? 20 : 20 }]}>
+          <View style={styles.sheetHandle} />
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Send Broadcast</Text>
+            <Pressable onPress={onClose} hitSlop={8} testID="broadcast-close">
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
+            </Pressable>
           </View>
-          <Pressable
-            style={[styles.toggleBtn, { backgroundColor: isEmergency ? Colors.danger : colors.border }]}
-            onPress={() => {
-              setIsEmergency((v) => !v);
-              if (!isEmergency) setTitle("EMERGENCY ALERT");
-            }}
-          >
-            <View style={[styles.toggleKnob, { transform: [{ translateX: isEmergency ? 20 : 2 }] }]} />
-          </Pressable>
-        </View>
 
-        <View style={styles.formField}>
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Title</Text>
-          <TextInput
-            style={[styles.textInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Broadcast title..."
-            placeholderTextColor={colors.textMuted}
-            maxLength={100}
-          />
-        </View>
-
-        <View style={styles.formField}>
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Message</Text>
-          <TextInput
-            style={[styles.textInput, styles.textArea, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
-            value={message}
-            onChangeText={setMessage}
-            placeholder="Write your message here..."
-            placeholderTextColor={colors.textMuted}
-            multiline
-            maxLength={500}
-          />
-        </View>
-
-        <View style={styles.formField}>
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Audience</Text>
-          <View style={styles.audienceRow}>
-            {(["all", "staff", "parents"] as const).map((opt) => (
-              <Pressable
-                key={opt}
-                style={[styles.audienceBtn, { backgroundColor: audience === opt ? Colors.primary : colors.surface, borderColor: audience === opt ? Colors.primary : colors.border }]}
-                onPress={() => setAudience(opt)}
-              >
-                <Ionicons
-                  name={opt === "all" ? "people" : opt === "staff" ? "briefcase" : "home"}
-                  size={16}
-                  color={audience === opt ? "#fff" : colors.textSecondary}
-                />
-                <Text style={[styles.audienceBtnText, { color: audience === opt ? "#fff" : colors.textSecondary }]}>
-                  {opt === "all" ? "Everyone" : opt === "staff" ? "Staff" : "Parents"}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.sendBtn,
-            {
-              backgroundColor: isEmergency ? Colors.danger : Colors.primary,
-              opacity: pressed ? 0.85 : 1,
-            },
-          ]}
-          onPress={handleSend}
-          disabled={sending}
-        >
-          {sending ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <>
-              <Ionicons name={isEmergency ? "warning" : "megaphone"} size={20} color="#fff" />
-              <Text style={styles.sendBtnText}>
-                {isEmergency ? "Send Emergency Alert" : "Send Broadcast"}
+          <View style={[styles.emergencyToggle, { backgroundColor: isEmergency ? Colors.danger + "15" : colors.surface, borderColor: isEmergency ? Colors.danger + "40" : colors.border }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.fieldLabel, { color: isEmergency ? Colors.danger : colors.text }]}>Emergency Alert</Text>
+              <Text style={[styles.emergencySubtext, { color: colors.textSecondary }]}>
+                Bypasses silent mode, triggers siren on all devices
               </Text>
-            </>
+            </View>
+            <Pressable
+              style={[styles.toggleBtn, { backgroundColor: isEmergency ? Colors.danger : colors.border }]}
+              onPress={() => {
+                const next = !isEmergency;
+                setIsEmergency(next);
+                if (next && !title) setTitle("EMERGENCY ALERT");
+              }}
+            >
+              <View style={[styles.toggleKnob, { transform: [{ translateX: isEmergency ? 20 : 2 }] }]} />
+            </Pressable>
+          </View>
+
+          <View style={[styles.formField, { marginTop: 16 }]}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Title</Text>
+            <TextInput
+              style={[styles.textInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Broadcast title..."
+              placeholderTextColor={colors.textMuted}
+              maxLength={100}
+              testID="broadcast-title"
+            />
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Message</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+              value={message}
+              onChangeText={setMessage}
+              placeholder="Write your message here..."
+              placeholderTextColor={colors.textMuted}
+              multiline
+              maxLength={500}
+              testID="broadcast-message"
+            />
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Audience</Text>
+            <View style={styles.audienceRow}>
+              {(["all", "staff", "parents"] as const).map((opt) => (
+                <Pressable
+                  key={opt}
+                  style={[styles.audienceBtn, { backgroundColor: audience === opt ? Colors.primary : colors.surface, borderColor: audience === opt ? Colors.primary : colors.border }]}
+                  onPress={() => setAudience(opt)}
+                >
+                  <Ionicons name={opt === "all" ? "people" : opt === "staff" ? "briefcase" : "home"} size={16} color={audience === opt ? "#fff" : colors.textSecondary} />
+                  <Text style={[styles.audienceBtnText, { color: audience === opt ? "#fff" : colors.textSecondary }]}>
+                    {opt === "all" ? "Everyone" : opt === "staff" ? "Staff" : "Parents"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {!!errorMsg && (
+            <View style={{ backgroundColor: Colors.danger + "15", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: Colors.danger + "30", marginBottom: 8 }}>
+              <Text style={{ color: Colors.danger, fontFamily: "Outfit_600SemiBold", fontSize: 13 }}>{errorMsg}</Text>
+            </View>
           )}
-        </Pressable>
-      </ScrollView>
-    </Modal>
+
+          <Pressable
+            style={({ pressed }) => [styles.sendBtn, { backgroundColor: isEmergency ? Colors.danger : Colors.primary, opacity: pressed ? 0.85 : 1 }]}
+            onPress={handleSend}
+            disabled={sending}
+            testID="broadcast-send"
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name={isEmergency ? "warning" : "megaphone"} size={20} color="#fff" />
+                <Text style={styles.sendBtnText}>{isEmergency ? "Send Emergency Alert" : "Send Broadcast"}</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -347,6 +355,7 @@ export default function DashboardScreen() {
   const initials = user?.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[
@@ -469,19 +478,21 @@ export default function DashboardScreen() {
         </>
       )}
 
-      <BroadcastModal
-        visible={broadcastModalVisible}
-        onClose={() => setBroadcastModalVisible(false)}
-        onSend={sendBroadcast}
-        initialEmergency={false}
-      />
-      <BroadcastModal
-        visible={emergencyModalVisible}
-        onClose={() => setEmergencyModalVisible(false)}
-        onSend={sendBroadcast}
-        initialEmergency
-      />
     </ScrollView>
+
+    <BroadcastSheet
+      visible={broadcastModalVisible}
+      onClose={() => setBroadcastModalVisible(false)}
+      onSend={sendBroadcast}
+      initialEmergency={false}
+    />
+    <BroadcastSheet
+      visible={emergencyModalVisible}
+      onClose={() => setEmergencyModalVisible(false)}
+      onSend={sendBroadcast}
+      initialEmergency
+    />
+    </View>
   );
 }
 
@@ -751,6 +762,27 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 13,
     fontFamily: "Outfit_700Bold",
     color: "#fff",
+  },
+  sheetContainer: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
+    maxHeight: 620,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    alignSelf: "center",
+    marginBottom: 16,
+    marginTop: 8,
   },
   modalTitle: {
     fontSize: 22,
