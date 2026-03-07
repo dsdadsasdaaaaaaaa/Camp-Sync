@@ -137,7 +137,7 @@ export default function ParentChildrenScreen() {
       contentContainerStyle={[
         styles.container,
         {
-          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20),
+          paddingTop: Platform.OS === "web" ? 67 : Platform.OS === "ios" ? 20 : insets.top + 20,
           paddingBottom: insets.bottom + 100,
         },
       ]}

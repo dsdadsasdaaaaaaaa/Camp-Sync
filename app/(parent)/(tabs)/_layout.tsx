@@ -69,12 +69,6 @@ function ClassicTabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          href: null,
-        }}
-      />
     </Tabs>
   );
 }
