@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,9 @@ import {
   Platform,
   Alert,
   RefreshControl,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,6 +20,7 @@ import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/app/_layout";
+import type { Broadcast } from "@/types";
 
 function StatCard({
   icon,
@@ -51,7 +55,6 @@ function StatCard({
 }
 
 function RecentCheckIn({
-  camperId,
   camperName,
   time,
 }: {
@@ -81,21 +84,209 @@ function RecentCheckIn({
   );
 }
 
+function BroadcastCard({ broadcast, isManagement, onDeactivate }: { broadcast: Broadcast; isManagement: boolean; onDeactivate?: () => void }) {
+  const colors = useColors();
+  const styles = getStyles(colors);
+  const isEmergency = broadcast.isEmergency;
+
+  return (
+    <View style={[
+      styles.broadcastCard,
+      {
+        backgroundColor: isEmergency ? Colors.danger + "10" : colors.surface,
+        borderColor: isEmergency ? Colors.danger + "40" : colors.border,
+      },
+    ]}>
+      <View style={styles.broadcastHeader}>
+        <View style={[styles.broadcastBadge, { backgroundColor: isEmergency ? Colors.danger : Colors.primary }]}>
+          <Ionicons name={isEmergency ? "warning" : "megaphone"} size={12} color="#fff" />
+          <Text style={styles.broadcastBadgeText}>
+            {isEmergency ? "EMERGENCY" : broadcast.audience === "staff" ? "Staff" : broadcast.audience === "parents" ? "Parents" : "Everyone"}
+          </Text>
+        </View>
+        <Text style={[styles.broadcastTime, { color: colors.textMuted }]}>
+          {new Date(broadcast.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </Text>
+      </View>
+      <Text style={[styles.broadcastTitle, { color: isEmergency ? Colors.danger : colors.text }]}>{broadcast.title}</Text>
+      <Text style={[styles.broadcastMessage, { color: colors.textSecondary }]}>{broadcast.message}</Text>
+      <Text style={[styles.broadcastSentBy, { color: colors.textMuted }]}>Sent by {broadcast.sentByName}</Text>
+      {isManagement && broadcast.emergencyActive && (
+        <Pressable
+          style={({ pressed }) => [styles.deactivateBtn, { opacity: pressed ? 0.8 : 1 }]}
+          onPress={onDeactivate}
+        >
+          <Ionicons name="stop-circle" size={16} color="#fff" />
+          <Text style={styles.deactivateBtnText}>Deactivate Emergency</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function BroadcastModal({
+  visible,
+  onClose,
+  onSend,
+  initialEmergency,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSend: (title: string, message: string, audience: string, isEmergency: boolean) => Promise<void>;
+  initialEmergency: boolean;
+}) {
+  const colors = useColors();
+  const styles = getStyles(colors);
+  const [title, setTitle] = useState(initialEmergency ? "EMERGENCY ALERT" : "");
+  const [message, setMessage] = useState("");
+  const [audience, setAudience] = useState<"staff" | "parents" | "all">("all");
+  const [isEmergency, setIsEmergency] = useState(initialEmergency);
+  const [sending, setSending] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  const handleSend = async () => {
+    if (!title.trim() || !message.trim()) {
+      Alert.alert("Missing Fields", "Please fill in a title and message.");
+      return;
+    }
+    setSending(true);
+    try {
+      await onSend(title.trim(), message.trim(), audience, isEmergency);
+      setTitle("");
+      setMessage("");
+      setAudience("all");
+      setIsEmergency(false);
+      onClose();
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to send broadcast.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        contentContainerStyle={[
+          { paddingHorizontal: 20, paddingBottom: insets.bottom + 40 },
+          { paddingTop: Platform.OS === "web" ? 67 : insets.top + 16 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>Send Broadcast</Text>
+          <Pressable onPress={onClose} hitSlop={8}>
+            <Ionicons name="close" size={24} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+
+        <View style={[styles.emergencyToggle, { backgroundColor: isEmergency ? Colors.danger + "15" : colors.surface, borderColor: isEmergency ? Colors.danger + "40" : colors.border }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.fieldLabel, { color: isEmergency ? Colors.danger : colors.text }]}>Emergency Alert</Text>
+            <Text style={[styles.emergencySubtext, { color: colors.textSecondary }]}>
+              Bypasses silent mode, triggers siren on all devices
+            </Text>
+          </View>
+          <Pressable
+            style={[styles.toggleBtn, { backgroundColor: isEmergency ? Colors.danger : colors.border }]}
+            onPress={() => {
+              setIsEmergency((v) => !v);
+              if (!isEmergency) setTitle("EMERGENCY ALERT");
+            }}
+          >
+            <View style={[styles.toggleKnob, { transform: [{ translateX: isEmergency ? 20 : 2 }] }]} />
+          </Pressable>
+        </View>
+
+        <View style={styles.formField}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Title</Text>
+          <TextInput
+            style={[styles.textInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Broadcast title..."
+            placeholderTextColor={colors.textMuted}
+            maxLength={100}
+          />
+        </View>
+
+        <View style={styles.formField}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Message</Text>
+          <TextInput
+            style={[styles.textInput, styles.textArea, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+            value={message}
+            onChangeText={setMessage}
+            placeholder="Write your message here..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+            maxLength={500}
+          />
+        </View>
+
+        <View style={styles.formField}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Audience</Text>
+          <View style={styles.audienceRow}>
+            {(["all", "staff", "parents"] as const).map((opt) => (
+              <Pressable
+                key={opt}
+                style={[styles.audienceBtn, { backgroundColor: audience === opt ? Colors.primary : colors.surface, borderColor: audience === opt ? Colors.primary : colors.border }]}
+                onPress={() => setAudience(opt)}
+              >
+                <Ionicons
+                  name={opt === "all" ? "people" : opt === "staff" ? "briefcase" : "home"}
+                  size={16}
+                  color={audience === opt ? "#fff" : colors.textSecondary}
+                />
+                <Text style={[styles.audienceBtnText, { color: audience === opt ? "#fff" : colors.textSecondary }]}>
+                  {opt === "all" ? "Everyone" : opt === "staff" ? "Staff" : "Parents"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.sendBtn,
+            {
+              backgroundColor: isEmergency ? Colors.danger : Colors.primary,
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+          onPress={handleSend}
+          disabled={sending}
+        >
+          {sending ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Ionicons name={isEmergency ? "warning" : "megaphone"} size={20} color="#fff" />
+              <Text style={styles.sendBtnText}>
+                {isEmergency ? "Send Emergency Alert" : "Send Broadcast"}
+              </Text>
+            </>
+          )}
+        </Pressable>
+      </ScrollView>
+    </Modal>
+  );
+}
+
 export default function DashboardScreen() {
   const { user, logout } = useAuth();
-  const { campers, checkIns, sessions, pendingUpdates, isLoading, refresh } =
+  const { campers, checkIns, sessions, pendingUpdates, broadcasts, isLoading, refresh, sendBroadcast, deactivateEmergency } =
     useData();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = getStyles(colors);
   const { isDark, toggleTheme, setUseSystem } = useTheme();
+  const [broadcastModalVisible, setBroadcastModalVisible] = useState(false);
+  const [emergencyModalVisible, setEmergencyModalVisible] = useState(false);
 
   const checkedInToday = checkIns.filter((ci) => {
     const today = new Date().toDateString();
-    return (
-      !ci.checkedOutAt &&
-      new Date(ci.checkedInAt).toDateString() === today
-    );
+    return !ci.checkedOutAt && new Date(ci.checkedInAt).toDateString() === today;
   });
 
   const todaySessions = sessions.filter((s) => {
@@ -112,6 +303,9 @@ export default function DashboardScreen() {
     })
     .sort((a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime())
     .slice(0, 5);
+
+  const recentBroadcasts = broadcasts.slice(0, 3);
+  const activeEmergency = broadcasts.find((b) => b.emergencyActive);
 
   const handleLogout = async () => {
     if (Platform.OS === "web") {
@@ -131,6 +325,23 @@ export default function DashboardScreen() {
   const handleToggleDark = () => {
     setUseSystem(false);
     toggleTheme(!isDark);
+  };
+
+  const handleDeactivateEmergency = () => {
+    Alert.alert(
+      "Deactivate Emergency",
+      "Are you sure you want to deactivate emergency mode? All devices will stop the alert.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Deactivate", style: "destructive", onPress: async () => {
+          try {
+            await deactivateEmergency();
+          } catch (err: any) {
+            Alert.alert("Error", err.message || "Failed to deactivate emergency.");
+          }
+        }},
+      ]
+    );
   };
 
   const initials = user?.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
@@ -169,6 +380,15 @@ export default function DashboardScreen() {
         </View>
       </View>
 
+      {/* Active Emergency Banner */}
+      {activeEmergency && (
+        <Pressable style={styles.emergencyBanner} onPress={handleDeactivateEmergency}>
+          <Ionicons name="warning" size={20} color="#fff" />
+          <Text style={styles.emergencyBannerText}>EMERGENCY ACTIVE — Tap to deactivate</Text>
+          <Ionicons name="stop-circle" size={20} color="#fff" />
+        </Pressable>
+      )}
+
       {unresolved.length > 0 && (
         <Pressable
           style={styles.alertBanner}
@@ -176,8 +396,7 @@ export default function DashboardScreen() {
         >
           <Ionicons name="warning" size={18} color="#fff" />
           <Text style={styles.alertText}>
-            {unresolved.length} wristband{unresolved.length !== 1 ? "s" : ""} need
-            updating
+            {unresolved.length} wristband{unresolved.length !== 1 ? "s" : ""} need updating
           </Text>
           <Ionicons name="chevron-forward" size={16} color="#fff" />
         </Pressable>
@@ -185,72 +404,39 @@ export default function DashboardScreen() {
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Today's Overview</Text>
       <View style={styles.statsGrid}>
-        <StatCard
-          icon="people"
-          label="Total Campers"
-          value={campers.length}
-          color={Colors.primary}
-          onPress={() => router.navigate({ pathname: "/(management)/(tabs)/campers" })}
-        />
-        <StatCard
-          icon="checkmark-circle"
-          label="Checked In"
-          value={checkedInToday.length}
-          color={Colors.success}
-        />
-        <StatCard
-          icon="calendar"
-          label="Active Sessions"
-          value={todaySessions.length}
-          color={Colors.warning}
-          onPress={() => router.navigate({ pathname: "/(management)/(tabs)/more" })}
-        />
-        <StatCard
-          icon="time"
-          label="Pending Updates"
-          value={unresolved.length}
-          color={unresolved.length > 0 ? Colors.danger : colors.textMuted}
-          onPress={() => router.navigate({ pathname: "/(management)/(tabs)/pending" })}
-        />
+        <StatCard icon="people" label="Total Campers" value={campers.length} color={Colors.primary} onPress={() => router.navigate({ pathname: "/(management)/(tabs)/campers" })} />
+        <StatCard icon="checkmark-circle" label="Checked In" value={checkedInToday.length} color={Colors.success} />
+        <StatCard icon="calendar" label="Active Sessions" value={todaySessions.length} color={Colors.warning} onPress={() => router.navigate({ pathname: "/(management)/(tabs)/more" })} />
+        <StatCard icon="time" label="Pending Updates" value={unresolved.length} color={unresolved.length > 0 ? Colors.danger : colors.textMuted} onPress={() => router.navigate({ pathname: "/(management)/(tabs)/pending" })} />
       </View>
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
       <View style={styles.actionsGrid}>
-        <Pressable
-          style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 }]}
-          onPress={() => router.navigate({ pathname: "/(management)/(tabs)/campers" })}
-        >
+        <Pressable style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 }]} onPress={() => router.navigate({ pathname: "/(management)/(tabs)/campers" })}>
           <View style={[styles.actionIcon, { backgroundColor: Colors.primary + "20" }]}>
             <Ionicons name="person-add" size={24} color={Colors.primary} />
           </View>
           <Text style={[styles.actionLabel, { color: colors.text }]}>Add Camper</Text>
         </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 }]}
-          onPress={() => router.navigate({ pathname: "/(management)/(tabs)/nfc" })}
-        >
+        <Pressable style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 }]} onPress={() => router.navigate({ pathname: "/(management)/(tabs)/nfc" })}>
           <View style={[styles.actionIcon, { backgroundColor: Colors.accent + "20" }]}>
             <Ionicons name="radio" size={24} color={Colors.accent} />
           </View>
           <Text style={[styles.actionLabel, { color: colors.text }]}>NFC Wristband</Text>
         </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 }]}
-          onPress={() => router.navigate({ pathname: "/(management)/(tabs)/more" })}
-        >
+        <Pressable style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 }]} onPress={() => setBroadcastModalVisible(true)}>
           <View style={[styles.actionIcon, { backgroundColor: Colors.warning + "20" }]}>
-            <Ionicons name="calendar" size={24} color={Colors.warning} />
+            <Ionicons name="megaphone" size={24} color={Colors.warning} />
           </View>
-          <Text style={[styles.actionLabel, { color: colors.text }]}>Sessions</Text>
+          <Text style={[styles.actionLabel, { color: colors.text }]}>Broadcast</Text>
         </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 }]}
-          onPress={() => router.navigate({ pathname: "/(management)/(tabs)/more" })}
-        >
-          <View style={[styles.actionIcon, { backgroundColor: "#8B5CF620" }]}>
-            <Ionicons name="key" size={24} color="#8B5CF6" />
+        <Pressable style={({ pressed }) => [styles.actionCard, { backgroundColor: activeEmergency ? Colors.danger + "15" : colors.surface, opacity: pressed ? 0.85 : 1, borderWidth: activeEmergency ? 1.5 : 0, borderColor: activeEmergency ? Colors.danger + "50" : "transparent" }]} onPress={() => activeEmergency ? handleDeactivateEmergency() : setEmergencyModalVisible(true)}>
+          <View style={[styles.actionIcon, { backgroundColor: Colors.danger + "20" }]}>
+            <Ionicons name={activeEmergency ? "stop-circle" : "warning"} size={24} color={Colors.danger} />
           </View>
-          <Text style={[styles.actionLabel, { color: colors.text }]}>Auth Codes</Text>
+          <Text style={[styles.actionLabel, { color: activeEmergency ? Colors.danger : colors.text }]}>
+            {activeEmergency ? "Stop Emergency" : "Emergency"}
+          </Text>
         </Pressable>
       </View>
 
@@ -263,20 +449,38 @@ export default function DashboardScreen() {
               if (!camper) return null;
               return (
                 <View key={ci.id}>
-                  <RecentCheckIn
-                    camperId={ci.camperId}
-                    camperName={`${camper.firstName} ${camper.lastName}`}
-                    time={ci.checkedInAt}
-                  />
-                  {idx < recentCheckIns.length - 1 && (
-                    <View style={[styles.separator, { backgroundColor: colors.border }]} />
-                  )}
+                  <RecentCheckIn camperId={ci.camperId} camperName={`${camper.firstName} ${camper.lastName}`} time={ci.checkedInAt} />
+                  {idx < recentCheckIns.length - 1 && <View style={[styles.separator, { backgroundColor: colors.border }]} />}
                 </View>
               );
             })}
           </View>
         </>
       )}
+
+      {recentBroadcasts.length > 0 && (
+        <>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Broadcasts</Text>
+          <View style={{ gap: 10 }}>
+            {recentBroadcasts.map((b) => (
+              <BroadcastCard key={b.id} broadcast={b} isManagement onDeactivate={handleDeactivateEmergency} />
+            ))}
+          </View>
+        </>
+      )}
+
+      <BroadcastModal
+        visible={broadcastModalVisible}
+        onClose={() => setBroadcastModalVisible(false)}
+        onSend={sendBroadcast}
+        initialEmergency={false}
+      />
+      <BroadcastModal
+        visible={emergencyModalVisible}
+        onClose={() => setEmergencyModalVisible(false)}
+        onSend={sendBroadcast}
+        initialEmergency
+      />
     </ScrollView>
   );
 }
@@ -331,6 +535,20 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontFamily: "Outfit_700Bold",
     color: colors.text,
     marginTop: 1,
+  },
+  emergencyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: Colors.danger,
+    borderRadius: 14,
+    padding: 14,
+  },
+  emergencyBannerText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Outfit_700Bold",
+    color: "#fff",
   },
   alertBanner: {
     flexDirection: "row",
@@ -439,7 +657,6 @@ const getStyles = (colors: any) => StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.primary + "20",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -473,5 +690,153 @@ const getStyles = (colors: any) => StyleSheet.create({
   separator: {
     height: 1,
     backgroundColor: colors.border,
+  },
+  broadcastCard: {
+    borderRadius: 16,
+    padding: 14,
+    gap: 8,
+    borderWidth: 1,
+  },
+  broadcastHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  broadcastBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  broadcastBadgeText: {
+    fontSize: 10,
+    fontFamily: "Outfit_700Bold",
+    color: "#fff",
+  },
+  broadcastTime: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: colors.textMuted,
+  },
+  broadcastTitle: {
+    fontSize: 15,
+    fontFamily: "Outfit_700Bold",
+    color: colors.text,
+  },
+  broadcastMessage: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  broadcastSentBy: {
+    fontSize: 11,
+    fontFamily: "Outfit_400Regular",
+    color: colors.textMuted,
+  },
+  deactivateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: Colors.danger,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginTop: 4,
+  },
+  deactivateBtnText: {
+    fontSize: 13,
+    fontFamily: "Outfit_700Bold",
+    color: "#fff",
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontFamily: "Outfit_700Bold",
+    color: colors.text,
+  },
+  formField: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
+    color: colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    fontFamily: "Outfit_400Regular",
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: "top",
+  },
+  audienceRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  audienceBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  audienceBtnText: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  emergencyToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  emergencySubtext: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  toggleBtn: {
+    width: 44,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: "center",
+  },
+  toggleKnob: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#fff",
+  },
+  sendBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    height: 54,
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  sendBtnText: {
+    fontSize: 16,
+    fontFamily: "Outfit_700Bold",
+    color: "#fff",
   },
 });

@@ -156,7 +156,7 @@ export default function ParentChildrenScreen() {
         </View>
         <Pressable
           style={({ pressed }) => [styles.accountBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={() => router.push("/(parent)/(tabs)/profile")}
+          onPress={() => router.push("/(parent)/profile")}
         >
           <Ionicons name="person-circle-outline" size={30} color={colors.text} />
         </Pressable>

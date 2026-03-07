@@ -22,6 +22,7 @@ import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import NFCScanner from "@/components/NFCScanner";
+import { useSiren } from "@/lib/useSiren";
 import type { Camper, WristbandPayload } from "@/types";
 
 function CamperCheckInCard({
@@ -114,10 +115,12 @@ function EmergencyLookupModal({
   visible,
   onClose,
   campers,
+  selectedCabin,
 }: {
   visible: boolean;
   onClose: () => void;
   campers: Camper[];
+  selectedCabin: string | null;
 }) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
@@ -305,6 +308,7 @@ export default function StaffCheckInScreen() {
     campers,
     sessions,
     checkIns,
+    broadcasts,
     canStaffCheckIn,
     getTodaySessions,
     checkInCamper,
@@ -317,6 +321,8 @@ export default function StaffCheckInScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = getStyles(colors);
+  const activeEmergency = broadcasts.find((b) => b.emergencyActive);
+  useSiren(!!activeEmergency);
   const [search, setSearch] = useState("");
   const [selectedCabin, setSelectedCabin] = useState<string | null>(null);
   const [nfcScanVisible, setNfcScanVisible] = useState(false);
@@ -486,6 +492,13 @@ export default function StaffCheckInScreen() {
           </View>
         </View>
 
+        {activeEmergency && (
+          <View style={[styles.lockBanner, { backgroundColor: Colors.danger, flexDirection: "row", gap: 8 }]}>
+            <Ionicons name="warning" size={18} color="#fff" />
+            <Text style={styles.lockText}>{activeEmergency.title}</Text>
+          </View>
+        )}
+
         {!canCheckIn ? (
           <View style={styles.lockBanner}>
             <Ionicons name="lock-closed" size={18} color="#fff" />
@@ -627,6 +640,7 @@ export default function StaffCheckInScreen() {
         visible={emergencyLookupVisible}
         onClose={() => setEmergencyLookupVisible(false)}
         campers={campers}
+        selectedCabin={selectedCabin}
       />
     </View>
   );

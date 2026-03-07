@@ -7,6 +7,7 @@ export default function ParentLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="child/[id]" />
+      <Stack.Screen name="profile" />
     </Stack>
   );
 }

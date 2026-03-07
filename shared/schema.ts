@@ -96,6 +96,18 @@ export const csPendingUpdates = pgTable("cs_pending_updates", {
   resolvedByName: text("resolved_by_name"),
 });
 
+export const csBroadcasts = pgTable("cs_broadcasts", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  audience: varchar("audience", { length: 20 }).notNull().default("all"),
+  isEmergency: boolean("is_emergency").notNull().default(false),
+  emergencyActive: boolean("emergency_active").notNull().default(false),
+  sentBy: varchar("sent_by", { length: 36 }).notNull(),
+  sentByName: text("sent_by_name").notNull(),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(csUsers).pick({
   name: true,
   email: true,

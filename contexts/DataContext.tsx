@@ -19,6 +19,7 @@ import type {
   MedicalInfo,
   User,
   UserRole,
+  Broadcast,
 } from "@/types";
 import { useAuth } from "./AuthContext";
 
@@ -29,8 +30,11 @@ interface DataContextValue {
   authCodes: AuthCode[];
   pendingUpdates: PendingWristbandUpdate[];
   users: User[];
+  broadcasts: Broadcast[];
   isLoading: boolean;
   refresh: () => Promise<void>;
+  sendBroadcast: (title: string, message: string, audience: string, isEmergency: boolean) => Promise<Broadcast>;
+  deactivateEmergency: () => Promise<void>;
   addCamper: (data: Omit<Camper, "id" | "createdAt" | "updatedAt">) => Promise<Camper>;
   updateCamper: (id: string, data: Partial<Camper>) => Promise<void>;
   deleteCamper: (id: string) => Promise<void>;
@@ -86,6 +90,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [authCodes, setAuthCodes] = useState<AuthCode[]>([]);
   const [pendingUpdates, setPendingUpdates] = useState<PendingWristbandUpdate[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -98,18 +103,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     
     try {
-      const [c, s, ci, pu, ac] = await Promise.all([
+      const [c, s, ci, pu, ac, br] = await Promise.all([
         safeGet<Camper[]>("/api/campers", []),
         safeGet<Session[]>("/api/sessions", []),
         safeGet<CheckIn[]>("/api/check-ins", []),
         safeGet<PendingWristbandUpdate[]>("/api/pending-updates", []),
         safeGet<AuthCode[]>("/api/auth/codes", []),
+        safeGet<Broadcast[]>("/api/broadcasts", []),
       ]);
       setCampers(normalizeCampers(c));
       setSessions(s);
       setCheckIns(ci);
       setPendingUpdates(pu);
       setAuthCodes(ac);
+      setBroadcasts(br);
 
       // Fetch users only for management
       if (user.role === "management") {
@@ -130,6 +137,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setAuthCodes([]);
       setPendingUpdates([]);
       setUsers([]);
+      setBroadcasts([]);
       return;
     }
     refresh();
@@ -137,25 +145,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const poll = setInterval(async () => {
       if (!user || offlineMode) return;
       try {
-        const [c, s, ci, pu, ac] = await Promise.all([
+        const [c, s, ci, pu, ac, br] = await Promise.all([
           safeGet<Camper[]>("/api/campers", []),
           safeGet<Session[]>("/api/sessions", []),
           safeGet<CheckIn[]>("/api/check-ins", []),
           safeGet<PendingWristbandUpdate[]>("/api/pending-updates", []),
           safeGet<AuthCode[]>("/api/auth/codes", []),
+          safeGet<Broadcast[]>("/api/broadcasts", []),
         ]);
         setCampers(normalizeCampers(c));
         setSessions(s);
         setCheckIns(ci);
         setPendingUpdates(pu);
         setAuthCodes(ac);
+        setBroadcasts(br);
         if (user.role === "management") {
           const u = await safeGet<User[]>("/api/users", []);
           setUsers(u);
         }
       } catch {
       }
-    }, 30000);
+    }, 15000);
 
     return () => clearInterval(poll);
   }, [authLoading, user, offlineMode]);
@@ -376,6 +386,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [pendingUpdates, programWristband]
   );
 
+  // ── Broadcasts ─────────────────────────────────────────────────────────────────
+
+  const sendBroadcast = useCallback(
+    async (title: string, message: string, audience: string, isEmergency: boolean): Promise<Broadcast> => {
+      const res = await apiRequest("POST", "/api/broadcasts", { title, message, audience, isEmergency });
+      const newBroadcast: Broadcast = await res.json();
+      setBroadcasts((prev) => [newBroadcast, ...prev]);
+      return newBroadcast;
+    },
+    []
+  );
+
+  const deactivateEmergency = useCallback(async () => {
+    await apiRequest("POST", "/api/emergency-mode/deactivate");
+    setBroadcasts((prev) =>
+      prev.map((b) => (b.emergencyActive ? { ...b, emergencyActive: false } : b))
+    );
+  }, []);
+
   // ── Session helpers ────────────────────────────────────────────────────────────
 
   const getTodaySessions = useCallback(() => {
@@ -393,6 +422,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       authCodes,
       pendingUpdates,
       users,
+      broadcasts,
       isLoading,
       refresh,
       addCamper,
@@ -413,13 +443,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
       canStaffCheckIn,
       updateUser,
       deleteUser,
+      sendBroadcast,
+      deactivateEmergency,
     }),
     [
-      campers, sessions, checkIns, authCodes, pendingUpdates, users, isLoading,
+      campers, sessions, checkIns, authCodes, pendingUpdates, users, broadcasts, isLoading,
       refresh, addCamper, updateCamper, deleteCamper, programWristband,
       addSession, updateSession, deleteSession, checkInCamper, checkOutCamper,
       getActiveCheckIn, createAuthCode, updateAuthCode, deleteAuthCode,
       resolvePendingUpdate, getTodaySessions, canStaffCheckIn, updateUser, deleteUser,
+      sendBroadcast, deactivateEmergency,
     ]
   );
 

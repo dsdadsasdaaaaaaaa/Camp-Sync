@@ -93,6 +93,18 @@ export interface PendingWristbandUpdate {
   resolvedByName?: string;
 }
 
+export interface Broadcast {
+  id: string;
+  title: string;
+  message: string;
+  audience: "staff" | "parents" | "all";
+  isEmergency: boolean;
+  emergencyActive: boolean;
+  sentBy: string;
+  sentByName: string;
+  sentAt: string;
+}
+
 export interface WristbandPayload {
   camperId: string;
   firstName: string;

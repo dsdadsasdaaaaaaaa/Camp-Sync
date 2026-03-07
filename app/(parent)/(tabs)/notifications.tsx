@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Pressable,
   Platform,
   RefreshControl,
+  SectionList,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,13 +14,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
-import type { CheckIn, Camper } from "@/types";
+import { useSiren } from "@/lib/useSiren";
+import type { CheckIn, Camper, Broadcast } from "@/types";
 
 interface ActivityEvent {
   id: string;
-  type: "check_in" | "check_out";
-  camper: Camper;
-  checkIn: CheckIn;
+  type: "check_in" | "check_out" | "broadcast";
+  camper?: Camper;
+  checkIn?: CheckIn;
+  broadcast?: Broadcast;
   timestamp: string;
 }
 
@@ -28,8 +30,11 @@ export default function ParentNotificationsScreen() {
   const { user } = useAuth();
   const colors = useColors();
   const styles = getStyles(colors);
-  const { campers, checkIns, isLoading, refresh } = useData();
+  const { campers, checkIns, broadcasts, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
+
+  const activeEmergency = broadcasts.find((b) => b.emergencyActive);
+  useSiren(!!activeEmergency);
 
   const myChildren = campers.filter((c) =>
     user?.linkedCamperIds.includes(c.id)
@@ -63,59 +68,77 @@ export default function ParentNotificationsScreen() {
       }
     });
 
+  const parentBroadcasts = broadcasts.filter(
+    (b) => b.audience === "parents" || b.audience === "all"
+  );
+  parentBroadcasts.forEach((b) => {
+    events.push({
+      id: "broadcast-" + b.id,
+      type: "broadcast",
+      broadcast: b,
+      timestamp: b.sentAt,
+    });
+  });
+
   events.sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
   const renderItem = useCallback(
     ({ item }: { item: ActivityEvent }) => {
+      if (item.type === "broadcast" && item.broadcast) {
+        const b = item.broadcast;
+        const isEmergency = b.isEmergency;
+        return (
+          <View style={[
+            styles.eventCard,
+            {
+              backgroundColor: isEmergency ? Colors.danger + "10" : colors.surface,
+              borderWidth: isEmergency ? 1.5 : 0,
+              borderColor: isEmergency ? Colors.danger + "50" : "transparent",
+            },
+          ]}>
+            <View style={[styles.iconCircle, { backgroundColor: isEmergency ? Colors.danger + "20" : Colors.primary + "15" }]}>
+              <Ionicons name={isEmergency ? "warning" : "megaphone-outline"} size={20} color={isEmergency ? Colors.danger : Colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.eventTitle, { color: isEmergency ? Colors.danger : colors.text, fontFamily: "Outfit_700Bold" }]}>
+                {b.title}
+              </Text>
+              <Text style={[styles.eventMeta, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={2}>
+                {b.message}
+              </Text>
+              <Text style={[styles.eventMeta, { color: colors.textMuted, marginTop: 3 }]}>
+                {new Date(b.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · From {b.sentByName}
+              </Text>
+            </View>
+            <View style={[styles.badge, { backgroundColor: isEmergency ? Colors.danger + "20" : Colors.primary + "15" }]}>
+              <Text style={[styles.badgeText, { color: isEmergency ? Colors.danger : Colors.primary }]}>
+                {isEmergency ? "!" : "📢"}
+              </Text>
+            </View>
+          </View>
+        );
+      }
+
       const isIn = item.type === "check_in";
       const staffName = isIn
-        ? item.checkIn.checkedInByName
-        : item.checkIn.checkedOutByName;
+        ? item.checkIn?.checkedInByName
+        : item.checkIn?.checkedOutByName;
       const date = new Date(item.timestamp);
-      const isToday =
-        date.toDateString() === new Date().toDateString();
-      const isYesterday =
-        date.toDateString() ===
-        new Date(Date.now() - 86400000).toDateString();
-
-      const dayLabel = isToday
-        ? "Today"
-        : isYesterday
-        ? "Yesterday"
-        : date.toLocaleDateString([], {
-            weekday: "long",
-            month: "short",
-            day: "numeric",
-          });
-
-      const timeLabel = date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      const isToday = date.toDateString() === new Date().toDateString();
+      const isYesterday = date.toDateString() === new Date(Date.now() - 86400000).toDateString();
+      const dayLabel = isToday ? "Today" : isYesterday ? "Yesterday" : date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+      const timeLabel = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
       return (
         <View style={[styles.eventCard, { backgroundColor: colors.surface }]}>
-          <View
-            style={[
-              styles.iconCircle,
-              {
-                backgroundColor: isIn
-                  ? Colors.success + "20"
-                  : colors.surfaceSecondary,
-              },
-            ]}
-          >
-            <Ionicons
-              name={isIn ? "log-in-outline" : "log-out-outline"}
-              size={20}
-              color={isIn ? Colors.success : colors.textSecondary}
-            />
+          <View style={[styles.iconCircle, { backgroundColor: isIn ? Colors.success + "20" : colors.surfaceSecondary }]}>
+            <Ionicons name={isIn ? "log-in-outline" : "log-out-outline"} size={20} color={isIn ? Colors.success : colors.textSecondary} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.eventTitle, { color: colors.text }]}>
-              <Text style={[styles.eventName, { color: colors.text }]}>{item.camper.firstName}</Text>
+              <Text style={[styles.eventName, { color: colors.text }]}>{item.camper?.firstName}</Text>
               {isIn ? " checked in" : " checked out"}
             </Text>
             <Text style={[styles.eventMeta, { color: colors.textMuted }]}>
@@ -123,22 +146,8 @@ export default function ParentNotificationsScreen() {
               {staffName ? ` · ${staffName}` : ""}
             </Text>
           </View>
-          <View
-            style={[
-              styles.badge,
-              {
-                backgroundColor: isIn
-                  ? Colors.success + "15"
-                  : colors.surfaceSecondary,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.badgeText,
-                { color: isIn ? Colors.success : colors.textSecondary },
-              ]}
-            >
+          <View style={[styles.badge, { backgroundColor: isIn ? Colors.success + "15" : colors.surfaceSecondary }]}>
+            <Text style={[styles.badgeText, { color: isIn ? Colors.success : colors.textSecondary }]}>
               {isIn ? "In" : "Out"}
             </Text>
           </View>
@@ -150,34 +159,25 @@ export default function ParentNotificationsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop:
-              insets.top + (Platform.OS === "web" ? 67 : 20),
-          },
-        ]}
-      >
-        <Ionicons
-          name="notifications-outline"
-          size={22}
-          color={colors.text}
-        />
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Activity</Text>
+      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20) }]}>
+        {activeEmergency ? (
+          <View style={styles.emergencyBanner}>
+            <Ionicons name="warning" size={18} color="#fff" />
+            <Text style={styles.emergencyText} numberOfLines={1}>{activeEmergency.title}</Text>
+          </View>
+        ) : (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <Ionicons name="notifications-outline" size={22} color={colors.text} />
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Activity</Text>
+          </View>
+        )}
       </View>
 
       {myChildren.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons
-            name="people-outline"
-            size={44}
-            color={Colors.primary}
-          />
+          <Ionicons name="people-outline" size={44} color={Colors.primary} />
           <Text style={styles.emptyTitle}>No children linked</Text>
-          <Text style={styles.emptyText}>
-            Ask camp management to link your account to your child.
-          </Text>
+          <Text style={styles.emptyText}>Ask camp management to link your account to your child.</Text>
         </View>
       ) : (
         <FlatList
@@ -186,29 +186,14 @@ export default function ParentNotificationsScreen() {
           renderItem={renderItem}
           scrollEnabled={!!events.length}
           refreshControl={
-            <RefreshControl
-              refreshing={isLoading}
-              onRefresh={refresh}
-              tintColor={Colors.primary}
-            />
+            <RefreshControl refreshing={isLoading} onRefresh={refresh} tintColor={Colors.primary} />
           }
-          contentContainerStyle={[
-            styles.list,
-            {
-              paddingBottom: insets.bottom + 100,
-            },
-          ]}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons
-                name="calendar-outline"
-                size={44}
-                color={Colors.primary}
-              />
+              <Ionicons name="calendar-outline" size={44} color={Colors.primary} />
               <Text style={styles.emptyTitle}>No activity yet</Text>
-              <Text style={styles.emptyText}>
-                Check-in and check-out events will appear here.
-              </Text>
+              <Text style={styles.emptyText}>Check-in, check-out events and camp announcements will appear here.</Text>
             </View>
           }
         />
@@ -219,17 +204,30 @@ export default function ParentNotificationsScreen() {
 
 const getStyles = (colors: any) => StyleSheet.create({
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
     paddingHorizontal: 20,
     paddingBottom: 16,
     backgroundColor: colors.surface,
+    gap: 10,
   },
   headerTitle: {
     fontSize: 28,
     fontFamily: "Outfit_700Bold",
     color: colors.text,
+  },
+  emergencyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.danger,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  emergencyText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Outfit_700Bold",
+    color: "#fff",
   },
   list: {
     paddingHorizontal: 20,

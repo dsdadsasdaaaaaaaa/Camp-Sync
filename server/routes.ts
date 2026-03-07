@@ -10,9 +10,11 @@ import {
   csCheckIns,
   csPendingUpdates,
   csResetCodes,
+  csBroadcasts,
 } from "@shared/schema";
-import { eq, and, gt, lt, isNull } from "drizzle-orm";
+import { eq, and, gt, lt, isNull, desc } from "drizzle-orm";
 import OpenAI from "openai";
+import nodemailer from "nodemailer";
 import {
   randomBytes,
   scrypt,
@@ -110,6 +112,51 @@ async function sendExpoPush(tokens: string[], title: string, body: string, data?
     });
   } catch (e) {
     console.error("Push notification error:", e);
+  }
+}
+
+// ─── Email Helper ─────────────────────────────────────────────────────────────
+
+function createEmailTransport() {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return null;
+  return nodemailer.createTransport({
+    host,
+    port: parseInt(process.env.SMTP_PORT || "587"),
+    secure: process.env.SMTP_SECURE === "true",
+    auth: { user, pass },
+  });
+}
+
+async function sendEmail(to: string, subject: string, html: string) {
+  try {
+    const transport = createEmailTransport();
+    if (!transport) {
+      console.log(`[Email skipped - SMTP not configured] To: ${to} | Subject: ${subject}`);
+      return;
+    }
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+    await transport.sendMail({ from: `CampSync <${from}>`, to, subject, html });
+    console.log(`[Email sent] To: ${to} | Subject: ${subject}`);
+  } catch (e) {
+    console.error("Email send error:", e);
+  }
+}
+
+async function emailParentsOfCamper(camperId: string, subject: string, html: string) {
+  try {
+    const allUsers = await db.select().from(csUsers);
+    const parents = allUsers.filter((u) => {
+      const linked: string[] = JSON.parse(u.linkedCamperIds || "[]");
+      return linked.includes(camperId) && u.email;
+    });
+    for (const parent of parents) {
+      await sendEmail(parent.email, subject, html);
+    }
+  } catch (e) {
+    console.error("Email parents error:", e);
   }
 }
 
@@ -1042,11 +1089,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send push notification to parents
       const [camper] = await db.select().from(csCampers).where(eq(csCampers.id, camperId));
       if (camper) {
+        const checkInTime = new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" });
         notifyParentsOfCamper(
           camperId,
           `${camper.firstName} checked in`,
           `${camper.firstName} ${camper.lastName} has been checked in by ${user.name}.`,
           { type: "check_in", camperId }
+        ).catch(() => {});
+        emailParentsOfCamper(
+          camperId,
+          `${camper.firstName} has been checked in`,
+          `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:24px">
+            <h2 style="color:#1A6B3A">Check-In Notification</h2>
+            <p>Hi there,</p>
+            <p><strong>${camper.firstName} ${camper.lastName}</strong> has been checked into camp.</p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0">
+              <tr><td style="padding:8px;color:#666">Time</td><td style="padding:8px;font-weight:bold">${checkInTime}</td></tr>
+              <tr><td style="padding:8px;color:#666">Checked in by</td><td style="padding:8px;font-weight:bold">${user.name}</td></tr>
+              <tr><td style="padding:8px;color:#666">Cabin</td><td style="padding:8px;font-weight:bold">${camper.cabinGroup || "Not assigned"}</td></tr>
+            </table>
+            <p style="color:#666;font-size:13px">You are receiving this because you are linked as a parent/guardian on CampSync.</p>
+          </div>`
         ).catch(() => {});
       }
       return res.status(201).json(formatCheckIn(row!));
@@ -1076,15 +1139,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const [row] = await db.select().from(csCheckIns).where(eq(csCheckIns.id, String(req.params.id)));
 
-      // Send push notification to parents
+      // Send push + email notifications to parents
       if (existingCheckIn) {
         const [camper] = await db.select().from(csCampers).where(eq(csCampers.id, existingCheckIn.camperId));
         if (camper) {
+          const checkOutTime = new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" });
           notifyParentsOfCamper(
             existingCheckIn.camperId,
             `${camper.firstName} checked out`,
             `${camper.firstName} ${camper.lastName} has been checked out by ${user.name}.`,
             { type: "check_out", camperId: existingCheckIn.camperId }
+          ).catch(() => {});
+          emailParentsOfCamper(
+            existingCheckIn.camperId,
+            `${camper.firstName} has been checked out`,
+            `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:24px">
+              <h2 style="color:#1A6B3A">Check-Out Notification</h2>
+              <p>Hi there,</p>
+              <p><strong>${camper.firstName} ${camper.lastName}</strong> has been checked out of camp.</p>
+              <table style="width:100%;border-collapse:collapse;margin:16px 0">
+                <tr><td style="padding:8px;color:#666">Time</td><td style="padding:8px;font-weight:bold">${checkOutTime}</td></tr>
+                <tr><td style="padding:8px;color:#666">Checked out by</td><td style="padding:8px;font-weight:bold">${user.name}</td></tr>
+                <tr><td style="padding:8px;color:#666">Cabin</td><td style="padding:8px;font-weight:bold">${camper.cabinGroup || "Not assigned"}</td></tr>
+              </table>
+              <p style="color:#666;font-size:13px">You are receiving this because you are linked as a parent/guardian on CampSync.</p>
+            </div>`
           ).catch(() => {});
         }
       }
@@ -1311,6 +1390,141 @@ RULES:
       } else {
         return res.status(500).json({ message: "AI query failed" });
       }
+    }
+  });
+
+  // ─── Broadcasts ──────────────────────────────────────────────────────────────
+
+  app.get("/api/broadcasts", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth) return res.status(401).json({ message: "Unauthorized" });
+
+      const rows = await db.select().from(csBroadcasts).orderBy(desc(csBroadcasts.sentAt));
+
+      // Filter by role
+      const filtered = rows.filter((b) => {
+        if (auth.role === "management") return true;
+        if (auth.role === "staff") return b.audience === "staff" || b.audience === "all";
+        if (auth.role === "parent") return b.audience === "parents" || b.audience === "all";
+        return false;
+      });
+
+      return res.json(filtered.map((b) => ({
+        id: b.id,
+        title: b.title,
+        message: b.message,
+        audience: b.audience,
+        isEmergency: b.isEmergency,
+        emergencyActive: b.emergencyActive,
+        sentBy: b.sentBy,
+        sentByName: b.sentByName,
+        sentAt: b.sentAt instanceof Date ? b.sentAt.toISOString() : b.sentAt,
+      })));
+    } catch (err) {
+      console.error("Get broadcasts error:", err);
+      return res.status(500).json({ message: "Failed to fetch broadcasts" });
+    }
+  });
+
+  app.post("/api/broadcasts", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Only management can send broadcasts" });
+
+      const [user] = await db.select().from(csUsers).where(eq(csUsers.id, auth.userId));
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const { title, message, audience, isEmergency } = req.body;
+      if (!title || !message || !audience) return res.status(400).json({ message: "title, message, and audience are required" });
+
+      // If activating emergency: deactivate any previous active emergency
+      if (isEmergency) {
+        await db.update(csBroadcasts)
+          .set({ emergencyActive: false })
+          .where(eq(csBroadcasts.emergencyActive, true));
+      }
+
+      const id = generateId();
+      await db.insert(csBroadcasts).values({
+        id,
+        title,
+        message,
+        audience,
+        isEmergency: !!isEmergency,
+        emergencyActive: !!isEmergency,
+        sentBy: auth.userId,
+        sentByName: user.name,
+      });
+
+      const [row] = await db.select().from(csBroadcasts).where(eq(csBroadcasts.id, id));
+
+      // Send push notifications
+      const allUsers = await db.select().from(csUsers);
+      let targetUsers = allUsers.filter((u) => {
+        if (audience === "all") return u.role === "staff" || u.role === "parent";
+        if (audience === "staff") return u.role === "staff";
+        if (audience === "parents") return u.role === "parent";
+        return false;
+      });
+
+      const tokens = targetUsers.map((u) => u.pushToken).filter((t): t is string => !!t);
+      if (tokens.length > 0) {
+        await sendExpoPush(
+          tokens,
+          isEmergency ? `🚨 EMERGENCY: ${title}` : `📢 ${title}`,
+          message,
+          { type: isEmergency ? "emergency" : "broadcast", broadcastId: id }
+        );
+      }
+
+      // Send emails
+      const emailUsers = targetUsers.filter((u) => u.email);
+      const emailSubject = isEmergency ? `🚨 EMERGENCY ALERT: ${title}` : `📢 Camp Broadcast: ${title}`;
+      const emailHtml = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:24px">
+        ${isEmergency ? `<div style="background:#dc2626;color:#fff;padding:16px;border-radius:8px;margin-bottom:16px">
+          <h2 style="margin:0">🚨 EMERGENCY ALERT</h2>
+        </div>` : `<h2 style="color:#1A6B3A">Camp Announcement</h2>`}
+        <h3>${title}</h3>
+        <p style="font-size:16px;line-height:1.6">${message}</p>
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
+        <p style="color:#666;font-size:13px">Sent by ${user.name} via CampSync</p>
+      </div>`;
+
+      for (const u of emailUsers) {
+        await sendEmail(u.email, emailSubject, emailHtml);
+      }
+
+      return res.status(201).json({
+        id: row!.id,
+        title: row!.title,
+        message: row!.message,
+        audience: row!.audience,
+        isEmergency: row!.isEmergency,
+        emergencyActive: row!.emergencyActive,
+        sentBy: row!.sentBy,
+        sentByName: row!.sentByName,
+        sentAt: row!.sentAt instanceof Date ? row!.sentAt.toISOString() : row!.sentAt,
+      });
+    } catch (err) {
+      console.error("Send broadcast error:", err);
+      return res.status(500).json({ message: "Failed to send broadcast" });
+    }
+  });
+
+  app.post("/api/emergency-mode/deactivate", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Only management can deactivate emergency mode" });
+
+      await db.update(csBroadcasts)
+        .set({ emergencyActive: false })
+        .where(eq(csBroadcasts.emergencyActive, true));
+
+      return res.json({ message: "Emergency mode deactivated" });
+    } catch (err) {
+      console.error("Deactivate emergency error:", err);
+      return res.status(500).json({ message: "Failed to deactivate emergency mode" });
     }
   });
 
