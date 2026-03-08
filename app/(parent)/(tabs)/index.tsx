@@ -16,7 +16,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
-import type { Camper } from "@/types";
+import { useSiren } from "@/lib/useSiren";
+import type { Camper, Broadcast } from "@/types";
 
 function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
   camper: Camper;
@@ -107,8 +108,10 @@ export default function ParentChildrenScreen() {
   const { user } = useAuth();
   const colors = useColors();
   const styles = getStyles(colors);
-  const { campers, checkIns, pendingUpdates, isLoading, refresh } = useData();
+  const { campers, checkIns, pendingUpdates, broadcasts, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
+  const activeEmergency = broadcasts.find((b) => b.emergencyActive);
+  useSiren(!!activeEmergency);
 
   const myChildren = campers.filter((c) =>
     Array.isArray(user?.linkedCamperIds) && user.linkedCamperIds.includes(c.id)
@@ -132,12 +135,28 @@ export default function ParentChildrenScreen() {
     pendingUpdates.some((p) => p.camperId === camperId && !p.resolved);
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {activeEmergency && (
+        <View style={styles.emergencyBanner}>
+          <View style={styles.emergencyIconWrap}>
+            <Ionicons name="warning" size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.emergencyTitle}>{activeEmergency.title}</Text>
+            <Text style={styles.emergencyMsg} numberOfLines={1}>
+              {activeEmergency.message}
+            </Text>
+          </View>
+        </View>
+      )}
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[
         styles.container,
         {
-          paddingTop: Platform.OS === "web" ? 67 : Platform.OS === "ios" ? 20 : insets.top + 20,
+          paddingTop: activeEmergency
+            ? 12
+            : Platform.OS === "web" ? 67 : Platform.OS === "ios" ? 20 : insets.top + 20,
           paddingBottom: insets.bottom + 100,
         },
       ]}
@@ -261,10 +280,38 @@ export default function ParentChildrenScreen() {
         </Text>
       </View>
     </ScrollView>
+    </View>
   );
 }
 
 const getStyles = (colors: any) => StyleSheet.create({
+  emergencyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: Colors.danger,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  emergencyIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emergencyTitle: {
+    fontSize: 14,
+    fontFamily: "Outfit_700Bold",
+    color: "#fff",
+  },
+  emergencyMsg: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 1,
+  },
   container: {
     paddingHorizontal: 20,
     gap: 20,

@@ -478,7 +478,7 @@ export default function StaffCheckInScreen() {
       <View
         style={[
           styles.header,
-          { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20), backgroundColor: colors.background },
+          { paddingTop: Platform.OS === "web" ? 67 : Platform.OS === "ios" ? 20 : insets.top + 20, backgroundColor: colors.background },
         ]}
       >
         <View style={styles.headerTop}>

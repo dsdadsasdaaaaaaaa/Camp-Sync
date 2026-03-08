@@ -5,7 +5,7 @@
 CampSync is a React Native (Expo) mobile application for managing summer camp operations. It supports three user roles:
 
 - **Management**: Full access to camper records, sessions, wristband programming, auth code generation, and pending updates dashboard
-- **Staff**: Check-in/check-out campers for sessions and read NFC wristbands
+- **Staff**: Home dashboard (broadcasts, camp stats), check-in/check-out campers, wristband NFC scanning, account management
 - **Parents**: View their linked children's status, check-in history, and update medical information
 
 Key features include:

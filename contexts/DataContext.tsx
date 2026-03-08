@@ -170,6 +170,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(poll);
   }, [authLoading, user, offlineMode]);
 
+  useEffect(() => {
+    if (!user || offlineMode) return;
+    const fastPoll = setInterval(async () => {
+      try {
+        const br = await safeGet<Broadcast[]>("/api/broadcasts", []);
+        setBroadcasts(br);
+      } catch {}
+    }, 5000);
+    return () => clearInterval(fastPoll);
+  }, [user, offlineMode]);
+
   // ── Campers ─────────────────────────────────────────────────────────────────
 
   const addCamper = useCallback(

@@ -159,18 +159,28 @@ export default function ParentNotificationsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={[styles.header, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20) }]}>
-        {activeEmergency ? (
-          <View style={styles.emergencyBanner}>
-            <Ionicons name="warning" size={18} color="#fff" />
-            <Text style={styles.emergencyText} numberOfLines={1}>{activeEmergency.title}</Text>
+      {activeEmergency && (
+        <View style={styles.emergencyBanner}>
+          <View style={styles.emergencyIconWrap}>
+            <Ionicons name="warning" size={22} color="#fff" />
           </View>
-        ) : (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Ionicons name="notifications-outline" size={22} color={colors.text} />
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Activity</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.emergencyTitle}>{activeEmergency.title}</Text>
+            <Text style={styles.emergencyMsgText} numberOfLines={2}>
+              {activeEmergency.message}
+            </Text>
           </View>
-        )}
+        </View>
+      )}
+      <View style={[styles.header, {
+        paddingTop: activeEmergency
+          ? 14
+          : Platform.OS === "web" ? 67 : Platform.OS === "ios" ? 20 : insets.top + 20
+      }]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <Ionicons name="notifications-outline" size={22} color={colors.text} />
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Activity</Text>
+        </View>
       </View>
 
       {myChildren.length === 0 ? (
@@ -217,17 +227,29 @@ const getStyles = (colors: any) => StyleSheet.create({
   emergencyBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 12,
     backgroundColor: Colors.danger,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  emergencyText: {
-    flex: 1,
+  emergencyIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emergencyTitle: {
     fontSize: 14,
     fontFamily: "Outfit_700Bold",
     color: "#fff",
+  },
+  emergencyMsgText: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 1,
   },
   list: {
     paddingHorizontal: 20,
