@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
+  useRef,
   ReactNode,
 } from "react";
 import { apiRequest } from "@/lib/query-client";
@@ -94,6 +95,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>([]);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const broadcastMutating = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!user || offlineMode) return;
@@ -175,9 +177,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user || offlineMode) return;
     const fastPoll = setInterval(async () => {
+      if (broadcastMutating.current) return;
       try {
         const br = await safeGet<Broadcast[]>("/api/broadcasts", []);
-        setBroadcasts(br);
+        if (!broadcastMutating.current) setBroadcasts(br);
       } catch {}
     }, 5000);
     return () => clearInterval(fastPoll);
@@ -422,8 +425,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
 
   const deleteBroadcast = useCallback(async (id: string): Promise<void> => {
-    await apiRequest("DELETE", `/api/broadcasts/${id}`);
-    setBroadcasts((prev) => prev.filter((b) => b.id !== id));
+    broadcastMutating.current = true;
+    try {
+      await apiRequest("DELETE", `/api/broadcasts/${id}`);
+      setBroadcasts((prev) => prev.filter((b) => b.id !== id));
+      const res = await apiRequest("GET", "/api/broadcasts");
+      const fresh: Broadcast[] = await res.json();
+      setBroadcasts(fresh);
+    } finally {
+      broadcastMutating.current = false;
+    }
   }, []);
 
   const deactivateEmergency = useCallback(async () => {

@@ -1413,6 +1413,7 @@ RULES:
     try {
       const auth = await resolveUser(req);
       if (!auth) return res.status(401).json({ message: "Unauthorized" });
+      res.setHeader("Cache-Control", "no-store");
 
       const rows = await db.select().from(csBroadcasts).orderBy(desc(csBroadcasts.sentAt));
 

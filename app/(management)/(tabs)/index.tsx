@@ -155,6 +155,7 @@ function BroadcastCard({
               <Pressable
                 onPress={handleDelete}
                 testID={`delete-broadcast-${broadcast.id}`}
+                hitSlop={12}
                 style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 6 })}
               >
                 <Ionicons name="trash-outline" size={16} color={Colors.danger} />
