@@ -100,6 +100,10 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
+  useEffect(() => {
+    import("@/lib/notifications").then(({ setupNotificationChannels }) => setupNotificationChannels()).catch(() => {});
+  }, []);
+
   if (!fontsLoaded && !fontError) return null;
 
   return (

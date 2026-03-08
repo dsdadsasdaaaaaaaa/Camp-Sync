@@ -86,10 +86,43 @@ function RecentCheckIn({
   );
 }
 
-function BroadcastCard({ broadcast, isManagement, onDeactivate }: { broadcast: Broadcast; isManagement: boolean; onDeactivate?: () => void }) {
+function BroadcastCard({
+  broadcast,
+  isManagement,
+  onDeactivate,
+  onEdit,
+  onDelete,
+}: {
+  broadcast: Broadcast;
+  isManagement: boolean;
+  onDeactivate?: () => void;
+  onEdit?: (b: Broadcast) => void;
+  onDelete?: (id: string) => void;
+}) {
   const colors = useColors();
   const styles = getStyles(colors);
   const isEmergency = broadcast.isEmergency;
+
+  const handleDelete = () => {
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined" && window.confirm("Delete this broadcast? This cannot be undone.")) {
+        onDelete?.(broadcast.id);
+      }
+      return;
+    }
+    Alert.alert(
+      "Delete Broadcast",
+      "Are you sure you want to delete this broadcast? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => onDelete?.(broadcast.id),
+        },
+      ]
+    );
+  };
 
   return (
     <View style={[
@@ -106,9 +139,29 @@ function BroadcastCard({ broadcast, isManagement, onDeactivate }: { broadcast: B
             {isEmergency ? "EMERGENCY" : broadcast.audience === "staff" ? "Staff" : broadcast.audience === "parents" ? "Parents" : "Everyone"}
           </Text>
         </View>
-        <Text style={[styles.broadcastTime, { color: colors.textMuted }]}>
-          {new Date(broadcast.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Text style={[styles.broadcastTime, { color: colors.textMuted }]}>
+            {new Date(broadcast.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </Text>
+          {isManagement && (
+            <>
+              <Pressable
+                onPress={() => onEdit?.(broadcast)}
+                testID={`edit-broadcast-${broadcast.id}`}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 6 })}
+              >
+                <Ionicons name="pencil" size={16} color={colors.textMuted} />
+              </Pressable>
+              <Pressable
+                onPress={handleDelete}
+                testID={`delete-broadcast-${broadcast.id}`}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 6 })}
+              >
+                <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+              </Pressable>
+            </>
+          )}
+        </View>
       </View>
       <Text style={[styles.broadcastTitle, { color: isEmergency ? Colors.danger : colors.text }]}>{broadcast.title}</Text>
       <Text style={[styles.broadcastMessage, { color: colors.textSecondary }]}>{broadcast.message}</Text>
@@ -130,16 +183,21 @@ function BroadcastSheet({
   visible,
   onClose,
   initialEmergency,
+  editingBroadcast,
   onSend,
+  onEdit,
 }: {
   visible: boolean;
   onClose: () => void;
   initialEmergency: boolean;
+  editingBroadcast?: Broadcast | null;
   onSend: (title: string, message: string, audience: string, isEmergency: boolean) => Promise<Broadcast>;
+  onEdit?: (id: string, title: string, message: string, audience: string) => Promise<Broadcast>;
 }) {
   const colors = useColors();
   const styles = getStyles(colors);
   const insets = useSafeAreaInsets();
+  const isEditMode = !!editingBroadcast;
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState<"staff" | "parents" | "all">("all");
@@ -149,14 +207,21 @@ function BroadcastSheet({
 
   React.useEffect(() => {
     if (visible) {
-      setTitle(initialEmergency ? "EMERGENCY ALERT" : "");
-      setMessage("");
-      setAudience("all");
-      setIsEmergency(initialEmergency);
+      if (editingBroadcast) {
+        setTitle(editingBroadcast.title);
+        setMessage(editingBroadcast.message);
+        setAudience((editingBroadcast.audience as "staff" | "parents" | "all") || "all");
+        setIsEmergency(editingBroadcast.isEmergency);
+      } else {
+        setTitle(initialEmergency ? "EMERGENCY ALERT" : "");
+        setMessage("");
+        setAudience("all");
+        setIsEmergency(initialEmergency);
+      }
       setSending(false);
       setErrorMsg("");
     }
-  }, [visible, initialEmergency]);
+  }, [visible, initialEmergency, editingBroadcast]);
 
   const handleSend = async () => {
     setErrorMsg("");
@@ -166,11 +231,15 @@ function BroadcastSheet({
     }
     setSending(true);
     try {
-      await onSend(title.trim(), message.trim(), audience, isEmergency);
+      if (isEditMode && editingBroadcast && onEdit) {
+        await onEdit(editingBroadcast.id, title.trim(), message.trim(), audience);
+      } else {
+        await onSend(title.trim(), message.trim(), audience, isEmergency);
+      }
       setSending(false);
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || "Failed to send broadcast. Please try again.");
+      setErrorMsg(err.message || `Failed to ${isEditMode ? "update" : "send"} broadcast. Please try again.`);
       setSending(false);
     }
   };
@@ -184,30 +253,32 @@ function BroadcastSheet({
         <View style={[styles.sheetContainer, { backgroundColor: colors.background, paddingBottom: insets.bottom + 20, paddingTop: Platform.OS === "web" ? 20 : 20 }]}>
           <View style={styles.sheetHandle} />
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Send Broadcast</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{isEditMode ? "Edit Broadcast" : "Send Broadcast"}</Text>
             <Pressable onPress={onClose} hitSlop={8} testID="broadcast-close">
               <Ionicons name="close" size={24} color={colors.textSecondary} />
             </Pressable>
           </View>
 
-          <View style={[styles.emergencyToggle, { backgroundColor: isEmergency ? Colors.danger + "15" : colors.surface, borderColor: isEmergency ? Colors.danger + "40" : colors.border }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: isEmergency ? Colors.danger : colors.text }]}>Emergency Alert</Text>
-              <Text style={[styles.emergencySubtext, { color: colors.textSecondary }]}>
-                Bypasses silent mode, triggers siren on all devices
-              </Text>
+          {!isEditMode && (
+            <View style={[styles.emergencyToggle, { backgroundColor: isEmergency ? Colors.danger + "15" : colors.surface, borderColor: isEmergency ? Colors.danger + "40" : colors.border }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: isEmergency ? Colors.danger : colors.text }]}>Emergency Alert</Text>
+                <Text style={[styles.emergencySubtext, { color: colors.textSecondary }]}>
+                  Bypasses silent mode, triggers siren on all devices
+                </Text>
+              </View>
+              <Pressable
+                style={[styles.toggleBtn, { backgroundColor: isEmergency ? Colors.danger : colors.border }]}
+                onPress={() => {
+                  const next = !isEmergency;
+                  setIsEmergency(next);
+                  if (next && !title) setTitle("EMERGENCY ALERT");
+                }}
+              >
+                <View style={[styles.toggleKnob, { transform: [{ translateX: isEmergency ? 20 : 2 }] }]} />
+              </Pressable>
             </View>
-            <Pressable
-              style={[styles.toggleBtn, { backgroundColor: isEmergency ? Colors.danger : colors.border }]}
-              onPress={() => {
-                const next = !isEmergency;
-                setIsEmergency(next);
-                if (next && !title) setTitle("EMERGENCY ALERT");
-              }}
-            >
-              <View style={[styles.toggleKnob, { transform: [{ translateX: isEmergency ? 20 : 2 }] }]} />
-            </Pressable>
-          </View>
+          )}
 
           <View style={[styles.formField, { marginTop: 16 }]}>
             <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Title</Text>
@@ -271,7 +342,7 @@ function BroadcastSheet({
             ) : (
               <>
                 <Ionicons name={isEmergency ? "warning" : "megaphone"} size={20} color="#fff" />
-                <Text style={styles.sendBtnText}>{isEmergency ? "Send Emergency Alert" : "Send Broadcast"}</Text>
+                <Text style={styles.sendBtnText}>{isEditMode ? "Save Changes" : isEmergency ? "Send Emergency Alert" : "Send Broadcast"}</Text>
               </>
             )}
           </Pressable>
@@ -283,7 +354,7 @@ function BroadcastSheet({
 
 export default function DashboardScreen() {
   const { user, logout } = useAuth();
-  const { campers, checkIns, sessions, pendingUpdates, broadcasts, isLoading, refresh, sendBroadcast, deactivateEmergency } =
+  const { campers, checkIns, sessions, pendingUpdates, broadcasts, isLoading, refresh, sendBroadcast, editBroadcast, deleteBroadcast, deactivateEmergency } =
     useData();
   const insets = useSafeAreaInsets();
   const colors = useColors();
@@ -291,6 +362,7 @@ export default function DashboardScreen() {
   const { isDark, toggleTheme, setUseSystem } = useTheme();
   const [broadcastModalVisible, setBroadcastModalVisible] = useState(false);
   const [emergencyModalVisible, setEmergencyModalVisible] = useState(false);
+  const [editingBroadcast, setEditingBroadcast] = useState<Broadcast | null>(null);
 
   const checkedInToday = checkIns.filter((ci) => {
     const today = new Date().toDateString();
@@ -312,8 +384,20 @@ export default function DashboardScreen() {
     .sort((a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime())
     .slice(0, 5);
 
-  const recentBroadcasts = broadcasts.slice(0, 3);
+  const recentBroadcasts = broadcasts;
   const activeEmergency = broadcasts.find((b) => b.emergencyActive);
+
+  const handleEditBroadcast = (b: Broadcast) => {
+    setEditingBroadcast(b);
+  };
+
+  const handleDeleteBroadcast = async (id: string) => {
+    try {
+      await deleteBroadcast(id);
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to delete broadcast.");
+    }
+  };
 
   const handleLogout = async () => {
     if (Platform.OS === "web") {
@@ -472,7 +556,14 @@ export default function DashboardScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Broadcasts</Text>
           <View style={{ gap: 10 }}>
             {recentBroadcasts.map((b) => (
-              <BroadcastCard key={b.id} broadcast={b} isManagement onDeactivate={handleDeactivateEmergency} />
+              <BroadcastCard
+                key={b.id}
+                broadcast={b}
+                isManagement
+                onDeactivate={handleDeactivateEmergency}
+                onEdit={handleEditBroadcast}
+                onDelete={handleDeleteBroadcast}
+              />
             ))}
           </View>
         </>
@@ -484,13 +575,23 @@ export default function DashboardScreen() {
       visible={broadcastModalVisible}
       onClose={() => setBroadcastModalVisible(false)}
       onSend={sendBroadcast}
+      onEdit={editBroadcast}
       initialEmergency={false}
     />
     <BroadcastSheet
       visible={emergencyModalVisible}
       onClose={() => setEmergencyModalVisible(false)}
       onSend={sendBroadcast}
+      onEdit={editBroadcast}
       initialEmergency
+    />
+    <BroadcastSheet
+      visible={!!editingBroadcast}
+      onClose={() => setEditingBroadcast(null)}
+      onSend={sendBroadcast}
+      onEdit={editBroadcast}
+      editingBroadcast={editingBroadcast}
+      initialEmergency={false}
     />
     </View>
   );

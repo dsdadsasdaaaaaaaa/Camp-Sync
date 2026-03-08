@@ -34,6 +34,8 @@ interface DataContextValue {
   isLoading: boolean;
   refresh: () => Promise<void>;
   sendBroadcast: (title: string, message: string, audience: string, isEmergency: boolean) => Promise<Broadcast>;
+  editBroadcast: (id: string, title: string, message: string, audience: string) => Promise<Broadcast>;
+  deleteBroadcast: (id: string) => Promise<void>;
   deactivateEmergency: () => Promise<void>;
   addCamper: (data: Omit<Camper, "id" | "createdAt" | "updatedAt">) => Promise<Camper>;
   updateCamper: (id: string, data: Partial<Camper>) => Promise<void>;
@@ -409,6 +411,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const editBroadcast = useCallback(
+    async (id: string, title: string, message: string, audience: string): Promise<Broadcast> => {
+      const res = await apiRequest("PATCH", `/api/broadcasts/${id}`, { title, message, audience });
+      const updated: Broadcast = await res.json();
+      setBroadcasts((prev) => prev.map((b) => (b.id === id ? updated : b)));
+      return updated;
+    },
+    []
+  );
+
+  const deleteBroadcast = useCallback(async (id: string): Promise<void> => {
+    await apiRequest("DELETE", `/api/broadcasts/${id}`);
+    setBroadcasts((prev) => prev.filter((b) => b.id !== id));
+  }, []);
+
   const deactivateEmergency = useCallback(async () => {
     await apiRequest("POST", "/api/emergency-mode/deactivate");
     setBroadcasts((prev) =>
@@ -455,6 +472,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       updateUser,
       deleteUser,
       sendBroadcast,
+      editBroadcast,
+      deleteBroadcast,
       deactivateEmergency,
     }),
     [
@@ -463,7 +482,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addSession, updateSession, deleteSession, checkInCamper, checkOutCamper,
       getActiveCheckIn, createAuthCode, updateAuthCode, deleteAuthCode,
       resolvePendingUpdate, getTodaySessions, canStaffCheckIn, updateUser, deleteUser,
-      sendBroadcast, deactivateEmergency,
+      sendBroadcast, editBroadcast, deleteBroadcast, deactivateEmergency,
     ]
   );
 

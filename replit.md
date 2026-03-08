@@ -27,7 +27,7 @@ Key features include:
 - **Emergency mode**: Management can trigger an emergency alert that plays a siren (bypasses iOS silent mode via expo-av) and shows a red banner across all staff/parent devices.
 - **Parent check-in emails**: Parents receive an email notification when their child checks in or out.
 - **Parent profile page**: Standalone stack screen at `/(parent)/profile` with account info, change-password, and sign-out.
-- **Broadcasting**: `cs_broadcasts` table in PostgreSQL stores broadcasts. `GET/POST /api/broadcasts` and `POST /api/emergency-mode/deactivate` endpoints.
+- **Broadcasting**: `cs_broadcasts` table in PostgreSQL stores broadcasts. `GET/POST/PATCH/DELETE /api/broadcasts` and `POST /api/emergency-mode/deactivate` endpoints. Management can edit (title, message, audience) and delete broadcasts via pencil/trash icons on each card. Emergency broadcasts use Android high-priority channel ("emergency") and priority: "high" in the Expo push payload. Push notifications use Expo Push Service and are sent to all target users' registered tokens on broadcast creation.
 
 The app runs on iOS, Android, and Web via Expo Router, with an Express.js backend that handles authentication and auth code management via a PostgreSQL database.
 

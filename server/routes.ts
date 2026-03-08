@@ -99,10 +99,24 @@ function generateId(): string {
 
 // ─── Expo Push Notifications ──────────────────────────────────────────────────
 
-async function sendExpoPush(tokens: string[], title: string, body: string, data?: object) {
+async function sendExpoPush(
+  tokens: string[],
+  title: string,
+  body: string,
+  data?: object,
+  options?: { channelId?: string; priority?: "default" | "normal" | "high" }
+) {
   const messages = tokens
     .filter((t) => t && t.startsWith("ExponentPushToken["))
-    .map((to) => ({ to, title, body, sound: "default", data: data || {} }));
+    .map((to) => ({
+      to,
+      title,
+      body,
+      sound: "default",
+      data: data || {},
+      priority: options?.priority || "default",
+      ...(options?.channelId ? { channelId: options.channelId } : {}),
+    }));
   if (messages.length === 0) return;
   try {
     await fetch("https://exp.host/--/api/v2/push/send", {
@@ -1474,7 +1488,10 @@ RULES:
           tokens,
           isEmergency ? `🚨 EMERGENCY: ${title}` : `📢 ${title}`,
           message,
-          { type: isEmergency ? "emergency" : "broadcast", broadcastId: id }
+          { type: isEmergency ? "emergency" : "broadcast", broadcastId: id },
+          isEmergency
+            ? { channelId: "emergency", priority: "high" }
+            : { channelId: "default", priority: "default" }
         );
       }
 
@@ -1525,6 +1542,59 @@ RULES:
     } catch (err) {
       console.error("Deactivate emergency error:", err);
       return res.status(500).json({ message: "Failed to deactivate emergency mode" });
+    }
+  });
+
+  // ─── Edit / Delete Broadcasts ────────────────────────────────────────────────
+
+  app.patch("/api/broadcasts/:id", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Only management can edit broadcasts" });
+
+      const { id } = req.params;
+      const { title, message, audience } = req.body;
+      if (!title || !message || !audience) return res.status(400).json({ message: "title, message, and audience are required" });
+
+      const [existing] = await db.select().from(csBroadcasts).where(eq(csBroadcasts.id, id));
+      if (!existing) return res.status(404).json({ message: "Broadcast not found" });
+
+      await db.update(csBroadcasts)
+        .set({ title, message, audience })
+        .where(eq(csBroadcasts.id, id));
+
+      const [updated] = await db.select().from(csBroadcasts).where(eq(csBroadcasts.id, id));
+      return res.json({
+        id: updated!.id,
+        title: updated!.title,
+        message: updated!.message,
+        audience: updated!.audience,
+        isEmergency: updated!.isEmergency,
+        emergencyActive: updated!.emergencyActive,
+        sentBy: updated!.sentBy,
+        sentByName: updated!.sentByName,
+        sentAt: updated!.sentAt instanceof Date ? updated!.sentAt.toISOString() : updated!.sentAt,
+      });
+    } catch (err) {
+      console.error("Edit broadcast error:", err);
+      return res.status(500).json({ message: "Failed to edit broadcast" });
+    }
+  });
+
+  app.delete("/api/broadcasts/:id", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Only management can delete broadcasts" });
+
+      const { id } = req.params;
+      const [existing] = await db.select().from(csBroadcasts).where(eq(csBroadcasts.id, id));
+      if (!existing) return res.status(404).json({ message: "Broadcast not found" });
+
+      await db.delete(csBroadcasts).where(eq(csBroadcasts.id, id));
+      return res.json({ message: "Broadcast deleted" });
+    } catch (err) {
+      console.error("Delete broadcast error:", err);
+      return res.status(500).json({ message: "Failed to delete broadcast" });
     }
   });
 

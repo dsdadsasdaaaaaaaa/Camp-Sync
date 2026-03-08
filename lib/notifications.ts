@@ -1,7 +1,33 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import { getApiUrl } from "@/lib/query-client";
 import { getToken } from "@/lib/auth-token";
+
+export async function setupNotificationChannels(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  try {
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "General Notifications",
+      importance: Notifications.AndroidImportance.DEFAULT,
+      sound: "default",
+      vibrationPattern: [0, 250, 250, 250],
+      enableVibrate: true,
+    });
+    await Notifications.setNotificationChannelAsync("emergency", {
+      name: "Emergency Alerts",
+      importance: Notifications.AndroidImportance.MAX,
+      sound: "default",
+      vibrationPattern: [0, 500, 250, 500, 250, 500],
+      enableVibrate: true,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      bypassDnd: true,
+      showBadge: true,
+    });
+  } catch (e) {
+    console.log("Notification channel setup failed (non-fatal):", e);
+  }
+}
 
 if (Platform.OS !== "web") {
   try {
@@ -30,9 +56,12 @@ export async function registerPushToken(): Promise<void> {
   try {
     const granted = await requestNotificationPermissions();
     if (!granted) return;
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: "campsync",
-    });
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      (Constants as any).easConfig?.projectId;
+    const tokenData = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined
+    );
     const token = tokenData.data;
     const authToken = getToken();
     if (!authToken || !token) return;
