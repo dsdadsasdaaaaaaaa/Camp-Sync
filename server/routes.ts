@@ -106,6 +106,9 @@ async function sendExpoPush(
   data?: object,
   options?: { channelId?: string; priority?: "default" | "normal" | "high" }
 ) {
+  console.log(`[Push] sendExpoPush called with ${tokens.length} token(s)`);
+  tokens.forEach((t, i) => console.log(`[Push] Token[${i}]: ${t?.slice(0, 40)}`));
+
   const messages = tokens
     .filter((t) => t && t.startsWith("ExponentPushToken["))
     .map((to) => ({
@@ -117,15 +120,23 @@ async function sendExpoPush(
       priority: options?.priority || "default",
       ...(options?.channelId ? { channelId: options.channelId } : {}),
     }));
-  if (messages.length === 0) return;
+
+  console.log(`[Push] Filtered to ${messages.length} valid ExponentPushToken message(s)`);
+  if (messages.length === 0) {
+    console.log("[Push] No valid tokens — nothing sent");
+    return;
+  }
+
   try {
-    await fetch("https://exp.host/--/api/v2/push/send", {
+    const res = await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: { "Accept": "application/json", "Content-Type": "application/json" },
       body: JSON.stringify(messages),
     });
+    const responseText = await res.text();
+    console.log(`[Push] Expo API status: ${res.status}, response: ${responseText.slice(0, 500)}`);
   } catch (e) {
-    console.error("Push notification error:", e);
+    console.error("[Push] Network error sending to Expo:", e);
   }
 }
 
@@ -783,7 +794,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!auth) return res.status(401).json({ message: "Unauthorized" });
       const { token } = req.body;
       if (!token) return res.status(400).json({ message: "token is required" });
-      await db.update(csUsers).set({ pushToken: token }).where(eq(csUsers.id, auth.userId));
+      console.log(`[Push] Registering token for user ${auth.userId}: ${String(token).slice(0, 50)}`);
+      const result = await db.update(csUsers).set({ pushToken: token }).where(eq(csUsers.id, auth.userId));
+      console.log(`[Push] Token stored, rows affected: ${JSON.stringify(result)}`);
       return res.json({ success: true });
     } catch (err) {
       console.error("Push token error:", err);
