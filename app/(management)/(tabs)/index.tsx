@@ -250,7 +250,7 @@ function BroadcastSheet({
     <View style={[StyleSheet.absoluteFillObject, { zIndex: 1000, justifyContent: "flex-end" }]}>
       <Pressable style={{ ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)" } as any} onPress={onClose} />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        <View style={[styles.sheetContainer, { backgroundColor: colors.background, paddingBottom: insets.bottom + 20, paddingTop: Platform.OS === "web" ? 20 : 20 }]}>
+        <View style={[styles.sheetContainer, { backgroundColor: colors.background, paddingBottom: insets.bottom + 70, paddingTop: Platform.OS === "web" ? 20 : 20 }]}>
           <View style={styles.sheetHandle} />
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>{isEditMode ? "Edit Broadcast" : "Send Broadcast"}</Text>

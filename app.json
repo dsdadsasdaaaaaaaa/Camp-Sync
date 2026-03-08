@@ -20,7 +20,8 @@
         "NFCReaderUsageDescription": "CampSync uses NFC to read and write encrypted camper data on wristbands for fast, offline-first check-in and emergency medical access."
       },
       "entitlements": {
-        "com.apple.developer.nfc.readersession.formats": ["TAG"]
+        "com.apple.developer.nfc.readersession.formats": ["TAG"],
+        "aps-environment": "production"
       }
     },
     "android": {

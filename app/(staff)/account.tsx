@@ -18,12 +18,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/query-client";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/app/_layout";
 
 export default function StaffAccountScreen() {
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = getStyles(colors);
+  const { isDark, toggleTheme, setUseSystem } = useTheme();
+
+  const handleToggleDark = () => {
+    setUseSystem(false);
+    toggleTheme(!isDark);
+  };
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -123,6 +130,19 @@ export default function StaffAccountScreen() {
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>Wristband scanning works offline via NFC</Text>
         </View>
       </View>
+
+      <Pressable
+        style={({ pressed }) => [styles.changePasswordToggle, { opacity: pressed ? 0.85 : 1, backgroundColor: colors.surface }]}
+        onPress={handleToggleDark}
+      >
+        <View style={styles.changePasswordLeft}>
+          <Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={18} color={Colors.primary} />
+          <Text style={[styles.changePasswordText, { color: colors.text }]}>
+            {isDark ? "Light Mode" : "Dark Mode"}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+      </Pressable>
 
       <Pressable
         style={({ pressed }) => [styles.changePasswordToggle, { opacity: pressed ? 0.85 : 1, backgroundColor: colors.surface }]}

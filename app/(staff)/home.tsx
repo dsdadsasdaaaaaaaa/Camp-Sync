@@ -180,7 +180,7 @@ export default function StaffHomeScreen() {
           {
             paddingTop: activeEmergency
               ? 12
-              : Platform.OS === "web" ? 67 : Platform.OS === "ios" ? 20 : insets.top + 20,
+              : Platform.OS === "web" ? 67 : insets.top + 16,
             paddingBottom: insets.bottom + 100,
           },
         ]}

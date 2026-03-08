@@ -18,7 +18,7 @@ export default function IndexScreen() {
     } else if (user.role === "management") {
       router.replace("/(management)");
     } else if (user.role === "staff") {
-      router.replace("/(staff)");
+      router.replace("/(staff)/home");
     } else if (user.role === "parent") {
       router.replace("/(parent)");
     }
