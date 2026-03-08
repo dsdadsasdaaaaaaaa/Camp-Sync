@@ -175,7 +175,7 @@ export default function ParentNotificationsScreen() {
       <View style={[styles.header, {
         paddingTop: activeEmergency
           ? 14
-          : Platform.OS === "web" ? 67 : Platform.OS === "ios" ? 20 : insets.top + 20
+          : Platform.OS === "web" ? 67 : insets.top + 20
       }]}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Ionicons name="notifications-outline" size={22} color={colors.text} />
