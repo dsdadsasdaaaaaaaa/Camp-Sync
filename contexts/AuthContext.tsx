@@ -134,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(u);
           await cacheUser(u);
           setOfflineMode(false);
+          import("@/lib/notifications").then(({ registerPushToken }) => registerPushToken()).catch(() => {});
         } else {
           // If token invalid, clear it and try to use cached user if available
           const cached = await getCachedUser();

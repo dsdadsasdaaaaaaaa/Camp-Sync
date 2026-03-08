@@ -55,24 +55,34 @@ export async function registerPushToken(): Promise<void> {
   if (Platform.OS === "web") return;
   try {
     const granted = await requestNotificationPermissions();
-    if (!granted) return;
+    if (!granted) {
+      console.log("[Push] Permission not granted");
+      return;
+    }
     const projectId =
       Constants.expoConfig?.extra?.eas?.projectId ??
-      (Constants as any).easConfig?.projectId;
+      (Constants as any).easConfig?.projectId ??
+      (Constants as any).expoConfig?.projectId ??
+      (Constants as any).manifest2?.extra?.expoClient?.extra?.eas?.projectId;
+
+    console.log("[Push] Registering with projectId:", projectId ?? "(none)");
+
     const tokenData = await Notifications.getExpoPushTokenAsync(
       projectId ? { projectId } : undefined
     );
     const token = tokenData.data;
+    console.log("[Push] Got token:", token?.slice(0, 30));
     const authToken = getToken();
     if (!authToken || !token) return;
     const url = new URL("/api/users/push-token", getApiUrl()).toString();
-    await fetch(url, {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
       body: JSON.stringify({ token }),
     });
+    console.log("[Push] Token registration status:", res.status);
   } catch (e) {
-    console.log("Push token registration failed (non-fatal):", e);
+    console.log("[Push] Push token registration failed:", e);
   }
 }
 
