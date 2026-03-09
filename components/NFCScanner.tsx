@@ -47,7 +47,6 @@ interface NFCScannerUnlockProps {
   mode: "unlock";
   camperName: string;
   onUnlockSuccess: () => void;
-  onUnlockSkipped: () => void;
   onError: (message: string) => void;
   onCancel: () => void;
 }
@@ -137,12 +136,10 @@ export default function NFCScanner(props: NFCScannerProps) {
   const [status, setStatus] = useState<"scanning" | "success" | "error" | "unsupported">("scanning");
   const [errorMsg, setErrorMsg] = useState("");
   const [scanAttempt, setScanAttempt] = useState(0);
-  const [showSkipUnlock, setShowSkipUnlock] = useState(false);
 
   const retry = () => {
     setStatus("scanning");
     setErrorMsg("");
-    setShowSkipUnlock(false);
     setScanAttempt((n) => n + 1);
   };
 
@@ -161,7 +158,6 @@ export default function NFCScanner(props: NFCScannerProps) {
     if (!visible) {
       setStatus("scanning");
       setErrorMsg("");
-      setShowSkipUnlock(false);
       return;
     }
 
@@ -174,7 +170,6 @@ export default function NFCScanner(props: NFCScannerProps) {
 
     const doScan = async () => {
       setStatus("scanning");
-      setShowSkipUnlock(false);
       try {
         const supported = await isNFCSupported();
         if (cancelled) return;
@@ -242,9 +237,6 @@ export default function NFCScanner(props: NFCScannerProps) {
         setErrorMsg(msg);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         props.onError(msg);
-        if (mode === "unlock") {
-          setShowSkipUnlock(true);
-        }
       }
     };
 
@@ -372,15 +364,6 @@ export default function NFCScanner(props: NFCScannerProps) {
                 <Ionicons name="refresh" size={18} color="#fff" />
                 <Text style={scanStyles.retryBtnText}>Try Again</Text>
               </Pressable>
-              {showSkipUnlock && (
-                <Pressable
-                  style={({ pressed }) => [scanStyles.skipBtn, { opacity: pressed ? 0.85 : 1 }]}
-                  onPress={() => (props as NFCScannerUnlockProps).onUnlockSkipped()}
-                >
-                  <Ionicons name="arrow-forward-circle-outline" size={18} color={Colors.warning} />
-                  <Text style={scanStyles.skipBtnText}>Skip Unlock — Erase Anyway</Text>
-                </Pressable>
-              )}
               <Pressable
                 style={({ pressed }) => [scanStyles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
                 onPress={onCancel}
@@ -496,22 +479,5 @@ const scanStyles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
     color: "#fff",
-  },
-  skipBtn: {
-    width: "100%",
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: Colors.warning + "15",
-    borderWidth: 1,
-    borderColor: Colors.warning + "40",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  skipBtnText: {
-    fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.warning,
   },
 });

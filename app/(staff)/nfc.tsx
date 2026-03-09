@@ -115,11 +115,6 @@ export default function StaffNFCScreen() {
     setEraseScanVisible(true);
   };
 
-  const handleUnlockSkipped = () => {
-    setUnlockScanVisible(false);
-    setEraseScanVisible(true);
-  };
-
   const handleEraseSuccess = async () => {
     setEraseScanVisible(false);
     await handleCompleteCheckout();
@@ -425,8 +420,7 @@ export default function StaffNFCScreen() {
           mode="unlock"
           camperName={checkoutCamper.firstName}
           onUnlockSuccess={handleUnlockSuccess}
-          onUnlockSkipped={handleUnlockSkipped}
-          onError={() => {}}
+          onError={(msg) => { setUnlockScanVisible(false); Alert.alert("Unlock Error", msg); }}
           onCancel={() => setUnlockScanVisible(false)}
         />
       )}

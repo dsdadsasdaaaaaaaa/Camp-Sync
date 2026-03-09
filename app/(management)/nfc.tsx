@@ -159,12 +159,6 @@ export default function NFCScreen() {
     setEraseScanVisible(true);
   };
 
-  const handleUnlockSkipped = () => {
-    setUnlockScanVisible(false);
-    // Wristband may not have been locked — proceed directly to erase
-    setEraseScanVisible(true);
-  };
-
   const handleEraseSuccess = async () => {
     setEraseScanVisible(false);
     if (!checkoutCamper) return;
@@ -693,8 +687,7 @@ export default function NFCScreen() {
           mode="unlock"
           camperName={checkoutCamper.firstName}
           onUnlockSuccess={handleUnlockSuccess}
-          onUnlockSkipped={handleUnlockSkipped}
-          onError={() => {}}
+          onError={(msg) => { setUnlockScanVisible(false); Alert.alert("Unlock Error", msg); }}
           onCancel={() => setUnlockScanVisible(false)}
         />
       )}
