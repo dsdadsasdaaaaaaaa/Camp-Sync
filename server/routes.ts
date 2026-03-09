@@ -1158,7 +1158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const [existingCheckIn] = await db.select().from(csCheckIns).where(eq(csCheckIns.id, String(req.params.id)));
 
-      const { notes: checkoutNotes } = req.body;
+      const { notes: checkoutNotes } = req.body || {};
       await db.update(csCheckIns)
         .set({
           checkedOutAt: new Date(),
