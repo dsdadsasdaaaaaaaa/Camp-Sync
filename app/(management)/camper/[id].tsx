@@ -473,15 +473,6 @@ export default function CamperDetailScreen() {
                       <Ionicons name="lock-closed" size={18} color="#fff" />
                       <Text style={styles.finishBtnText}>Finish Programming</Text>
                     </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [styles.skipLockBtn, { opacity: pressed ? 0.7 : 1 }]}
-                      onPress={() => {
-                        setWristbandProgramStep("idle");
-                        Alert.alert("Skipped Lock", "The wristband was programmed but not locked. Anyone can rewrite the data.");
-                      }}
-                    >
-                      <Text style={styles.skipLockBtnText}>Skip — don't lock</Text>
-                    </Pressable>
                   </View>
                 ) : (
                   <Pressable
@@ -1304,15 +1295,6 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 15,
     fontFamily: "Outfit_700Bold",
     color: "#fff",
-  },
-  skipLockBtn: {
-    alignItems: "center",
-    paddingVertical: 4,
-  },
-  skipLockBtnText: {
-    fontSize: 12,
-    fontFamily: "Outfit_400Regular",
-    color: colors.textMuted,
   },
   actionIcon: {
     width: 44,

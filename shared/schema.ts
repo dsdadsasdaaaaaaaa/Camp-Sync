@@ -11,6 +11,7 @@ export const csUsers = pgTable("cs_users", {
   linkedCamperIds: text("linked_camper_ids").notNull().default("[]"),
   authCode: varchar("auth_code", { length: 100 }).notNull(),
   pushToken: text("push_token"),
+  notificationPreferences: text("notification_preferences").notNull().default('{"checkIn":true,"checkOut":true,"broadcasts":true}'),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -172,12 +172,21 @@ async function sendEmail(to: string, subject: string, html: string) {
   }
 }
 
-async function emailParentsOfCamper(camperId: string, subject: string, html: string) {
+function parseNotifPrefs(raw: string | null | undefined): Record<string, boolean> {
+  try { return JSON.parse(raw || '{}'); } catch { return {}; }
+}
+
+async function emailParentsOfCamper(camperId: string, subject: string, html: string, prefKey?: 'checkIn' | 'checkOut' | 'broadcasts') {
   try {
     const allUsers = await db.select().from(csUsers);
     const parents = allUsers.filter((u) => {
       const linked: string[] = JSON.parse(u.linkedCamperIds || "[]");
-      return linked.includes(camperId) && u.email;
+      if (!linked.includes(camperId) || !u.email) return false;
+      if (prefKey) {
+        const prefs = parseNotifPrefs(u.notificationPreferences);
+        if (prefs[prefKey] === false) return false;
+      }
+      return true;
     });
     for (const parent of parents) {
       await sendEmail(parent.email, subject, html);
@@ -187,13 +196,18 @@ async function emailParentsOfCamper(camperId: string, subject: string, html: str
   }
 }
 
-async function notifyParentsOfCamper(camperId: string, title: string, body: string, data?: object) {
+async function notifyParentsOfCamper(camperId: string, title: string, body: string, data?: object, prefKey?: 'checkIn' | 'checkOut' | 'broadcasts') {
   try {
     const allUsers = await db.select().from(csUsers);
     const parentTokens = allUsers
       .filter((u) => {
         const linked: string[] = JSON.parse(u.linkedCamperIds || "[]");
-        return linked.includes(camperId) && u.pushToken;
+        if (!linked.includes(camperId) || !u.pushToken) return false;
+        if (prefKey) {
+          const prefs = parseNotifPrefs(u.notificationPreferences);
+          if (prefs[prefKey] === false) return false;
+        }
+        return true;
       })
       .map((u) => u.pushToken!)
       .filter(Boolean);
@@ -1321,7 +1335,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           camperId,
           `${camper.firstName} checked in`,
           `${camper.firstName} ${camper.lastName} has been checked in by ${user.name}.`,
-          { type: "check_in", camperId }
+          { type: "check_in", camperId },
+          'checkIn'
         ).catch(() => {});
         emailParentsOfCamper(
           camperId,
@@ -1336,7 +1351,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               <tr><td style="padding:8px;color:#666">Cabin</td><td style="padding:8px;font-weight:bold">${camper.cabinGroup || "Not assigned"}</td></tr>
             </table>
             <p style="color:#666;font-size:13px">You are receiving this because you are linked as a parent/guardian on CampSync.</p>
-          </div>`
+          </div>`,
+          'checkIn'
         ).catch(() => {});
       }
       return res.status(201).json(formatCheckIn(row!));
@@ -1377,7 +1393,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             existingCheckIn.camperId,
             `${camper.firstName} checked out`,
             `${camper.firstName} ${camper.lastName} has been checked out by ${user.name}.`,
-            { type: "check_out", camperId: existingCheckIn.camperId }
+            { type: "check_out", camperId: existingCheckIn.camperId },
+            'checkOut'
           ).catch(() => {});
           emailParentsOfCamper(
             existingCheckIn.camperId,
@@ -1392,7 +1409,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 <tr><td style="padding:8px;color:#666">Cabin</td><td style="padding:8px;font-weight:bold">${camper.cabinGroup || "Not assigned"}</td></tr>
               </table>
               <p style="color:#666;font-size:13px">You are receiving this because you are linked as a parent/guardian on CampSync.</p>
-            </div>`
+            </div>`,
+            'checkOut'
           ).catch(() => {});
         }
       }
@@ -1593,7 +1611,7 @@ RULES:
       res.flushHeaders();
 
       const stream = await openai.chat.completions.create({
-        model: "gpt-5.2",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: question.trim() },
@@ -1702,7 +1720,7 @@ RULES:
       res.flushHeaders();
 
       const stream = await openai.chat.completions.create({
-        model: "gpt-5.2",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: question.trim() },
@@ -1801,10 +1819,20 @@ RULES:
       // Send push notifications
       const allUsers = await db.select().from(csUsers);
       let targetUsers = allUsers.filter((u) => {
-        if (audience === "all") return u.role === "staff" || u.role === "parent";
-        if (audience === "staff") return u.role === "staff";
-        if (audience === "parents") return u.role === "parent";
-        return false;
+        if (audience === "all") {
+          if (u.role !== "staff" && u.role !== "parent") return false;
+        } else if (audience === "staff") {
+          if (u.role !== "staff") return false;
+        } else if (audience === "parents") {
+          if (u.role !== "parent") return false;
+        } else {
+          return false;
+        }
+        if (u.role === "parent") {
+          const prefs = parseNotifPrefs(u.notificationPreferences);
+          if (prefs['broadcasts'] === false) return false;
+        }
+        return true;
       });
 
       const tokens = targetUsers.map((u) => u.pushToken).filter((t): t is string => !!t);
@@ -1951,6 +1979,72 @@ RULES:
     } catch (err) {
       console.error("Change password error:", err);
       return res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
+  app.post("/api/auth/link-child", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth) return res.status(401).json({ message: "Unauthorized" });
+      const [currentUser] = await db.select().from(csUsers).where(eq(csUsers.id, auth.userId));
+      if (!currentUser || currentUser.role !== "parent") {
+        return res.status(403).json({ message: "Only parents can link children" });
+      }
+
+      const { code } = req.body;
+      if (!code) return res.status(400).json({ message: "code is required" });
+
+      const [authCode] = await db.select().from(csAuthCodes).where(eq(csAuthCodes.code, code.trim()));
+      if (!authCode) return res.status(400).json({ message: "Invalid auth code" });
+      if (!authCode.linkedCamperId) return res.status(400).json({ message: "This code is not linked to a camper" });
+
+      const existing: string[] = JSON.parse(currentUser.linkedCamperIds || "[]");
+      if (existing.includes(authCode.linkedCamperId)) {
+        return res.status(400).json({ message: "This child is already linked to your account" });
+      }
+
+      const updated = [...existing, authCode.linkedCamperId];
+      await db.update(csUsers).set({ linkedCamperIds: JSON.stringify(updated) }).where(eq(csUsers.id, auth.userId));
+
+      const [updatedUser] = await db.select().from(csUsers).where(eq(csUsers.id, auth.userId));
+      return res.json({
+        id: updatedUser!.id,
+        name: updatedUser!.name,
+        email: updatedUser!.email,
+        role: updatedUser!.role,
+        linkedCamperIds: updatedUser!.linkedCamperIds,
+        authCode: updatedUser!.authCode,
+        notificationPreferences: updatedUser!.notificationPreferences,
+        createdAt: updatedUser!.createdAt,
+      });
+    } catch (err) {
+      console.error("Link child error:", err);
+      return res.status(500).json({ message: "Failed to link child" });
+    }
+  });
+
+  app.patch("/api/users/me/notification-preferences", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth) return res.status(401).json({ message: "Unauthorized" });
+      const [currentUser] = await db.select().from(csUsers).where(eq(csUsers.id, auth.userId));
+      if (!currentUser || currentUser.role !== "parent") {
+        return res.status(403).json({ message: "Only parents can update notification preferences" });
+      }
+
+      const { preferences } = req.body;
+      if (!preferences || typeof preferences !== "object") {
+        return res.status(400).json({ message: "preferences object is required" });
+      }
+
+      const existing = parseNotifPrefs(currentUser.notificationPreferences);
+      const merged = { ...existing, ...preferences };
+      await db.update(csUsers).set({ notificationPreferences: JSON.stringify(merged) }).where(eq(csUsers.id, auth.userId));
+
+      return res.json({ notificationPreferences: JSON.stringify(merged) });
+    } catch (err) {
+      console.error("Update notification prefs error:", err);
+      return res.status(500).json({ message: "Failed to update notification preferences" });
     }
   });
 

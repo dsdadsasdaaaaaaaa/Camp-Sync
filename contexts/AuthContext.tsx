@@ -93,6 +93,7 @@ function mapApiUser(data: any): User {
     role: data.role,
     linkedCamperIds,
     authCode: data.authCode,
+    notificationPreferences: data.notificationPreferences ?? '{"checkIn":true,"checkOut":true,"broadcasts":true}',
     createdAt: data.createdAt,
   };
 }
@@ -283,6 +284,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const token = await loadTokenFromStorage();
+      if (!token) return;
+      const response = await apiGet("/api/auth/me", token);
+      if (response.ok) {
+        const data = await response.json();
+        const u = mapApiUser(data);
+        setUser(u);
+        await cacheUser(u);
+      }
+    } catch {}
+  };
+
   const value = useMemo(
     () => ({
       user,
@@ -293,6 +308,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       resetPassword,
       adminResetPassword,
+      refreshUser,
     }),
     [user, isLoading, offlineMode]
   );

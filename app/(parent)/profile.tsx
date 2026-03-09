@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -19,61 +19,68 @@ import { apiRequest } from "@/lib/query-client";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/app/_layout";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+function parsePrefs(raw?: string | null): { checkIn: boolean; checkOut: boolean; broadcasts: boolean } {
+  try {
+    const p = JSON.parse(raw || "{}");
+    return {
+      checkIn: p.checkIn !== false,
+      checkOut: p.checkOut !== false,
+      broadcasts: p.broadcasts !== false,
+    };
+  } catch {
+    return { checkIn: true, checkOut: true, broadcasts: true };
+  }
+}
 
 export default function ParentProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth() as any;
   const { isDark, toggleTheme, useSystem, setUseSystem } = useTheme();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = getStyles(colors);
+
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLinkingChild, setIsLinkingChild] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [showLinkChild, setShowLinkChild] = useState(false);
+  const [linkCode, setLinkCode] = useState("");
 
-  const [notifPrefs, setNotifPrefs] = useState({
-    checkIn: true,
-    checkOut: true,
-    broadcasts: true,
-  });
-
-  useEffect(() => {
-    loadNotifPrefs();
-  }, []);
-
-  const loadNotifPrefs = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('notif_prefs');
-      if (saved) {
-        setNotifPrefs(JSON.parse(saved));
-      }
-    } catch (e) {
-      console.error('Failed to load notification preferences', e);
-    }
-  };
+  const [notifPrefs, setNotifPrefs] = useState(() => parsePrefs(user?.notificationPreferences));
 
   const saveNotifPref = async (key: keyof typeof notifPrefs, value: boolean) => {
     const updated = { ...notifPrefs, [key]: value };
     setNotifPrefs(updated);
     try {
-      await AsyncStorage.setItem('notif_prefs', JSON.stringify(updated));
-      // Small feedback - though Alert might be too much for every toggle
-      // The instruction says "Show a small 'Preferences saved' toast when a toggle is changed"
-      // Since we don't have a dedicated toast component, Alert.alert is a fallback but maybe not ideal.
-      // But rules say "surface explicit error messages instead of silent fallbacks"
-      // and "Always use authentic data when possible".
-      // I'll check if there's a toast lib or just use Alert for now if it's the only way.
-      // Actually, standard RN way is Alert or a custom component.
-      // I'll use a simple Alert for now as a "toast".
-      if (Platform.OS === 'web') {
-        // web alert is fine
-      }
-    } catch (e) {
-      Alert.alert('Error', 'Failed to save preference');
+      await apiRequest("PATCH", "/api/users/me/notification-preferences", { preferences: updated });
+    } catch {
+      setNotifPrefs(notifPrefs);
+      Alert.alert("Error", "Failed to save preference. Please try again.");
+    }
+  };
+
+  const handleLinkChild = async () => {
+    const code = linkCode.trim();
+    if (!code) {
+      Alert.alert("Missing Code", "Please enter the auth code provided by camp.");
+      return;
+    }
+    setIsLinkingChild(true);
+    try {
+      await apiRequest("POST", "/api/auth/link-child", { code });
+      await refreshUser();
+      setLinkCode("");
+      setShowLinkChild(false);
+      Alert.alert("Child Linked", "Your new child has been successfully added to your account.");
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to link child. Please check the code and try again.");
+    } finally {
+      setIsLinkingChild(false);
     }
   };
 
@@ -124,6 +131,7 @@ export default function ParentProfileScreen() {
     }
   };
 
+  const linkedCount = (user?.linkedCamperIds ?? []).length;
   const canGoBack = router.canGoBack();
 
   return (
@@ -194,6 +202,68 @@ export default function ParentProfileScreen() {
         </View>
       </View>
 
+      {/* ─── My Children ─────────────────────────────────────────────────── */}
+      <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        <View style={styles.childrenHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>My Children</Text>
+          <View style={styles.childCountBadge}>
+            <Text style={styles.childCountText}>{linkedCount}</Text>
+          </View>
+        </View>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.addChildBtn,
+            { borderColor: Colors.primary + "40", opacity: pressed ? 0.8 : 1 },
+          ]}
+          onPress={() => setShowLinkChild((v) => !v)}
+        >
+          <Ionicons name="person-add-outline" size={17} color={Colors.primary} />
+          <Text style={[styles.addChildText, { color: Colors.primary }]}>Add Another Child</Text>
+          <Ionicons
+            name={showLinkChild ? "chevron-up" : "chevron-down"}
+            size={15}
+            color={Colors.primary}
+            style={{ marginLeft: "auto" }}
+          />
+        </Pressable>
+
+        {showLinkChild && (
+          <View style={[styles.linkChildBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+            <Text style={[styles.linkChildLabel, { color: colors.textSecondary }]}>
+              Enter the parent auth code provided by camp for your child:
+            </Text>
+            <View style={[styles.linkChildInputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Ionicons name="key-outline" size={16} color={colors.textMuted} />
+              <TextInput
+                style={[styles.linkChildInput, { color: colors.text }]}
+                value={linkCode}
+                onChangeText={setLinkCode}
+                placeholder="Auth code (e.g. CAMP-XXXX)"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.linkChildSubmit, { opacity: pressed ? 0.85 : 1 }]}
+              onPress={handleLinkChild}
+              disabled={isLinkingChild}
+            >
+              {isLinkingChild ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="link-outline" size={16} color="#fff" />
+                  <Text style={styles.linkChildSubmitText}>Link Child</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        )}
+      </View>
+
+      {/* ─── Appearance ───────────────────────────────────────────────────── */}
       <View style={[styles.card, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
         <Text style={[styles.infoText, { color: colors.textSecondary, marginBottom: 8 }]}>
@@ -224,9 +294,10 @@ export default function ParentProfileScreen() {
         </View>
       </View>
 
+      {/* ─── Notifications ────────────────────────────────────────────────── */}
       <View style={[styles.card, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Notifications</Text>
-        
+
         <View style={styles.notifRow}>
           <View style={styles.notifInfo}>
             <Text style={[styles.notifLabel, { color: colors.text }]}>Check-in Alerts</Text>
@@ -234,9 +305,9 @@ export default function ParentProfileScreen() {
           </View>
           <Switch
             value={notifPrefs.checkIn}
-            onValueChange={(v) => saveNotifPref('checkIn', v)}
+            onValueChange={(v) => saveNotifPref("checkIn", v)}
             trackColor={{ false: colors.border, true: Colors.success }}
-            thumbColor={Platform.OS === 'ios' ? undefined : '#fff'}
+            thumbColor={Platform.OS === "ios" ? undefined : "#fff"}
           />
         </View>
 
@@ -247,9 +318,9 @@ export default function ParentProfileScreen() {
           </View>
           <Switch
             value={notifPrefs.checkOut}
-            onValueChange={(v) => saveNotifPref('checkOut', v)}
+            onValueChange={(v) => saveNotifPref("checkOut", v)}
             trackColor={{ false: colors.border, true: Colors.success }}
-            thumbColor={Platform.OS === 'ios' ? undefined : '#fff'}
+            thumbColor={Platform.OS === "ios" ? undefined : "#fff"}
           />
         </View>
 
@@ -260,13 +331,14 @@ export default function ParentProfileScreen() {
           </View>
           <Switch
             value={notifPrefs.broadcasts}
-            onValueChange={(v) => saveNotifPref('broadcasts', v)}
+            onValueChange={(v) => saveNotifPref("broadcasts", v)}
             trackColor={{ false: colors.border, true: Colors.success }}
-            thumbColor={Platform.OS === 'ios' ? undefined : '#fff'}
+            thumbColor={Platform.OS === "ios" ? undefined : "#fff"}
           />
         </View>
       </View>
 
+      {/* ─── Change Password ──────────────────────────────────────────────── */}
       <Pressable
         style={({ pressed }) => [styles.changePasswordToggle, { opacity: pressed ? 0.85 : 1, backgroundColor: colors.surface, borderColor: colors.border }]}
         onPress={() => setShowPasswordSection((v) => !v)}
@@ -489,6 +561,76 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     color: colors.text,
   },
+  childrenHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  childCountBadge: {
+    backgroundColor: Colors.primary + "20",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  childCountText: {
+    fontSize: 13,
+    fontFamily: "Outfit_700Bold",
+    color: Colors.primary,
+  },
+  addChildBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1.5,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderStyle: "dashed",
+  },
+  addChildText: {
+    fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  linkChildBox: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    gap: 10,
+  },
+  linkChildLabel: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    lineHeight: 18,
+  },
+  linkChildInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  linkChildInput: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+    letterSpacing: 1,
+  },
+  linkChildSubmit: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    height: 44,
+  },
+  linkChildSubmitText: {
+    fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+    color: "#fff",
+  },
   themeRow: {
     flexDirection: "row",
     gap: 10,
@@ -507,6 +649,24 @@ const getStyles = (colors: any) => StyleSheet.create({
   themeBtnText: {
     fontSize: 13,
     fontFamily: "Outfit_600SemiBold",
+  },
+  notifRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+  },
+  notifInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  notifLabel: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  notifSubtitle: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
   },
   changePasswordToggle: {
     flexDirection: "row",
@@ -591,23 +751,5 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
     color: Colors.danger,
-  },
-  notifRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-  },
-  notifInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  notifLabel: {
-    fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
-  },
-  notifSubtitle: {
-    fontSize: 13,
-    fontFamily: "Outfit_400Regular",
   },
 });
