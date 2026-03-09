@@ -17,7 +17,7 @@ import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import { useSiren } from "@/lib/useSiren";
-import type { Camper, Broadcast } from "@/types";
+import type { Camper, Broadcast, Session } from "@/types";
 
 function ChildCard({ camper, isCheckedIn, lastCheckIn, nextSession, hasPendingUpdate }: {
   camper: Camper;

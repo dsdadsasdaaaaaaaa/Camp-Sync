@@ -12,6 +12,7 @@ import {
   csResetCodes,
   csBroadcasts,
   csSessionRegistrations,
+  csCabins,
 } from "@shared/schema";
 import { eq, and, gt, lt, isNull, desc } from "drizzle-orm";
 import OpenAI from "openai";
@@ -1158,10 +1159,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "newName is required" });
       }
       await db.update(csCampers).set({ cabinGroup: newName.trim() }).where(eq(csCampers.cabinGroup, oldName));
+      await db.update(csCabins).set({ name: newName.trim() }).where(eq(csCabins.name, oldName)).catch(() => {});
       return res.json({ success: true, newName: newName.trim() });
     } catch (err) {
       console.error("Cabin rename error:", err);
       return res.status(500).json({ message: "Failed to rename cabin" });
+    }
+  });
+
+  // ── Cabins CRUD ───────────────────────────────────────────────────────────────
+
+  app.get("/api/cabins", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth) return res.status(401).json({ message: "Unauthorized" });
+      const cabins = await db.select().from(csCabins).orderBy(csCabins.name);
+      return res.json(cabins);
+    } catch (err) {
+      console.error("Get cabins error:", err);
+      return res.status(500).json({ message: "Failed to fetch cabins" });
+    }
+  });
+
+  app.post("/api/cabins", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Management only" });
+      const { name } = req.body;
+      if (!name?.trim()) return res.status(400).json({ message: "Name is required" });
+      const id = randomBytes(12).toString("hex");
+      const [cabin] = await db.insert(csCabins).values({ id, name: name.trim() }).returning();
+      return res.json(cabin);
+    } catch (err: any) {
+      if (err?.code === "23505") return res.status(409).json({ message: "A cabin with that name already exists" });
+      console.error("Create cabin error:", err);
+      return res.status(500).json({ message: "Failed to create cabin" });
+    }
+  });
+
+  app.delete("/api/cabins/:id", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Management only" });
+      await db.delete(csCabins).where(eq(csCabins.id, req.params.id));
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Delete cabin error:", err);
+      return res.status(500).json({ message: "Failed to delete cabin" });
     }
   });
 

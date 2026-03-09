@@ -22,6 +22,7 @@ import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import NFCScanner from "@/components/NFCScanner";
 import DatePicker from "@/components/DatePicker";
+import CabinPicker from "@/components/CabinPicker";
 import type { Camper, MedicalInfo, EmergencyContact, WristbandPayload, User } from "@/types";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"];
@@ -419,7 +420,7 @@ export default function CamperDetailScreen() {
                   placeholder="Select date of birth"
                   maxDate={new Date().toISOString().split("T")[0]}
                 />
-                <EditField label="Cabin / Group" value={cabinGroup} onChange={setCabinGroup} placeholder="Cabin name" />
+                <CabinPicker value={cabinGroup} onChange={setCabinGroup} />
               </>
             ) : (
               <>

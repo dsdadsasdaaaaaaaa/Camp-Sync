@@ -22,6 +22,7 @@ import { isValidPhone } from "@/lib/validation";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import DatePicker from "@/components/DatePicker";
+import CabinPicker from "@/components/CabinPicker";
 import type { MedicalInfo, EmergencyContact } from "@/types";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"];
@@ -413,7 +414,7 @@ export default function NewCamperScreen() {
             <InputField label="First Name" value={firstName} onChange={setFirstName} placeholder="Jane" required />
             <InputField label="Last Name" value={lastName} onChange={setLastName} placeholder="Smith" required />
             <BirthdayPicker value={dateOfBirth} onChange={setDateOfBirth} />
-            <InputField label="Cabin / Group" value={cabinGroup} onChange={setCabinGroup} placeholder="e.g. Cabin 4 - Blue Jay" />
+            <CabinPicker value={cabinGroup} onChange={setCabinGroup} />
           </View>
         ) : (
           <View style={styles.card}>

@@ -117,6 +117,12 @@ export const insertUserSchema = createInsertSchema(csUsers).pick({
   authCode: true,
 });
 
+export const csCabins = pgTable("cs_cabins", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const csSessionRegistrations = pgTable("cs_session_registrations", {
   id: varchar("id", { length: 36 }).primaryKey(),
   sessionId: varchar("session_id", { length: 36 }).notNull().references(() => csCampSessions.id, { onDelete: "cascade" }),
@@ -127,6 +133,7 @@ export const csSessionRegistrations = pgTable("cs_session_registrations", {
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type Cabin = typeof csCabins.$inferSelect;
 export type User = typeof csUsers.$inferSelect;
 export type AuthCode = typeof csAuthCodes.$inferSelect;
 export type UserSession = typeof csUserSessions.$inferSelect;

@@ -24,10 +24,6 @@ function NativeTabLayout() {
         <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
         <Label>Campers</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="cabins">
-        <Icon sf={{ default: "house.lodge", selected: "house.lodge.fill" }} />
-        <Label>Cabins</Label>
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="nfc">
         <Icon sf={{ default: "wave.3.right", selected: "wave.3.right" }} />
         <Label>Wristband</Label>
@@ -99,15 +95,7 @@ function ClassicTabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="cabins"
-        options={{
-          title: "Cabins",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="cabins" options={{ href: null }} />
       <Tabs.Screen
         name="nfc"
         options={{
