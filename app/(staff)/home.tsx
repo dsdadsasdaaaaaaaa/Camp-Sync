@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,15 +7,218 @@ import {
   Pressable,
   Platform,
   RefreshControl,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  FlatList,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { fetch } from "expo/fetch";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import { useSiren } from "@/lib/useSiren";
+import { getApiUrl } from "@/lib/query-client";
+import { getToken } from "@/lib/auth-token";
 import type { Broadcast } from "@/types";
+
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+const SUGGESTIONS = [
+  "Who has peanut allergies?",
+  "Medications for Alice?",
+  "Emergency contact for Bob?",
+  "Any campers with diabetes?",
+  "Who has an EpiPen?",
+];
+
+function MessageBubble({ message }: { message: Message }) {
+  const colors = useColors();
+  const styles = getStyles(colors);
+  const isUser = message.role === "user";
+  return (
+    <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
+      <View style={[styles.bubbleContent, isUser ? styles.userBubbleContent : styles.aiBubbleContent]}>
+        <Text style={[styles.bubbleText, isUser ? styles.userText : styles.aiText]}>
+          {message.content}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function MedicalAIScreen({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const styles = getStyles(colors);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showTyping, setShowTyping] = useState(false);
+
+  const generateId = () => `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  const handleSend = async (text: string) => {
+    if (!text.trim() || isLoading) return;
+    const trimmed = text.trim();
+    setInput("");
+    
+    const userMsg: Message = { id: generateId(), role: "user", content: trimmed };
+    setMessages(prev => [...prev, userMsg]);
+    setIsLoading(true);
+    setShowTyping(true);
+
+    try {
+      const url = new URL("/api/ai/staff-query", getApiUrl()).toString();
+      const token = getToken();
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Accept: "text/event-stream",
+        },
+        body: JSON.stringify({ question: trimmed }),
+      });
+
+      if (!res.ok) throw new Error("Failed to get response");
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let fullContent = "";
+      let buffer = "";
+      let assistantAdded = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6);
+          if (data === "[DONE]") continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.content) {
+              fullContent += parsed.content;
+              if (!assistantAdded) {
+                setShowTyping(false);
+                setMessages(prev => [...prev, { id: generateId(), role: "assistant", content: fullContent }]);
+                assistantAdded = true;
+              } else {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = { ...updated[updated.length - 1], content: fullContent };
+                  return updated;
+                });
+              }
+            }
+          } catch {}
+        }
+      }
+    } catch (err: any) {
+      setShowTyping(false);
+      setMessages(prev => [...prev, { id: generateId(), role: "assistant", content: `Error: ${err.message || "Request failed"}` }]);
+    } finally {
+      setIsLoading(false);
+      setShowTyping(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={[styles.modalHeader, { paddingTop: Platform.OS === "ios" ? 20 : insets.top + 20 }]}>
+          <View>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Medical Lookup</Text>
+            <Text style={[styles.modalSub, { color: colors.textSecondary }]}>Camper medical & emergency info</Text>
+          </View>
+          <Pressable onPress={onClose} style={styles.closeBtn}>
+            <Ionicons name="close" size={24} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+
+        <View style={styles.securityBadge}>
+          <Ionicons name="lock-closed" size={12} color={Colors.success} />
+          <Text style={styles.securityText}>Limited to medical and safety lookups only</Text>
+        </View>
+
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }} 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        >
+          {messages.length === 0 ? (
+            <ScrollView contentContainerStyle={styles.emptyContainer}>
+              <View style={styles.emptyIcon}>
+                <Ionicons name="medical" size={40} color={Colors.danger} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>How can I help?</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Ask about allergies, medications, or emergency contacts for any camper.</Text>
+              
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestions}>
+                {SUGGESTIONS.map((s, i) => (
+                  <Pressable key={i} style={[styles.suggestion, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => handleSend(s)}>
+                    <Text style={[styles.suggestionText, { color: colors.text }]}>{s}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </ScrollView>
+          ) : (
+            <FlatList
+              data={[...messages].reverse()}
+              keyExtractor={item => item.id}
+              inverted
+              contentContainerStyle={styles.listContent}
+              renderItem={({ item }) => <MessageBubble message={item} />}
+              ListHeaderComponent={showTyping ? (
+                <View style={styles.typing}>
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                </View>
+              ) : null}
+            />
+          )}
+
+          <View style={[styles.inputArea, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={[styles.inputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                placeholder="Type your question..."
+                placeholderTextColor={colors.textMuted}
+                value={input}
+                onChangeText={setInput}
+                multiline
+                onSubmitEditing={() => handleSend(input)}
+              />
+              <Pressable 
+                style={[styles.sendBtn, (!input.trim() || isLoading) && styles.sendDisabled]} 
+                onPress={() => handleSend(input)}
+                disabled={!input.trim() || isLoading}
+              >
+                {isLoading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="arrow-up" size={20} color="#fff" />}
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+}
 
 function EmergencyBanner({ broadcast }: { broadcast: Broadcast }) {
   const colors = useColors();
@@ -168,10 +371,12 @@ export default function StaffHomeScreen() {
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   const firstName = user?.name?.split(" ")[0] ?? "there";
+  const [aiVisible, setAiVisible] = useState(false);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       {activeEmergency && <EmergencyBanner broadcast={activeEmergency} />}
+      <MedicalAIScreen visible={aiVisible} onClose={() => setAiVisible(false)} />
 
       <ScrollView
         style={{ flex: 1 }}
@@ -199,6 +404,23 @@ export default function StaffHomeScreen() {
           </Text>
           <Text style={[styles.title, { color: colors.text }]}>Camp Overview</Text>
         </View>
+
+        <Pressable 
+          onPress={() => setAiVisible(true)}
+          style={({ pressed }) => [
+            styles.aiCard, 
+            { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.9 : 1 }
+          ]}
+        >
+          <View style={[styles.aiIconContainer, { backgroundColor: Colors.accent + "15" }]}>
+            <Ionicons name="sparkles" size={24} color={Colors.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.aiTitle, { color: colors.text }]}>AI Medical Lookup</Text>
+            <Text style={[styles.aiSubtitle, { color: colors.textSecondary }]}>Quick medical info for emergencies</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </Pressable>
 
         <View style={styles.statsRow}>
           <StatCard
@@ -413,5 +635,187 @@ const getStyles = (colors: any) =>
       fontSize: 12,
       fontFamily: "Outfit_400Regular",
       flex: 1,
+    },
+    aiCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 16,
+      borderRadius: 20,
+      borderWidth: 1,
+      gap: 16,
+    },
+    aiIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    aiTitle: {
+      fontSize: 17,
+      fontFamily: "Outfit_700Bold",
+    },
+    aiSubtitle: {
+      fontSize: 13,
+      fontFamily: "Outfit_400Regular",
+      marginTop: 2,
+    },
+    modalHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 24,
+      fontFamily: "Outfit_700Bold",
+    },
+    modalSub: {
+      fontSize: 14,
+      fontFamily: "Outfit_400Regular",
+    },
+    closeBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: "rgba(0,0,0,0.05)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    securityBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginHorizontal: 20,
+      marginBottom: 8,
+      backgroundColor: "rgba(56, 161, 105, 0.1)",
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderWidth: 1,
+      borderColor: "rgba(56, 161, 105, 0.2)",
+    },
+    securityText: {
+      fontSize: 11,
+      fontFamily: "Outfit_400Regular",
+      color: Colors.success,
+    },
+    emptyContainer: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 40,
+      gap: 12,
+    },
+    emptyIcon: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: "rgba(229, 62, 62, 0.1)",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 8,
+    },
+    emptyTitle: {
+      fontSize: 22,
+      fontFamily: "Outfit_700Bold",
+      textAlign: "center",
+    },
+    emptyText: {
+      fontSize: 15,
+      fontFamily: "Outfit_400Regular",
+      textAlign: "center",
+      lineHeight: 22,
+    },
+    suggestions: {
+      marginTop: 24,
+      gap: 10,
+      paddingHorizontal: 20,
+    },
+    suggestion: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 20,
+      borderWidth: 1,
+    },
+    suggestionText: {
+      fontSize: 14,
+      fontFamily: "Outfit_500Medium",
+    },
+    listContent: {
+      padding: 16,
+      gap: 12,
+    },
+    bubble: {
+      flexDirection: "row",
+      marginBottom: 4,
+    },
+    userBubble: {
+      justifyContent: "flex-end",
+    },
+    aiBubble: {
+      justifyContent: "flex-start",
+    },
+    bubbleContent: {
+      maxWidth: "85%",
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 20,
+    },
+    userBubbleContent: {
+      backgroundColor: Colors.primary,
+      borderBottomRightRadius: 4,
+    },
+    aiBubbleContent: {
+      backgroundColor: "rgba(0,0,0,0.05)",
+      borderBottomLeftRadius: 4,
+    },
+    bubbleText: {
+      fontSize: 15,
+      lineHeight: 20,
+    },
+    userText: {
+      color: "#fff",
+      fontFamily: "Outfit_400Regular",
+    },
+    aiText: {
+      fontFamily: "Outfit_400Regular",
+    },
+    typing: {
+      padding: 12,
+      alignItems: "flex-start",
+    },
+    inputArea: {
+      paddingTop: 12,
+      paddingHorizontal: 16,
+      borderTopWidth: 1,
+      borderTopColor: "rgba(0,0,0,0.05)",
+    },
+    inputRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 24,
+      borderWidth: 1,
+    },
+    input: {
+      flex: 1,
+      fontSize: 16,
+      fontFamily: "Outfit_400Regular",
+      maxHeight: 100,
+    },
+    sendBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: Colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    sendDisabled: {
+      opacity: 0.5,
     },
   });

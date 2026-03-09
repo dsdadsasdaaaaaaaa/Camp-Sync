@@ -141,24 +141,14 @@ export default function CampersScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const [search, setSearch] = useState("");
-  const [selectedCabin, setSelectedCabin] = useState<string | null>(null);
-
-  const cabinGroups = useMemo(() => {
-    const groups = campers
-      .map((c) => c.cabinGroup)
-      .filter((g): g is string => !!g && g.trim() !== "");
-    return [...new Set(groups)].sort();
-  }, [campers]);
-
   const filtered = useMemo(() => {
     return campers.filter((c) => {
-      const matchesSearch =
+      return (
         `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
-        c.cabinGroup?.toLowerCase().includes(search.toLowerCase());
-      const matchesCabin = !selectedCabin || c.cabinGroup === selectedCabin;
-      return matchesSearch && matchesCabin;
+        c.cabinGroup?.toLowerCase().includes(search.toLowerCase())
+      );
     });
-  }, [campers, search, selectedCabin]);
+  }, [campers, search]);
 
   const getActiveCheckIn = (camperId: string) =>
     checkIns.find((ci) => ci.camperId === camperId && !ci.checkedOutAt);
@@ -225,37 +215,6 @@ export default function CampersScreen() {
           )}
         </View>
 
-        {cabinGroups.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterRow}
-          >
-            <Pressable
-              style={[
-                styles.filterChip,
-                { backgroundColor: !selectedCabin ? Colors.primary : colors.surface, borderColor: !selectedCabin ? Colors.primary : colors.border },
-              ]}
-              onPress={() => setSelectedCabin(null)}
-            >
-              <Text style={[styles.filterChipText, { color: !selectedCabin ? "#fff" : colors.textSecondary }]}>All</Text>
-            </Pressable>
-            {cabinGroups.map((cabin) => (
-              <Pressable
-                key={cabin}
-                style={[
-                  styles.filterChip,
-                  { backgroundColor: selectedCabin === cabin ? Colors.primary : colors.surface, borderColor: selectedCabin === cabin ? Colors.primary : colors.border },
-                ]}
-                onPress={() => setSelectedCabin(selectedCabin === cabin ? null : cabin)}
-              >
-                <Text style={[styles.filterChipText, { color: selectedCabin === cabin ? "#fff" : colors.textSecondary }]}>
-                  {cabin}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
       </View>
 
       <FlatList
@@ -279,12 +238,10 @@ export default function CampersScreen() {
           <View style={styles.empty}>
             <Ionicons name="people-outline" size={52} color={colors.textMuted} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              {search || selectedCabin ? "No campers found" : "No campers yet"}
+              {search ? "No campers found" : "No campers yet"}
             </Text>
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              {search || selectedCabin
-                ? "Try a different search or filter"
-                : "Add campers using the button above"}
+              {search ? "Try a different search" : "Add campers using the button above"}
             </Text>
           </View>
         }
@@ -340,20 +297,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "Outfit_400Regular",
     fontSize: 15,
-  },
-  filterRow: {
-    gap: 8,
-    paddingRight: 4,
-  },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  filterChipText: {
-    fontSize: 13,
-    fontFamily: "Outfit_600SemiBold",
   },
   list: {
     paddingHorizontal: 20,

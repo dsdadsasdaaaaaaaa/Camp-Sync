@@ -64,16 +64,15 @@ function CamperCheckInCard({
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.camperName, { color: colors.text }]}>{camper.firstName} {camper.lastName}</Text>
-          <Text style={[styles.camperCabin, { color: colors.textSecondary }]}>{camper.cabinGroup || "No cabin"}</Text>
           {medStr(camper.medical.allergies) && medStr(camper.medical.allergies).toLowerCase() !== "none" && (
-            <View style={[styles.allergyTag, { backgroundColor: Colors.danger + "10" }]}>
-              <Ionicons name="warning" size={11} color={Colors.danger} />
-              <Text style={styles.allergyText}>
-                Allergy: {medStr(camper.medical.allergies).slice(0, 30)}
-                {medStr(camper.medical.allergies).length > 30 ? "..." : ""}
+            <View style={[styles.allergyPill, { backgroundColor: Colors.danger }]}>
+              <Ionicons name="warning" size={12} color="#fff" />
+              <Text style={styles.allergyPillText}>
+                {medStr(camper.medical.allergies).split(",")[0].trim()}
               </Text>
             </View>
           )}
+          <Text style={[styles.camperCabin, { color: colors.textSecondary }]}>{camper.cabinGroup || "No cabin"}</Text>
         </View>
       </View>
 
@@ -843,8 +842,23 @@ const getStyles = (colors: any) => StyleSheet.create({
   camperCabin: {
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
-    color: colors.textSecondary,
     marginTop: 2,
+  },
+  allergyPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  allergyPillText: {
+    fontSize: 11,
+    fontFamily: "Outfit_700Bold",
+    color: "#fff",
   },
   allergyTag: {
     flexDirection: "row",

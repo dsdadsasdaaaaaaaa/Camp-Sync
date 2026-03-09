@@ -388,17 +388,6 @@ export default function DashboardScreen() {
   const recentBroadcasts = broadcasts;
   const activeEmergency = broadcasts.find((b) => b.emergencyActive);
 
-  const cabinGroups = useMemo(() => {
-    const names = campers.map((c) => c.cabinGroup).filter((g): g is string => !!g && g.trim() !== "");
-    const unique = [...new Set(names)].sort();
-    return unique.map((cabin) => {
-      const cabinCampers = campers.filter((c) => c.cabinGroup === cabin);
-      const checkedIn = cabinCampers.filter((c) =>
-        checkedInToday.some((ci) => ci.camperId === c.id)
-      ).length;
-      return { name: cabin, total: cabinCampers.length, checkedIn };
-    });
-  }, [campers, checkedInToday]);
 
   const handleEditBroadcast = (b: Broadcast) => {
     setEditingBroadcast(b);
@@ -515,32 +504,6 @@ export default function DashboardScreen() {
         <StatCard icon="calendar" label="Active Sessions" value={todaySessions.length} color={Colors.warning} onPress={() => router.navigate({ pathname: "/(management)/(tabs)/more" })} />
         <StatCard icon="time" label="Pending Updates" value={unresolved.length} color={unresolved.length > 0 ? Colors.danger : colors.textMuted} onPress={() => router.navigate({ pathname: "/(management)/(tabs)/pending" })} />
       </View>
-
-      {cabinGroups.length > 0 && (
-        <>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Cabins</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cabinScroll}>
-            {cabinGroups.map((cabin) => {
-              const allIn = cabin.checkedIn === cabin.total && cabin.total > 0;
-              const pct = cabin.total > 0 ? cabin.checkedIn / cabin.total : 0;
-              return (
-                <View key={cabin.name} style={[styles.cabinCard, { backgroundColor: colors.surface }]}>
-                  <View style={[styles.cabinIconWrap, { backgroundColor: Colors.primary + "15" }]}>
-                    <Ionicons name="bed-outline" size={18} color={Colors.primary} />
-                  </View>
-                  <Text style={[styles.cabinName, { color: colors.text }]} numberOfLines={1}>{cabin.name}</Text>
-                  <Text style={[styles.cabinCount, { color: allIn ? Colors.success : colors.textSecondary }]}>
-                    {cabin.checkedIn}/{cabin.total}
-                  </Text>
-                  <View style={[styles.cabinBar, { backgroundColor: colors.border }]}>
-                    <View style={[styles.cabinBarFill, { width: `${pct * 100}%` as any, backgroundColor: allIn ? Colors.success : Colors.primary }]} />
-                  </View>
-                </View>
-              );
-            })}
-          </ScrollView>
-        </>
-      )}
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
       <View style={styles.actionsGrid}>
@@ -1010,46 +973,5 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     fontFamily: "Outfit_700Bold",
     color: "#fff",
-  },
-  cabinScroll: {
-    paddingLeft: 20,
-    paddingRight: 4,
-    gap: 12,
-    paddingBottom: 4,
-  },
-  cabinCard: {
-    width: 110,
-    borderRadius: 16,
-    padding: 14,
-    gap: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  cabinIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cabinName: {
-    fontSize: 13,
-    fontFamily: "Outfit_600SemiBold",
-  },
-  cabinCount: {
-    fontSize: 18,
-    fontFamily: "Outfit_700Bold",
-  },
-  cabinBar: {
-    height: 4,
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  cabinBarFill: {
-    height: 4,
-    borderRadius: 2,
   },
 });

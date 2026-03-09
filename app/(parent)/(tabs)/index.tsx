@@ -19,10 +19,11 @@ import { useColors } from "@/hooks/useColors";
 import { useSiren } from "@/lib/useSiren";
 import type { Camper, Broadcast } from "@/types";
 
-function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
+function ChildCard({ camper, isCheckedIn, lastCheckIn, nextSession, hasPendingUpdate }: {
   camper: Camper;
   isCheckedIn: boolean;
   lastCheckIn?: { at: string; out?: string };
+  nextSession?: Session;
   hasPendingUpdate: boolean;
 }) {
   const colors = useColors();
@@ -77,6 +78,15 @@ function ChildCard({ camper, isCheckedIn, lastCheckIn, hasPendingUpdate }: {
           </Text>
         </View>
       </View>
+
+      {nextSession && (
+        <View style={styles.nextSessionRow}>
+          <Ionicons name="calendar-outline" size={14} color={Colors.primary} />
+          <Text style={[styles.nextSessionText, { color: colors.textSecondary }]}>
+            Next session: <Text style={{ fontFamily: "Outfit_600SemiBold", color: colors.text }}>{nextSession.name}</Text> — {new Date(nextSession.startDate).toLocaleDateString([], { month: "short", day: "numeric" })}
+          </Text>
+        </View>
+      )}
 
       {lastCheckIn && (
         <View style={styles.lastCheckInRow}>
@@ -133,6 +143,15 @@ export default function ParentChildrenScreen() {
 
   const hasPendingUpdate = (camperId: string) =>
     pendingUpdates.some((p) => p.camperId === camperId && !p.resolved);
+
+  const getNextSession = () => {
+    const now = new Date();
+    return sessions
+      .filter((s) => new Date(s.startDate) > now)
+      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())[0];
+  };
+
+  const nextSession = getNextSession();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -200,6 +219,7 @@ export default function ParentChildrenScreen() {
                 camper={camper}
                 isCheckedIn={!!activeCI}
                 lastCheckIn={getLastCheckIn(camper.id)}
+                nextSession={nextSession}
                 hasPendingUpdate={hasPendingUpdate(camper.id)}
               />
             );
@@ -407,6 +427,16 @@ const getStyles = (colors: any) => StyleSheet.create({
   statusText: {
     fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
+  },
+  nextSessionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+  },
+  nextSessionText: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
   },
   lastCheckInRow: {
     flexDirection: "row",

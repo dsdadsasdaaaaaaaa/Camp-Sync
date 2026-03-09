@@ -31,6 +31,14 @@ Key features include:
 - **Staff check-in notes**: Staff can optionally add a note when checking in or out a camper. Notes are stored on the `cs_check_ins.notes` column and visible in the attendance history report.
 - **Cabin group summary**: Management dashboard shows a horizontal scroll row of cabin cards, each with name, checked-in/total count, and a fill progress bar.
 - **Attendance history report**: Management more screen has a new "Reports" tab showing date-grouped check-in history for all campers, with notes displayed inline.
+- **Cabins tab**: New management tab (app/(management)/(tabs)/cabins.tsx) — searchable list of all cabin groups (derived from campers' cabinGroup field), each card shows name, count, checked-in count, and progress bar. Tap to open cabin detail.
+- **Cabin detail page**: app/(management)/cabin/[name].tsx — 3 sub-tabs: Roster (camper list with status), Medical (aggregated allergies/medications/conditions), Stats (total/checked-in/attendance %). Header has rename button (PATCH /api/cabin-groups/:name/rename).
+- **Attendance CSV export**: "Export Attendance CSV" button in the Reports tab of the Manage screen — generates CSV with Name/Cabin/Session/Checked In/Checked Out/Duration/Staff columns, shares via expo-sharing (native) or data URI (web).
+- **Session roster pre-planning**: Sessions tab in Manage screen shows an "Expected Roster" section per session with add/remove camper controls. Uses GET/POST/DELETE /api/sessions/:id/roster endpoints and the csSessionRegistrations DB table.
+- **Staff AI Medical Lookup**: Staff home screen has an "AI Medical Lookup" card that opens a modal with streaming chat UI (POST /api/ai/staff-query, SSE). Limited to medical/safety info only. Has suggestion chips and inverted FlatList chat.
+- **Parent notification preferences**: Parent profile screen has a "Notifications" section with 3 AsyncStorage-backed toggles (check-in alerts, check-out alerts, broadcasts). Key: 'notif_prefs'.
+- **Staff allergy badges**: Staff check-in screen highlights campers with allergies using a red/orange pill badge showing the first allergy name prominently.
+- **Parent upcoming sessions**: My Children screen shows "Next Session" row below each child's status, showing the next session after today from the sessions list.
 - **Broadcasting**: `cs_broadcasts` table in PostgreSQL stores broadcasts. `GET/POST/PATCH/DELETE /api/broadcasts` and `POST /api/emergency-mode/deactivate` endpoints. Management can edit (title, message, audience) and delete broadcasts via pencil/trash icons on each card. Emergency broadcasts use Android high-priority channel ("emergency") and priority: "high" in the Expo push payload. Push notifications use Expo Push Service and are sent to all target users' registered tokens on broadcast creation.
 
 The app runs on iOS, Android, and Web via Expo Router, with an Express.js backend that handles authentication and auth code management via a PostgreSQL database.
@@ -140,6 +148,7 @@ The app uses **Expo Router** with file-based routing. The route structure reflec
 - **react-native-gesture-handler** — Gesture support
 - **react-native-safe-area-context** — Safe area insets
 - **expo-haptics** — Haptic feedback on interactions
+- **expo-sharing** — Native share sheet for file exports (CSV export)
 - **expo-image** — Optimized image rendering (used for logo)
 - **@expo/vector-icons** — Ionicons and Feather icon sets
 - **@expo-google-fonts/outfit** — Custom font

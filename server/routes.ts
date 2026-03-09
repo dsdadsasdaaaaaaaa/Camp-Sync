@@ -11,6 +11,7 @@ import {
   csPendingUpdates,
   csResetCodes,
   csBroadcasts,
+  csSessionRegistrations,
 } from "@shared/schema";
 import { eq, and, gt, lt, isNull, desc } from "drizzle-orm";
 import OpenAI from "openai";
@@ -1091,6 +1092,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Cabin Groups ─────────────────────────────────────────────────────────────
+
+  app.get("/api/cabin-groups", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role === "parent") return res.status(403).json({ message: "Forbidden" });
+      const rows = await db.select().from(csCampers);
+      const checkInRows = await db.select().from(csCheckIns);
+      const cabinMap: { [name: string]: { total: number; checkedIn: number } } = {};
+      for (const r of rows) {
+        const name = r.cabinGroup?.trim();
+        if (!name) continue;
+        if (!cabinMap[name]) cabinMap[name] = { total: 0, checkedIn: 0 };
+        cabinMap[name].total++;
+        const isIn = checkInRows.some((ci) => ci.camperId === r.id && !ci.checkedOutAt);
+        if (isIn) cabinMap[name].checkedIn++;
+      }
+      const cabins = Object.entries(cabinMap)
+        .map(([name, s]) => ({ name, total: s.total, checkedIn: s.checkedIn }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      return res.json(cabins);
+    } catch (err) {
+      console.error("Cabin groups error:", err);
+      return res.status(500).json({ message: "Failed to fetch cabin groups" });
+    }
+  });
+
+  app.get("/api/cabin-groups/:name", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role === "parent") return res.status(403).json({ message: "Forbidden" });
+      const name = decodeURIComponent(String(req.params.name));
+      const rows = await db.select().from(csCampers).where(eq(csCampers.cabinGroup, name));
+      const campers = rows.map((row) => {
+        const medical =
+          row.medicalEncrypted && row.medicalIv && row.medicalAuthTag
+            ? decryptMedical(row.medicalEncrypted, row.medicalIv, row.medicalAuthTag)
+            : {};
+        return {
+          id: row.id,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          dateOfBirth: row.dateOfBirth,
+          cabinGroup: row.cabinGroup,
+          wristbandId: row.wristbandId ?? null,
+          photoData: row.photoData ?? null,
+          medical,
+        };
+      });
+      return res.json({ cabinName: name, campers });
+    } catch (err) {
+      console.error("Cabin group detail error:", err);
+      return res.status(500).json({ message: "Failed to fetch cabin" });
+    }
+  });
+
+  app.patch("/api/cabin-groups/:name/rename", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Management only" });
+      const oldName = decodeURIComponent(String(req.params.name));
+      const { newName } = req.body;
+      if (!newName || typeof newName !== "string" || !newName.trim()) {
+        return res.status(400).json({ message: "newName is required" });
+      }
+      await db.update(csCampers).set({ cabinGroup: newName.trim() }).where(eq(csCampers.cabinGroup, oldName));
+      return res.json({ success: true, newName: newName.trim() });
+    } catch (err) {
+      console.error("Cabin rename error:", err);
+      return res.status(500).json({ message: "Failed to rename cabin" });
+    }
+  });
+
+  // ── Session Rosters ───────────────────────────────────────────────────────────
+
+  app.get("/api/sessions/:id/roster", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role === "parent") return res.status(403).json({ message: "Forbidden" });
+      const rows = await db.select().from(csSessionRegistrations).where(eq(csSessionRegistrations.sessionId, String(req.params.id)));
+      return res.json(rows);
+    } catch (err) {
+      console.error("Get roster error:", err);
+      return res.status(500).json({ message: "Failed to fetch roster" });
+    }
+  });
+
+  app.post("/api/sessions/:id/roster", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Management only" });
+      const { camperId } = req.body;
+      if (!camperId) return res.status(400).json({ message: "camperId is required" });
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+      const [row] = await db.insert(csSessionRegistrations).values({
+        id,
+        sessionId: String(req.params.id),
+        camperId: String(camperId),
+        addedBy: auth.id,
+        addedByName: auth.name,
+      }).returning();
+      return res.json(row);
+    } catch (err) {
+      console.error("Add to roster error:", err);
+      return res.status(500).json({ message: "Failed to add to roster" });
+    }
+  });
+
+  app.delete("/api/sessions/:id/roster/:camperId", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role !== "management") return res.status(403).json({ message: "Management only" });
+      await db.delete(csSessionRegistrations).where(
+        and(
+          eq(csSessionRegistrations.sessionId, String(req.params.id)),
+          eq(csSessionRegistrations.camperId, String(req.params.camperId))
+        )
+      );
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Remove from roster error:", err);
+      return res.status(500).json({ message: "Failed to remove from roster" });
+    }
+  });
+
   // ── Check-ins ───────────────────────────────────────────────────────────────
 
   app.get("/api/check-ins", async (req: Request, res: Response) => {
@@ -1448,6 +1574,111 @@ RULES:
         res.end();
       } else {
         return res.status(500).json({ message: "AI query failed" });
+      }
+    }
+  });
+
+  // ── Staff AI (limited medical lookup) ────────────────────────────────────────
+
+  app.post("/api/ai/staff-query", async (req: Request, res: Response) => {
+    try {
+      const auth = await resolveUser(req);
+      if (!auth || auth.role === "parent") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      const { question } = req.body;
+      if (!question || typeof question !== "string" || question.trim().length === 0) {
+        return res.status(400).json({ message: "question is required" });
+      }
+
+      const [camperRows, checkInRows] = await Promise.all([
+        db.select().from(csCampers),
+        db.select().from(csCheckIns),
+      ]);
+
+      const campersForAI = camperRows.map((row) => {
+        const medical =
+          row.medicalEncrypted && row.medicalIv && row.medicalAuthTag
+            ? decryptMedical(row.medicalEncrypted, row.medicalIv, row.medicalAuthTag)
+            : {};
+        return {
+          id: row.id,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          cabinGroup: row.cabinGroup,
+          medical,
+        };
+      });
+
+      const checkedInNow = checkInRows
+        .filter((ci) => !ci.checkedOutAt)
+        .map((ci) => {
+          const c = campersForAI.find((x) => x.id === ci.camperId);
+          return c ? `${c.firstName} ${c.lastName}` : ci.camperId;
+        });
+
+      const systemPrompt = `You are CampSync Medical Lookup, a read-only assistant for camp staff. Your ONLY purpose is to help staff quickly access medical safety information about campers in emergency or care situations.
+
+CURRENTLY CHECKED IN: ${checkedInNow.join(", ") || "None"}
+
+CAMPER MEDICAL DATA:
+${campersForAI.map((c) => {
+  const med = c.medical as any;
+  const toArr = (v: any): string => Array.isArray(v) ? v.join(", ") : (typeof v === "string" ? v : "none");
+  const allergies = toArr(med?.allergies);
+  const medications = toArr(med?.medications);
+  const conditions = toArr(med?.conditions);
+  const ec = med?.emergencyContacts?.[0];
+  const parts = [`${c.firstName} ${c.lastName} (${c.cabinGroup || "no cabin"})`];
+  if (allergies && allergies !== "none") parts.push(`Allergies: ${allergies}`);
+  if (medications && medications !== "none") parts.push(`Medications: ${medications}`);
+  if (conditions && conditions !== "none") parts.push(`Conditions: ${conditions}`);
+  if (med?.bloodType && med.bloodType !== "Unknown") parts.push(`Blood type: ${med.bloodType}`);
+  if (ec?.name) parts.push(`Emergency contact: ${ec.name} (${ec.phone || "no phone"})`);
+  if (med?.doctorName) parts.push(`Doctor: ${med.doctorName}`);
+  return parts.join(" | ");
+}).join("\n")}
+
+RULES:
+- Only answer questions about camper medical info, allergies, medications, conditions, emergency contacts, blood type, and doctor info.
+- Do NOT answer questions about auth codes, financial data, staff management, or administrative functions.
+- If asked something outside medical/safety scope, say: "I can only help with medical and safety lookups."
+- Be concise and direct — staff may be in urgent situations.
+- Always name the specific camper when providing medical information.`;
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders();
+
+      const stream = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question.trim() },
+        ],
+        stream: true,
+        max_completion_tokens: 512,
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || "";
+        if (content) {
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      }
+
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } catch (err) {
+      console.error("Staff AI query error:", err);
+      if (res.headersSent) {
+        res.write(`data: ${JSON.stringify({ error: "Query failed" })}\n\n`);
+        res.end();
+      } else {
+        return res.status(500).json({ message: "Query failed" });
       }
     }
   });

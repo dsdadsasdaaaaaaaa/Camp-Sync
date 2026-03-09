@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useContext } from "react";
+import React, { useState, useRef, useCallback, useContext, useEffect } from "react";
 import {
   View,
   Text,
@@ -22,12 +22,14 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { fetch } from "expo/fetch";
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Session, AuthCode, UserRole } from "@/types";
 import DatePicker from "@/components/DatePicker";
 import Colors from "@/constants/colors";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, apiRequest } from "@/lib/query-client";
 import { getToken } from "@/lib/auth-token";
 import { useColors } from "@/hooks/useColors";
 
@@ -91,15 +93,25 @@ function SessionCard({
   onDelete,
   onToggleActive,
   onViewRoster,
+  roster,
+  rosterLoading,
+  onAddCamper,
+  onRemoveCamper,
 }: {
   session: Session;
   onEdit: () => void;
   onDelete: () => void;
   onToggleActive: () => void;
   onViewRoster: () => void;
+  roster: { id: string, camperId: string, addedByName: string, addedAt: string }[];
+  rosterLoading: boolean;
+  onAddCamper: () => void;
+  onRemoveCamper: (camperId: string) => void;
 }) {
   const colors = useColors();
   const styles = getStyles(colors);
+  const { campers } = useData();
+
   return (
     <View style={[styles.sessionCard, { backgroundColor: colors.surface }]}>
       <View style={styles.sessionHeader}>
@@ -138,6 +150,46 @@ function SessionCard({
           </View>
         )}
       </View>
+
+      <View style={[styles.rosterSection, { borderTopColor: colors.border }]}>
+        <View style={styles.rosterHeader}>
+          <Text style={[styles.rosterTitle, { color: colors.text }]}>Expected Roster</Text>
+          <Pressable style={styles.rosterAddBtn} onPress={onAddCamper}>
+            <Ionicons name="add-circle" size={20} color={Colors.primary} />
+            <Text style={[styles.rosterAddText, { color: Colors.primary }]}>Add</Text>
+          </Pressable>
+        </View>
+
+        {rosterLoading ? (
+          <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 10 }} />
+        ) : roster?.length > 0 ? (
+          <View style={styles.rosterList}>
+            {roster.map((reg) => {
+              const camper = campers.find(c => c.id === reg.camperId);
+              if (!camper) return null;
+              const initials = `${camper.firstName[0]}${camper.lastName[0]}`;
+              return (
+                <View key={reg.id} style={styles.rosterRow}>
+                  <View style={[styles.rosterAvatar, { backgroundColor: colors.surfaceSecondary }]}>
+                    <Text style={[styles.rosterAvatarText, { color: colors.textMuted }]}>{initials}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.rosterCamperName, { color: colors.text }]}>{camper.firstName} {camper.lastName}</Text>
+                    <Text style={[styles.rosterAddedBy, { color: colors.textMuted }]}>Added by {reg.addedByName}</Text>
+                  </View>
+                  <Pressable onPress={() => onRemoveCamper(reg.camperId)} style={styles.rosterRemoveBtn}>
+                    <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+                  </Pressable>
+                </View>
+              );
+            })}
+            <Text style={[styles.rosterCount, { color: colors.textSecondary }]}>{roster.length} camper{roster.length === 1 ? "" : "s"} registered</Text>
+          </View>
+        ) : (
+          <Text style={[styles.rosterEmpty, { color: colors.textMuted }]}>No campers registered for this session</Text>
+        )}
+      </View>
+
       <View style={[styles.sessionCardActions, { borderTopColor: colors.border }]}>
         <Pressable onPress={onViewRoster} style={({ pressed }) => [styles.rosterBtn, { opacity: pressed ? 0.7 : 1 }]}>
           <Ionicons name="list-outline" size={15} color={Colors.primary} />
@@ -233,6 +285,73 @@ export default function MoreScreen() {
   const [editSessionStart, setEditSessionStart] = useState("");
   const [editSessionEnd, setEditSessionEnd] = useState("");
   const [editSessionDates, setEditSessionDates] = useState<string[]>([]);
+
+  // Roster State (T005)
+  const [rosters, setRosters] = useState<Record<string, { id: string, camperId: string, addedByName: string, addedAt: string }[]>>({});
+  const [rosterLoading, setRosterLoading] = useState<Record<string, boolean>>({});
+  const [showAddCamperModal, setShowAddCamperModal] = useState(false);
+  const [addCamperSessionId, setAddCamperSessionId] = useState<string | null>(null);
+  const [camperSearchQuery, setCamperSearchQuery] = useState("");
+
+  const fetchRoster = async (sessionId: string) => {
+    setRosterLoading(prev => ({ ...prev, [sessionId]: true }));
+    try {
+      const res = await apiRequest("GET", `/api/sessions/${sessionId}/roster`);
+      const data = await res.json();
+      setRosters(prev => ({ ...prev, [sessionId]: data.registrations }));
+    } catch (err) {
+      console.error(`Failed to fetch roster for session ${sessionId}:`, err);
+    } finally {
+      setRosterLoading(prev => ({ ...prev, [sessionId]: false }));
+    }
+  };
+
+  const handleAddCamperToRoster = async (camperId: string) => {
+    if (!addCamperSessionId) return;
+    try {
+      await apiRequest("POST", `/api/sessions/${addCamperSessionId}/roster`, { camperId });
+      await fetchRoster(addCamperSessionId);
+      setShowAddCamperModal(false);
+      setAddCamperSessionId(null);
+      setCamperSearchQuery("");
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to add camper to roster");
+    }
+  };
+
+  const handleRemoveCamperFromRoster = async (sessionId: string, camperId: string) => {
+    Alert.alert(
+      "Remove Camper",
+      "Are you sure you want to remove this camper from the expected roster?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await apiRequest("DELETE", `/api/sessions/${sessionId}/roster/${camperId}`);
+              await fetchRoster(sessionId);
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (err: any) {
+              Alert.alert("Error", err.message || "Failed to remove camper from roster");
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  useEffect(() => {
+    if (activeTab === "sessions" && sessions.length > 0) {
+      sessions.forEach(s => {
+        if (!rosters[s.id] && !rosterLoading[s.id]) {
+          fetchRoster(s.id);
+        }
+      });
+    }
+  }, [activeTab, sessions]);
 
   // Auth Codes
   const [showCodeModal, setShowCodeModal] = useState(false);
@@ -335,6 +454,65 @@ export default function MoreScreen() {
     }
   }, [aiLoading]);
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportAttendance = async () => {
+    if (checkIns.length === 0) {
+      Alert.alert("No Data", "There are no check-in records to export.");
+      return;
+    }
+    setExporting(true);
+    try {
+      const headers = ["Name", "Cabin", "Session", "Checked In", "Checked Out", "Duration (min)", "Staff"];
+      const rows = checkIns.map(ci => {
+        const camper = campers.find(c => c.id === ci.camperId);
+        const session = sessions.find(s => s.id === ci.sessionId);
+        const inDate = new Date(ci.checkedInAt);
+        const outDate = ci.checkedOutAt ? new Date(ci.checkedOutAt) : null;
+        let duration = "";
+        if (outDate) {
+          duration = Math.round((outDate.getTime() - inDate.getTime()) / 60000).toString();
+        }
+
+        return [
+          camper ? `${camper.firstName} ${camper.lastName}` : "Unknown",
+          camper?.cabinGroup || "None",
+          session?.name || ci.sessionId,
+          ci.checkedInAt,
+          ci.checkedOutAt || "",
+          duration,
+          ci.checkedInByName || ""
+        ].map(val => `"${val.replace(/"/g, '""')}"`).join(",");
+      });
+
+      const csvContent = [headers.join(","), ...rows].join("\n");
+      const fileName = `attendance_export_${new Date().toISOString().split('T')[0]}.csv`;
+      const fileUri = FileSystem.cacheDirectory + fileName;
+
+      if (Platform.OS === 'web') {
+        const encodedUri = encodeURI(`data:text/csv;charset=utf-8,${csvContent}`);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", fileName);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Attendance CSV', UTI: 'public.comma-separated-values-text' });
+        } else {
+          Alert.alert("Sharing Unavailable", "Sharing is not available on this device.");
+        }
+      }
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Alert.alert("Export Failed", err.message || "An error occurred while exporting the CSV.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const [showSecurityInfo, setShowSecurityInfo] = useState(false);
 
   const clearChat = () => { abortRef.current = true; setMessages([]); setAiLoading(false); setShowTyping(false); };
@@ -432,7 +610,6 @@ export default function MoreScreen() {
     if (!editingUser) return;
     setUserActionLoading(true);
     try {
-      const { apiRequest } = await import("@/lib/query-client");
       const res = await apiRequest("POST", `/api/users/${editingUser.id}/reset-code`);
       const { code, expiresInMinutes } = await res.json();
       setUserResetCode(code);
@@ -675,6 +852,13 @@ export default function MoreScreen() {
                   onDelete={() => Alert.alert("Delete Session", `Remove "${session.name}"?`, [{ text: "Cancel", style: "cancel" }, { text: "Delete", style: "destructive", onPress: () => deleteSession(session.id) }])}
                   onToggleActive={() => updateSession(session.id, { isActive: !session.isActive })}
                   onViewRoster={() => setRosterSession(session)}
+                  roster={rosters[session.id]}
+                  rosterLoading={rosterLoading[session.id]}
+                  onAddCamper={() => {
+                    setAddCamperSessionId(session.id);
+                    setShowAddCamperModal(true);
+                  }}
+                  onRemoveCamper={(camperId) => handleRemoveCamperFromRoster(session.id, camperId)}
                 />
               )) || []}
             </>
@@ -768,6 +952,25 @@ export default function MoreScreen() {
             }
             return (
               <>
+                <Pressable
+                  style={[styles.exportBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  onPress={handleExportAttendance}
+                  disabled={exporting}
+                >
+                  <View style={[styles.exportIcon, { backgroundColor: Colors.success + "15" }]}>
+                    <Ionicons name="download-outline" size={20} color={Colors.success} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.exportTitle, { color: colors.text }]}>Export Attendance CSV</Text>
+                    <Text style={[styles.exportSubtitle, { color: colors.textSecondary }]}>Download all check-in/out records as a CSV file</Text>
+                  </View>
+                  {exporting ? (
+                    <ActivityIndicator size="small" color={Colors.success} />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  )}
+                </Pressable>
+
                 {dates.map((date) => {
                   const dayCheckIns = byDate[date];
                   const totalIn = dayCheckIns.length;
@@ -934,6 +1137,56 @@ export default function MoreScreen() {
         </Pressable>
       </Modal>
 
+      {/* Add Camper to Roster Modal (T005) */}
+      <Modal visible={showAddCamperModal} animationType="slide" transparent onRequestClose={() => setShowAddCamperModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowAddCamperModal(false)}>
+          <Pressable style={[styles.modalSheet, { backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
+            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Add to Expected Roster</Text>
+            <Text style={[styles.modalSub, { color: colors.textSecondary }]}>Select a camper to add to this session's expected roster.</Text>
+            
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={18} color={colors.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search campers..."
+                placeholderTextColor={colors.textMuted}
+                value={camperSearchQuery}
+                onChangeText={setCamperSearchQuery}
+                autoCorrect={false}
+              />
+            </View>
+
+            <ScrollView style={styles.camperList} nestedScrollEnabled>
+              {campers
+                .filter(c => {
+                  const fullName = `${c.firstName} ${c.lastName}`.toLowerCase();
+                  return fullName.includes(camperSearchQuery.toLowerCase());
+                })
+                .map((c) => (
+                  <Pressable 
+                    key={c.id} 
+                    style={({ pressed }) => [styles.camperSelectRow, { opacity: pressed ? 0.7 : 1 }]} 
+                    onPress={() => handleAddCamperToRoster(c.id)}
+                  >
+                    <View>
+                      <Text style={styles.camperSelectName}>{c.firstName} {c.lastName}</Text>
+                      {c.cabinGroup && <Text style={[styles.fieldHint, { marginTop: 2, marginBottom: 0 }]}>{c.cabinGroup}</Text>}
+                    </View>
+                    <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+                  </Pressable>
+                ))}
+            </ScrollView>
+
+            <View style={styles.modalButtons}>
+              <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1, flex: 1 }]} onPress={() => setShowAddCamperModal(false)}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* User Edit Modal */}
       <Modal visible={!!editingUser} animationType="slide" transparent onRequestClose={closeUserEdit}>
         <Pressable style={styles.modalOverlay} onPress={closeUserEdit}>
@@ -1076,8 +1329,8 @@ export default function MoreScreen() {
                         return (
                           <View key={ci.id}>
                             <View style={styles.rosterRow}>
-                              <View style={styles.rosterAvatar}>
-                                <Text style={styles.rosterAvatarText}>{camper?.firstName?.charAt(0)?.toUpperCase() ?? "?"}</Text>
+                              <View style={styles.rosterAvatarLarge}>
+                                <Text style={styles.rosterAvatarTextLarge}>{camper?.firstName?.charAt(0)?.toUpperCase() ?? "?"}</Text>
                               </View>
                               <View style={{ flex: 1 }}>
                                 <Text style={[styles.rosterName, { color: colors.text }]}>{camper ? `${camper.firstName} ${camper.lastName}` : "Unknown Camper"}</Text>
@@ -1191,16 +1444,66 @@ const getStyles = (colors: any) => StyleSheet.create({
   securityBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 48, borderRadius: 12, borderWidth: 1, borderColor: Colors.primary + "40", backgroundColor: Colors.primary + "08" },
   resetCodeBox: { backgroundColor: colors.surface, borderRadius: 10, padding: 12, alignItems: "center", borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
   resetCodeText: { fontSize: 24, fontFamily: "Outfit_700Bold", color: colors.text, letterSpacing: 4 },
-  rosterCount: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.primary + "10", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16 },
+  // Roster Section (T005)
+  rosterSection: { borderTopWidth: 1, paddingTop: 12, marginTop: 4 },
+  rosterHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  rosterTitle: { fontSize: 13, fontFamily: "Outfit_700Bold", textTransform: "uppercase", letterSpacing: 0.5 },
+  rosterAddBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  rosterAddText: { fontSize: 13, fontFamily: "Outfit_600SemiBold" },
+  rosterList: { gap: 8 },
+  rosterRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 },
+  rosterAvatar: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  rosterAvatarText: { fontSize: 11, fontFamily: "Outfit_700Bold" },
+  rosterCamperName: { fontSize: 14, fontFamily: "Outfit_500Medium" },
+  rosterAddedBy: { fontSize: 11, fontFamily: "Outfit_400Regular" },
+  rosterRemoveBtn: { padding: 4 },
+  rosterCount: { fontSize: 12, fontFamily: "Outfit_400Regular", marginTop: 4 },
+  rosterEmpty: { fontSize: 13, fontFamily: "Outfit_400Regular", fontStyle: "italic", marginVertical: 4 },
+  // Modal Search
+  searchContainer: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.surfaceSecondary, borderRadius: 10, paddingHorizontal: 12, height: 40, marginBottom: 12 },
+  searchInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 14, color: colors.text },
+  camperList: { maxHeight: 300 },
+  rosterCountBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.primary + "10", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16 },
   rosterCountText: { fontSize: 14, fontFamily: "Outfit_600SemiBold", color: Colors.primary },
-  rosterRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
-  rosterAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary + "20", alignItems: "center", justifyContent: "center" },
-  rosterAvatarText: { fontSize: 15, fontFamily: "Outfit_700Bold", color: Colors.primary },
+  rosterAvatarLarge: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary + "20", alignItems: "center", justifyContent: "center" },
+  rosterAvatarTextLarge: { fontSize: 15, fontFamily: "Outfit_700Bold", color: Colors.primary },
   rosterName: { fontSize: 14, fontFamily: "Outfit_600SemiBold", color: colors.text },
   rosterCabin: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textSecondary },
   rosterTime: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textMuted, marginTop: 2 },
   historyBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   historyBadgeText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
+  // Export
+  exportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 20,
+    marginTop: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  exportIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  exportTitle: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  exportSubtitle: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    marginTop: 2,
+  },
   divider: { height: 1, backgroundColor: colors.border },
   // AI
   aiSecurityBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginHorizontal: 20, marginBottom: 12, backgroundColor: Colors.success + "08", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: Colors.success + "15" },
