@@ -10,138 +10,20 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
-  Modal,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { useData } from "@/contexts/DataContext";
 import { isValidPhone } from "@/lib/validation";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
-import DatePicker from "@/components/DatePicker";
+import BirthdayPickerField from "@/components/BirthdayPickerField";
 import CabinPicker from "@/components/CabinPicker";
 import type { MedicalInfo, EmergencyContact } from "@/types";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"];
-
-const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function formatDateDisplay(dateStr: string): string {
-  if (!dateStr) return "";
-  const parts = dateStr.split("-");
-  if (parts.length !== 3) return dateStr;
-  const year = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10) - 1;
-  const day = parseInt(parts[2], 10);
-  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
-  return `${MONTHS_SHORT[month]} ${day}, ${year}`;
-}
-
-function toDateString(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function BirthdayPicker({ value, onChange }: { value: string; onChange: (d: string) => void }) {
-  const colors = useColors();
-  const styles = getStyles(colors);
-  const [showNative, setShowNative] = useState(false);
-
-  const parsedDate = value
-    ? (() => {
-        const [y, m, d] = value.split("-").map(Number);
-        const date = new Date(y, m - 1, d);
-        return isNaN(date.getTime()) ? new Date(2010, 0, 1) : date;
-      })()
-    : new Date(2010, 0, 1);
-
-  if (Platform.OS === "web") {
-    return (
-      <DatePicker
-        mode="single"
-        label="Date of Birth"
-        value={value}
-        onChange={onChange}
-        placeholder="Select date of birth"
-        maxDate={new Date().toISOString().split("T")[0]}
-      />
-    );
-  }
-
-  if (Platform.OS === "android") {
-    return (
-      <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Date of Birth</Text>
-        <Pressable
-          style={[styles.fieldInput, styles.datePickerBtn]}
-          onPress={() => setShowNative(true)}
-        >
-          <Text style={[{ fontFamily: "Outfit_400Regular", fontSize: 15 }, value ? { color: colors.text } : { color: colors.textMuted }]}>
-            {value ? formatDateDisplay(value) : "Select date of birth"}
-          </Text>
-          <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
-        </Pressable>
-        {showNative && (
-          <DateTimePicker
-            value={parsedDate}
-            mode="date"
-            maximumDate={new Date()}
-            onChange={(_, selected) => {
-              setShowNative(false);
-              if (selected) onChange(toDateString(selected));
-            }}
-          />
-        )}
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.fieldGroup}>
-      <Text style={styles.fieldLabel}>Date of Birth</Text>
-      <Pressable
-        style={[styles.fieldInput, styles.datePickerBtn]}
-        onPress={() => setShowNative(true)}
-      >
-        <Text style={[{ fontFamily: "Outfit_400Regular", fontSize: 15 }, value ? { color: colors.text } : { color: colors.textMuted }]}>
-          {value ? formatDateDisplay(value) : "Select date of birth"}
-        </Text>
-        <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
-      </Pressable>
-      <Modal visible={showNative} transparent animationType="slide">
-        <View style={styles.dateModalOverlay}>
-          <View style={[styles.dateModalSheet, { backgroundColor: colors.surface }]}>
-            <View style={styles.dateModalHeader}>
-              <Pressable onPress={() => setShowNative(false)}>
-                <Text style={[styles.dateModalBtn, { color: colors.textSecondary }]}>Cancel</Text>
-              </Pressable>
-              <Text style={[styles.dateModalTitle, { color: colors.text }]}>Date of Birth</Text>
-              <Pressable onPress={() => setShowNative(false)}>
-                <Text style={[styles.dateModalBtn, { color: Colors.primary }]}>Done</Text>
-              </Pressable>
-            </View>
-            <DateTimePicker
-              value={parsedDate}
-              mode="date"
-              display="spinner"
-              maximumDate={new Date()}
-              textColor={colors.text}
-              onChange={(_, selected) => {
-                if (selected) onChange(toDateString(selected));
-              }}
-              style={{ height: 200 }}
-            />
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
 
 function InputField({
   label,
@@ -413,7 +295,7 @@ export default function NewCamperScreen() {
           <View style={styles.card}>
             <InputField label="First Name" value={firstName} onChange={setFirstName} placeholder="Jane" required />
             <InputField label="Last Name" value={lastName} onChange={setLastName} placeholder="Smith" required />
-            <BirthdayPicker value={dateOfBirth} onChange={setDateOfBirth} />
+            <BirthdayPickerField value={dateOfBirth} onChange={setDateOfBirth} />
             <CabinPicker value={cabinGroup} onChange={setCabinGroup} />
           </View>
         ) : (
@@ -729,37 +611,5 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   tagAddBtn: {
     paddingLeft: 6,
-  },
-  datePickerBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  dateModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
-  dateModalSheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 20,
-  },
-  dateModalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.08)",
-  },
-  dateModalTitle: {
-    fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
-  },
-  dateModalBtn: {
-    fontSize: 15,
-    fontFamily: "Outfit_600SemiBold",
   },
 });

@@ -21,7 +21,7 @@ import { isValidPhone, formatPhone } from "@/lib/validation";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import NFCScanner from "@/components/NFCScanner";
-import DatePicker from "@/components/DatePicker";
+import BirthdayPickerField from "@/components/BirthdayPickerField";
 import CabinPicker from "@/components/CabinPicker";
 import type { Camper, MedicalInfo, EmergencyContact, WristbandPayload, User } from "@/types";
 
@@ -412,13 +412,9 @@ export default function CamperDetailScreen() {
               <>
                 <EditField label="First Name" value={firstName} onChange={setFirstName} placeholder="First Name" />
                 <EditField label="Last Name" value={lastName} onChange={setLastName} placeholder="Last Name" />
-                <DatePicker
-                  mode="single"
-                  label="Date of Birth"
+                <BirthdayPickerField
                   value={dateOfBirth}
                   onChange={setDateOfBirth}
-                  placeholder="Select date of birth"
-                  maxDate={new Date().toISOString().split("T")[0]}
                 />
                 <CabinPicker value={cabinGroup} onChange={setCabinGroup} />
               </>
