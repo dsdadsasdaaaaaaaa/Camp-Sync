@@ -8,6 +8,9 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { apiRequest } from "@/lib/query-client";
@@ -51,6 +54,8 @@ export default function CabinPicker({ value, onChange, label = "Cabin / Group", 
     if (open) {
       fetchCabins();
       setSearch("");
+    } else {
+      Keyboard.dismiss();
     }
   }, [open]);
 
@@ -60,6 +65,7 @@ export default function CabinPicker({ value, onChange, label = "Cabin / Group", 
   );
 
   const select = (name: string) => {
+    Keyboard.dismiss();
     onChange(name);
     setOpen(false);
   };
@@ -69,7 +75,10 @@ export default function CabinPicker({ value, onChange, label = "Cabin / Group", 
       <Text style={styles.label}>{label}</Text>
       <Pressable
         style={({ pressed }) => [styles.field, { opacity: pressed ? 0.8 : 1 }]}
-        onPress={() => setOpen(true)}
+        onPress={() => {
+          Keyboard.dismiss();
+          setOpen(true);
+        }}
       >
         <Text style={[styles.fieldText, !value && { color: colors.textMuted }]}>
           {value || placeholder}
@@ -77,64 +86,88 @@ export default function CabinPicker({ value, onChange, label = "Cabin / Group", 
         <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
       </Pressable>
 
-      <Modal visible={open} transparent animationType="slide">
-        <View style={styles.overlay}>
-          <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
-            <View style={styles.sheetHeader}>
-              <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Cabin</Text>
-              <Pressable onPress={() => setOpen(false)}>
-                <Ionicons name="close" size={22} color={colors.text} />
-              </Pressable>
-            </View>
+      <Modal
+        visible={open}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOpen(false)}
+      >
+        <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "position" : "height"}
+            keyboardVerticalOffset={0}
+          >
+            <Pressable
+              style={[styles.sheet, { backgroundColor: colors.surface }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.handle} />
+              <View style={styles.sheetHeader}>
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Cabin</Text>
+                <Pressable onPress={() => setOpen(false)} style={styles.closeBtn}>
+                  <Ionicons name="close" size={20} color={colors.textSecondary} />
+                </Pressable>
+              </View>
 
-            <View style={[styles.searchRow, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-              <Ionicons name="search-outline" size={16} color={colors.textMuted} />
-              <TextInput
-                style={[styles.searchInput, { color: colors.text }]}
-                placeholder="Search cabins..."
-                placeholderTextColor={colors.textMuted}
-                value={search}
-                onChangeText={setSearch}
-                autoFocus
-              />
-            </View>
+              <View style={[styles.searchRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <Ionicons name="search-outline" size={16} color={colors.textMuted} />
+                <TextInput
+                  style={[styles.searchInput, { color: colors.text }]}
+                  placeholder="Search cabins..."
+                  placeholderTextColor={colors.textMuted}
+                  value={search}
+                  onChangeText={setSearch}
+                  returnKeyType="search"
+                />
+              </View>
 
-            {loading ? (
-              <ActivityIndicator color={Colors.primary} style={{ marginTop: 24 }} />
-            ) : (
-              <FlatList
-                data={filtered}
-                keyExtractor={(item) => item.id}
-                style={styles.list}
-                ListHeaderComponent={
-                  <Pressable
-                    style={[styles.optionRow, !value && styles.optionRowSelected]}
-                    onPress={() => select("")}
-                  >
-                    <Ionicons name="close-circle-outline" size={18} color={colors.textMuted} />
-                    <Text style={[styles.optionText, { color: colors.textSecondary }]}>None (unassigned)</Text>
-                    {!value && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
-                  </Pressable>
-                }
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={[styles.optionRow, value === item.name && styles.optionRowSelected]}
-                    onPress={() => select(item.name)}
-                  >
-                    <Ionicons name="home-outline" size={18} color={Colors.primary} />
-                    <Text style={[styles.optionText, { color: colors.text }]}>{item.name}</Text>
-                    {value === item.name && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
-                  </Pressable>
-                )}
-                ListEmptyComponent={
-                  <Text style={[styles.empty, { color: colors.textMuted }]}>
-                    {search ? "No cabins match your search" : "No cabins created yet"}
-                  </Text>
-                }
-              />
-            )}
-          </View>
-        </View>
+              {loading ? (
+                <ActivityIndicator color={Colors.primary} style={{ marginVertical: 32 }} />
+              ) : (
+                <FlatList
+                  data={filtered}
+                  keyExtractor={(item) => item.id}
+                  style={styles.list}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                  ListHeaderComponent={
+                    <Pressable
+                      style={[styles.optionRow, !value && styles.optionRowSelected]}
+                      onPress={() => select("")}
+                    >
+                      <View style={[styles.optionIcon, { backgroundColor: colors.background }]}>
+                        <Ionicons name="close-circle-outline" size={18} color={colors.textMuted} />
+                      </View>
+                      <Text style={[styles.optionText, { color: colors.textSecondary }]}>None (unassigned)</Text>
+                      {!value && <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />}
+                    </Pressable>
+                  }
+                  renderItem={({ item }) => (
+                    <Pressable
+                      style={[styles.optionRow, value === item.name && styles.optionRowSelected]}
+                      onPress={() => select(item.name)}
+                    >
+                      <View style={[styles.optionIcon, { backgroundColor: Colors.primary + "15" }]}>
+                        <Ionicons name="home-outline" size={18} color={Colors.primary} />
+                      </View>
+                      <Text style={[styles.optionText, { color: colors.text }]}>{item.name}</Text>
+                      {value === item.name && <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />}
+                    </Pressable>
+                  )}
+                  ListEmptyComponent={
+                    <View style={styles.emptyState}>
+                      <Ionicons name="home-outline" size={32} color={colors.textMuted} />
+                      <Text style={[styles.empty, { color: colors.textMuted }]}>
+                        {search ? "No cabins match your search" : "No cabins created yet"}
+                      </Text>
+                    </View>
+                  }
+                  contentContainerStyle={{ paddingBottom: 20 }}
+                />
+              )}
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -170,30 +203,47 @@ const getStyles = (colors: any) => StyleSheet.create({
     justifyContent: "flex-end",
   },
   sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "75%",
-    paddingBottom: 40,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "70%",
+    minHeight: 300,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    alignSelf: "center",
+    marginTop: 10,
+    marginBottom: 4,
   },
   sheetHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 14,
   },
   sheetTitle: {
     fontSize: 18,
     fontFamily: "Outfit_700Bold",
   },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     paddingHorizontal: 12,
-    height: 42,
-    borderRadius: 10,
+    height: 44,
+    borderRadius: 12,
     borderWidth: 1,
     gap: 8,
     marginBottom: 8,
@@ -203,28 +253,38 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 15,
     fontFamily: "Outfit_400Regular",
   },
-  list: { paddingHorizontal: 20 },
+  list: { paddingHorizontal: 16 },
   optionRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    marginVertical: 2,
   },
   optionRowSelected: {
-    backgroundColor: Colors.primary + "10",
-    borderRadius: 8,
-    paddingHorizontal: 8,
+    backgroundColor: Colors.primary + "12",
+  },
+  optionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
   optionText: {
     flex: 1,
     fontSize: 15,
     fontFamily: "Outfit_500Medium",
   },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 32,
+    gap: 8,
+  },
   empty: {
     textAlign: "center",
-    paddingVertical: 32,
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
   },
