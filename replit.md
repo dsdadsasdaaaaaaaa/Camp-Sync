@@ -26,7 +26,11 @@ Key features include:
 - **Broadcast system**: Management can send announcements to staff, parents, or everyone via the dashboard. Broadcasts appear on staff/parent screens. Emails sent via SMTP (nodemailer) when configured.
 - **Emergency mode**: Management can trigger an emergency alert that plays a siren (bypasses iOS silent mode via expo-av) and shows a red banner across all staff/parent devices.
 - **Parent check-in emails**: Parents receive an email notification when their child checks in or out.
-- **Parent profile page**: Standalone stack screen at `/(parent)/profile` with account info, change-password, and sign-out.
+- **Parent profile tab**: Parent tab bar now has 3 tabs: My Children, Activity, Account. Profile screen includes dark mode toggle (System/Light/Dark) and sign-out.
+- **Unread activity badge**: Activity tab shows a badge count for new check-ins and broadcasts since the user last visited. Uses `AsyncStorage` to persist last-seen timestamp.
+- **Staff check-in notes**: Staff can optionally add a note when checking in or out a camper. Notes are stored on the `cs_check_ins.notes` column and visible in the attendance history report.
+- **Cabin group summary**: Management dashboard shows a horizontal scroll row of cabin cards, each with name, checked-in/total count, and a fill progress bar.
+- **Attendance history report**: Management more screen has a new "Reports" tab showing date-grouped check-in history for all campers, with notes displayed inline.
 - **Broadcasting**: `cs_broadcasts` table in PostgreSQL stores broadcasts. `GET/POST/PATCH/DELETE /api/broadcasts` and `POST /api/emergency-mode/deactivate` endpoints. Management can edit (title, message, audience) and delete broadcasts via pencil/trash icons on each card. Emergency broadcasts use Android high-priority channel ("emergency") and priority: "high" in the Expo push payload. Push notifications use Expo Push Service and are sent to all target users' registered tokens on broadcast creation.
 
 The app runs on iOS, Android, and Web via Expo Router, with an Express.js backend that handles authentication and auth code management via a PostgreSQL database.
@@ -46,7 +50,7 @@ The app uses **Expo Router** with file-based routing. The route structure reflec
 - `app/(auth)/` — Login and registration screens
 - `app/(management)/` — Management portal with tabs: Dashboard, Campers, Wristband, Pending Updates, Manage; Account is a stack screen at `app/(management)/account.tsx`, navigated via the profile icon in the Manage tab header. Dashboard has a compact header with avatar initials + inline dark mode toggle (moon/sun) + logout buttons.
 - `app/(staff)/` — Staff portal with tabs: Check-in, Wristband
-- `app/(parent)/` — Parent portal with tabs: My Children, Account
+- `app/(parent)/` — Parent portal with tabs: My Children, Activity, Account (3 tabs)
 - `app/index.tsx` — Entry point that redirects based on auth state and user role
 
 **Tab layouts** support both iOS native tab bars (`expo-router/unstable-native-tabs` with Liquid Glass effect on compatible iOS) and a classic cross-platform fallback using BlurView on iOS and plain views on Android/Web.

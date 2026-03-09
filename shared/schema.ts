@@ -81,6 +81,7 @@ export const csCheckIns = pgTable("cs_check_ins", {
   checkedOutAt: timestamp("checked_out_at"),
   checkedOutBy: varchar("checked_out_by", { length: 36 }),
   checkedOutByName: text("checked_out_by_name"),
+  notes: text("notes"),
 });
 
 export const csPendingUpdates = pgTable("cs_pending_updates", {

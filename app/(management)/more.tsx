@@ -31,7 +31,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { getToken } from "@/lib/auth-token";
 import { useColors } from "@/hooks/useColors";
 
-type Tab = "sessions" | "codes" | "users" | "ai";
+type Tab = "sessions" | "codes" | "users" | "reports" | "ai";
 
 // ── AI Types ──────────────────────────────────────────────────────────────────
 interface Message {
@@ -466,6 +466,7 @@ export default function MoreScreen() {
     { key: "sessions", label: "Sessions", icon: "calendar-outline" },
     { key: "codes", label: "Codes", icon: "key-outline" },
     { key: "users", label: "Users", icon: "people-outline" },
+    { key: "reports", label: "Reports", icon: "bar-chart-outline" },
     { key: "ai", label: "AI", icon: "sparkles-outline" },
   ];
 
@@ -646,7 +647,7 @@ export default function MoreScreen() {
         </KeyboardAvoidingView>
       )}
 
-      {/* Sessions / Codes / Users tabs — shared ScrollView */}
+      {/* Sessions / Codes / Users / Reports tabs — shared ScrollView */}
       {activeTab !== "ai" && (
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
@@ -743,6 +744,97 @@ export default function MoreScreen() {
               }) || []}
             </>
           )}
+
+          {/* ── REPORTS ── */}
+          {activeTab === "reports" && (() => {
+            const sortedCheckIns = [...checkIns].sort(
+              (a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime()
+            );
+            const byDate: { [date: string]: typeof checkIns } = {};
+            sortedCheckIns.forEach((ci) => {
+              const date = new Date(ci.checkedInAt).toDateString();
+              if (!byDate[date]) byDate[date] = [];
+              byDate[date].push(ci);
+            });
+            const dates = Object.keys(byDate);
+            if (dates.length === 0) {
+              return (
+                <View style={styles.empty}>
+                  <Ionicons name="bar-chart-outline" size={48} color={colors.textMuted} />
+                  <Text style={[styles.emptyTitle, { color: colors.text }]}>No Check-in History</Text>
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Attendance records will appear here once campers start checking in</Text>
+                </View>
+              );
+            }
+            return (
+              <>
+                {dates.map((date) => {
+                  const dayCheckIns = byDate[date];
+                  const totalIn = dayCheckIns.length;
+                  const totalOut = dayCheckIns.filter((ci) => !!ci.checkedOutAt).length;
+                  return (
+                    <View key={date} style={styles.reportSection}>
+                      <View style={styles.reportDateRow}>
+                        <Text style={[styles.reportDate, { color: colors.text }]}>{date}</Text>
+                        <View style={styles.reportSummaryBadges}>
+                          <View style={[styles.reportBadge, { backgroundColor: Colors.success + "20" }]}>
+                            <Text style={[styles.reportBadgeText, { color: Colors.success }]}>↑ {totalIn} in</Text>
+                          </View>
+                          <View style={[styles.reportBadge, { backgroundColor: colors.surfaceSecondary }]}>
+                            <Text style={[styles.reportBadgeText, { color: colors.textSecondary }]}>↓ {totalOut} out</Text>
+                          </View>
+                        </View>
+                      </View>
+                      <View style={[styles.reportCard, { backgroundColor: colors.surface }]}>
+                        {dayCheckIns.map((ci, idx) => {
+                          const camper = campers.find((c) => c.id === ci.camperId);
+                          const inTime = new Date(ci.checkedInAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                          const outTime = ci.checkedOutAt ? new Date(ci.checkedOutAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
+                          return (
+                            <View key={ci.id}>
+                              {idx > 0 && <View style={[styles.reportDivider, { backgroundColor: colors.border }]} />}
+                              <View style={styles.reportRow}>
+                                <View style={[styles.reportDot, { backgroundColor: ci.checkedOutAt ? colors.textMuted : Colors.success }]} />
+                                <View style={{ flex: 1 }}>
+                                  <Text style={[styles.reportName, { color: colors.text }]}>
+                                    {camper ? `${camper.firstName} ${camper.lastName}` : "Unknown Camper"}
+                                  </Text>
+                                  {camper?.cabinGroup && (
+                                    <Text style={[styles.reportCabin, { color: colors.textMuted }]}>{camper.cabinGroup}</Text>
+                                  )}
+                                  {ci.notes ? (
+                                    <Text style={[styles.reportNote, { color: colors.textSecondary }]} numberOfLines={2}>
+                                      "{ci.notes}"
+                                    </Text>
+                                  ) : null}
+                                </View>
+                                <View style={{ alignItems: "flex-end", gap: 2 }}>
+                                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                                    <Ionicons name="log-in-outline" size={12} color={Colors.success} />
+                                    <Text style={[styles.reportTime, { color: Colors.success }]}>{inTime}</Text>
+                                  </View>
+                                  {outTime ? (
+                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                                      <Ionicons name="log-out-outline" size={12} color={colors.textMuted} />
+                                      <Text style={[styles.reportTime, { color: colors.textMuted }]}>{outTime}</Text>
+                                    </View>
+                                  ) : (
+                                    <View style={[styles.reportCurrentBadge, { backgroundColor: Colors.success + "15" }]}>
+                                      <Text style={[styles.reportBadgeText, { color: Colors.success }]}>In Camp</Text>
+                                    </View>
+                                  )}
+                                </View>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  );
+                })}
+              </>
+            );
+          })()}
         </ScrollView>
       )}
 
@@ -1134,4 +1226,81 @@ const getStyles = (colors: any) => StyleSheet.create({
   aiInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 16, maxHeight: 120, paddingVertical: 10 },
   aiSendBtn: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   aiSendBtnDisabled: {},
+  reportSection: {
+    gap: 8,
+  },
+  reportDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+  },
+  reportDate: {
+    fontSize: 15,
+    fontFamily: "Outfit_700Bold",
+  },
+  reportSummaryBadges: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  reportBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  reportBadgeText: {
+    fontSize: 11,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  reportCard: {
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  reportRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  reportDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 5,
+    flexShrink: 0,
+  },
+  reportName: {
+    fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  reportCabin: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    marginTop: 1,
+  },
+  reportNote: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    marginTop: 3,
+    fontStyle: "italic",
+  },
+  reportTime: {
+    fontSize: 12,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  reportCurrentBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  reportDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 36,
+  },
 });

@@ -173,12 +173,7 @@ export default function ParentChildrenScreen() {
           <Text style={[styles.greeting, { color: colors.textSecondary }]}>Hello, {user?.name?.split(" ")[0]}</Text>
           <Text style={[styles.title, { color: colors.text }]}>My Children</Text>
         </View>
-        <Pressable
-          style={({ pressed }) => [styles.accountBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={() => router.push("/(parent)/profile")}
-        >
-          <Ionicons name="person-circle-outline" size={30} color={colors.text} />
-        </Pressable>
+        <View style={{ width: 40 }} />
       </View>
 
       {!hasLoadedOnce ? (

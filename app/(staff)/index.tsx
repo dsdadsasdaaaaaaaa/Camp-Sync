@@ -336,8 +336,25 @@ export default function StaffCheckInScreen() {
   const [emergencyLookupVisible, setEmergencyLookupVisible] = useState(false);
 
   // Wristband-erase checkout state
-  const [eraseTarget, setEraseTarget] = useState<{ camper: Camper; checkInId: string } | null>(null);
+  const [eraseTarget, setEraseTarget] = useState<{ camper: Camper; checkInId: string; notes?: string } | null>(null);
   const [eraseVisible, setEraseVisible] = useState(false);
+
+  // Notes confirm modal
+  const [noteModal, setNoteModal] = useState<{
+    visible: boolean;
+    title: string;
+    subtitle: string;
+    actionLabel: string;
+    noteText: string;
+    onConfirm: (note: string) => void;
+  }>({
+    visible: false,
+    title: "",
+    subtitle: "",
+    actionLabel: "Confirm",
+    noteText: "",
+    onConfirm: () => {},
+  });
 
   const todaySessions = getTodaySessions();
   const activeSession = todaySessions[0];
@@ -361,24 +378,21 @@ export default function StaffCheckInScreen() {
       Alert.alert("No Active Session", "There is no authorized session for today.");
       return;
     }
-    Alert.alert(
-      "Confirm Check-in",
-      `Check in ${camper.firstName} ${camper.lastName}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Check In",
-          onPress: async () => {
-            try {
-              await checkInCamper(camper.id, activeSession.id);
-              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } catch (err: any) {
-              Alert.alert("Error", err.message);
-            }
-          },
-        },
-      ]
-    );
+    setNoteModal({
+      visible: true,
+      title: "Check In",
+      subtitle: `${camper.firstName} ${camper.lastName}`,
+      actionLabel: "Check In",
+      noteText: "",
+      onConfirm: async (note) => {
+        try {
+          await checkInCamper(camper.id, activeSession.id, note || undefined);
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (err: any) {
+          Alert.alert("Error", err.message);
+        }
+      },
+    });
   };
 
   const handleLogout = async () => {
@@ -398,50 +412,44 @@ export default function StaffCheckInScreen() {
 
   const handleCheckOut = async (camper: Camper, checkInId: string) => {
     if (camper.wristbandId) {
-      // Camper has a wristband — require NFC erase first
-      Alert.alert(
-        "Check Out",
-        `Check out ${camper.firstName} ${camper.lastName}? You'll need to scan their wristband to erase it.`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Continue",
-            onPress: () => {
-              setEraseTarget({ camper, checkInId });
-              setEraseVisible(true);
-            },
-          },
-        ]
-      );
+      // Camper has a wristband — collect note first, then erase
+      setNoteModal({
+        visible: true,
+        title: "Check Out",
+        subtitle: `${camper.firstName} ${camper.lastName} — wristband will be erased`,
+        actionLabel: "Proceed",
+        noteText: "",
+        onConfirm: (note) => {
+          setEraseTarget({ camper, checkInId, notes: note || undefined });
+          setEraseVisible(true);
+        },
+      });
     } else {
-      // No wristband — direct checkout
-      Alert.alert(
-        "Confirm Check-out",
-        `Check out ${camper.firstName} ${camper.lastName}?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Check Out",
-            onPress: async () => {
-              try {
-                await checkOutCamper(checkInId);
-                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              } catch (err: any) {
-                Alert.alert("Error", err.message);
-              }
-            },
-          },
-        ]
-      );
+      // No wristband — direct checkout with note
+      setNoteModal({
+        visible: true,
+        title: "Check Out",
+        subtitle: `${camper.firstName} ${camper.lastName}`,
+        actionLabel: "Check Out",
+        noteText: "",
+        onConfirm: async (note) => {
+          try {
+            await checkOutCamper(checkInId, note || undefined);
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch (err: any) {
+            Alert.alert("Error", err.message);
+          }
+        },
+      });
     }
   };
 
   const handleEraseSuccess = async () => {
     setEraseVisible(false);
     if (!eraseTarget) return;
-    const { camper, checkInId } = eraseTarget;
+    const { camper, checkInId, notes } = eraseTarget;
     try {
-      await checkOutCamper(checkInId);
+      await checkOutCamper(checkInId, notes);
       await updateCamper(camper.id, {
         wristbandId: null as any,
         wristbandEncryptedData: null as any,
@@ -649,6 +657,50 @@ export default function StaffCheckInScreen() {
         campers={campers}
         selectedCabin={selectedCabin}
       />
+
+      <Modal
+        visible={noteModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNoteModal((m) => ({ ...m, visible: false }))}
+      >
+        <View style={styles.noteOverlay}>
+          <View style={[styles.noteSheet, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.noteTitle, { color: colors.text }]}>{noteModal.title}</Text>
+            <Text style={[styles.noteSubtitle, { color: colors.textSecondary }]}>{noteModal.subtitle}</Text>
+            <TextInput
+              style={[styles.noteInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+              placeholder="Add a note (optional)"
+              placeholderTextColor={colors.textMuted}
+              value={noteModal.noteText}
+              onChangeText={(t) => setNoteModal((m) => ({ ...m, noteText: t }))}
+              multiline
+              numberOfLines={3}
+              maxLength={200}
+            />
+            <Text style={[styles.noteCharCount, { color: colors.textMuted }]}>{noteModal.noteText.length}/200</Text>
+            <View style={styles.noteActions}>
+              <Pressable
+                style={[styles.noteBtn, styles.noteBtnCancel, { borderColor: colors.border }]}
+                onPress={() => setNoteModal((m) => ({ ...m, visible: false, noteText: "" }))}
+              >
+                <Text style={[styles.noteBtnText, { color: colors.textSecondary }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.noteBtn, styles.noteBtnConfirm, { backgroundColor: Colors.primary }]}
+                onPress={() => {
+                  const note = noteModal.noteText.trim();
+                  const fn = noteModal.onConfirm;
+                  setNoteModal((m) => ({ ...m, visible: false, noteText: "" }));
+                  fn(note);
+                }}
+              >
+                <Text style={[styles.noteBtnText, { color: "#fff" }]}>{noteModal.actionLabel}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -986,5 +1038,61 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     color: colors.text,
     lineHeight: 20,
+  },
+  noteOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  noteSheet: {
+    width: "100%",
+    borderRadius: 20,
+    padding: 24,
+    gap: 12,
+  },
+  noteTitle: {
+    fontSize: 20,
+    fontFamily: "Outfit_700Bold",
+  },
+  noteSubtitle: {
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    marginTop: -6,
+  },
+  noteInput: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+  noteCharCount: {
+    fontSize: 11,
+    fontFamily: "Outfit_400Regular",
+    textAlign: "right",
+    marginTop: -6,
+  },
+  noteActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 4,
+  },
+  noteBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  noteBtnCancel: {
+    borderWidth: 1.5,
+  },
+  noteBtnConfirm: {},
+  noteBtnText: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
   },
 });

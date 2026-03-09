@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,16 +6,20 @@ import {
   FlatList,
   Platform,
   RefreshControl,
-  SectionList,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import { useSiren } from "@/lib/useSiren";
+import { setActivityBadge } from "@/lib/activityBadge";
 import type { CheckIn, Camper, Broadcast } from "@/types";
+
+const BADGE_KEY = "lastSeenActivityTimestamp";
 
 interface ActivityEvent {
   id: string;
@@ -36,10 +40,35 @@ export default function ParentNotificationsScreen() {
   const activeEmergency = broadcasts.find((b) => b.emergencyActive);
   useSiren(!!activeEmergency);
 
-  const myChildren = campers.filter((c) =>
-    user?.linkedCamperIds.includes(c.id)
-  );
+  const myChildren = campers.filter((c) => user?.linkedCamperIds.includes(c.id));
   const childIds = myChildren.map((c) => c.id);
+
+  const eventsRef = useRef<Array<{ timestamp: string }>>([]);
+
+  useEffect(() => {
+    const buildEvents: Array<{ timestamp: string }> = [];
+    checkIns.filter((ci) => childIds.includes(ci.camperId)).forEach((ci) => {
+      buildEvents.push({ timestamp: ci.checkedInAt });
+      if (ci.checkedOutAt) buildEvents.push({ timestamp: ci.checkedOutAt });
+    });
+    const parentBroadcasts = broadcasts.filter((b) => b.audience === "parents" || b.audience === "all");
+    parentBroadcasts.forEach((b) => buildEvents.push({ timestamp: b.sentAt }));
+    eventsRef.current = buildEvents;
+
+    AsyncStorage.getItem(BADGE_KEY).then((val) => {
+      const lastSeen = val ? parseInt(val, 10) : 0;
+      const unread = buildEvents.filter((e) => new Date(e.timestamp).getTime() > lastSeen).length;
+      setActivityBadge(unread);
+    });
+  }, [checkIns, broadcasts]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const now = Date.now();
+      AsyncStorage.setItem(BADGE_KEY, String(now));
+      setActivityBadge(0);
+    }, [])
+  );
 
   const events: ActivityEvent[] = [];
 

@@ -56,6 +56,7 @@ export interface CheckIn {
   checkedOutAt?: string;
   checkedOutBy?: string;
   checkedOutByName?: string;
+  notes?: string;
 }
 
 export interface Session {

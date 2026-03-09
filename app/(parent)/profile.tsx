@@ -17,9 +17,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/query-client";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/app/_layout";
 
 export default function ParentProfileScreen() {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme, useSystem, setUseSystem } = useTheme();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = getStyles(colors);
@@ -78,21 +80,27 @@ export default function ParentProfileScreen() {
     }
   };
 
+  const canGoBack = router.canGoBack();
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[
         styles.container,
         {
-          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20),
+          paddingTop: Platform.OS === "web" ? 67 : insets.top + 20,
           paddingBottom: insets.bottom + 40,
         },
       ]}
     >
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
-          <Ionicons name="chevron-back" size={24} color={Colors.primary} />
-        </Pressable>
+        {canGoBack ? (
+          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
+            <Ionicons name="chevron-back" size={24} color={Colors.primary} />
+          </Pressable>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
         <Text style={[styles.title, { color: colors.text }]}>Account</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -139,6 +147,36 @@ export default function ParentProfileScreen() {
         <View style={styles.roleRow}>
           <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
           <Text style={[styles.roleCapability, { color: colors.textSecondary }]}>Receive email notifications on check-in/out</Text>
+        </View>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
+        <Text style={[styles.infoText, { color: colors.textSecondary, marginBottom: 8 }]}>
+          Manually override system theme
+        </Text>
+        <View style={styles.themeRow}>
+          <Pressable
+            onPress={() => { setUseSystem(true); }}
+            style={[styles.themeBtn, useSystem && { backgroundColor: Colors.primary + "20", borderColor: Colors.primary }]}
+          >
+            <Ionicons name="phone-portrait-outline" size={16} color={useSystem ? Colors.primary : colors.textSecondary} />
+            <Text style={[styles.themeBtnText, { color: useSystem ? Colors.primary : colors.textSecondary }]}>System</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => { setUseSystem(false); toggleTheme(false); }}
+            style={[styles.themeBtn, !useSystem && !isDark && { backgroundColor: Colors.primary + "20", borderColor: Colors.primary }]}
+          >
+            <Ionicons name="sunny-outline" size={16} color={!useSystem && !isDark ? Colors.primary : colors.textSecondary} />
+            <Text style={[styles.themeBtnText, { color: !useSystem && !isDark ? Colors.primary : colors.textSecondary }]}>Light</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => { setUseSystem(false); toggleTheme(true); }}
+            style={[styles.themeBtn, !useSystem && isDark && { backgroundColor: Colors.primary + "20", borderColor: Colors.primary }]}
+          >
+            <Ionicons name="moon-outline" size={16} color={!useSystem && isDark ? Colors.primary : colors.textSecondary} />
+            <Text style={[styles.themeBtnText, { color: !useSystem && isDark ? Colors.primary : colors.textSecondary }]}>Dark</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -363,6 +401,25 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 14,
     fontFamily: "Outfit_400Regular",
     color: colors.text,
+  },
+  themeRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  themeBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  themeBtnText: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
   },
   changePasswordToggle: {
     flexDirection: "row",

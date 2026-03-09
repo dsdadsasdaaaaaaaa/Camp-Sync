@@ -261,6 +261,7 @@ function formatCheckIn(row: any) {
       : undefined,
     checkedOutBy: row.checkedOutBy ?? undefined,
     checkedOutByName: row.checkedOutByName ?? undefined,
+    notes: row.notes ?? undefined,
   };
 }
 
@@ -1092,7 +1093,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [user] = await db.select().from(csUsers).where(eq(csUsers.id, auth.userId));
       if (!user) return res.status(401).json({ message: "Unauthorized" });
 
-      const { camperId, sessionId } = req.body;
+      const { camperId, sessionId, notes } = req.body;
       if (!camperId || !sessionId) return res.status(400).json({ message: "camperId and sessionId are required" });
 
       // Check if already checked in
@@ -1110,6 +1111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sessionId,
         checkedInBy: auth.userId,
         checkedInByName: user.name,
+        ...(notes ? { notes: String(notes).slice(0, 200) } : {}),
       });
 
       const [row] = await db.select().from(csCheckIns).where(eq(csCheckIns.id, id));
@@ -1156,11 +1158,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const [existingCheckIn] = await db.select().from(csCheckIns).where(eq(csCheckIns.id, String(req.params.id)));
 
+      const { notes: checkoutNotes } = req.body;
       await db.update(csCheckIns)
         .set({
           checkedOutAt: new Date(),
           checkedOutBy: auth.userId,
           checkedOutByName: user.name,
+          ...(checkoutNotes ? { notes: String(checkoutNotes).slice(0, 200) } : {}),
         })
         .where(eq(csCheckIns.id, String(req.params.id)));
 

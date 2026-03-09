@@ -45,8 +45,8 @@ interface DataContextValue {
   addSession: (data: Omit<Session, "id" | "createdAt">) => Promise<void>;
   updateSession: (id: string, data: Partial<Session>) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
-  checkInCamper: (camperId: string, sessionId: string) => Promise<void>;
-  checkOutCamper: (checkInId: string) => Promise<void>;
+  checkInCamper: (camperId: string, sessionId: string, notes?: string) => Promise<void>;
+  checkOutCamper: (checkInId: string, notes?: string) => Promise<void>;
   getActiveCheckIn: (camperId: string) => CheckIn | undefined;
   createAuthCode: (role: UserRole, maxUses: number, linkedCamperId?: string) => Promise<string>;
   updateAuthCode: (code: string, data: Partial<AuthCode>) => Promise<void>;
@@ -318,9 +318,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // ── Check-ins ─────────────────────────────────────────────────────────────────
 
   const checkInCamper = useCallback(
-    async (camperId: string, sessionId: string) => {
+    async (camperId: string, sessionId: string, notes?: string) => {
       if (!user) throw new Error("Not authenticated");
-      const res = await apiRequest("POST", "/api/check-ins", { camperId, sessionId });
+      const res = await apiRequest("POST", "/api/check-ins", { camperId, sessionId, ...(notes ? { notes } : {}) });
       const newCheckIn: CheckIn = await res.json();
       setCheckIns((prev) => [...prev, newCheckIn]);
 
@@ -333,9 +333,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
 
   const checkOutCamper = useCallback(
-    async (checkInId: string) => {
+    async (checkInId: string, notes?: string) => {
       if (!user) throw new Error("Not authenticated");
-      const res = await apiRequest("PATCH", `/api/check-ins/${checkInId}/checkout`);
+      const res = await apiRequest("PATCH", `/api/check-ins/${checkInId}/checkout`, notes ? { notes } : undefined);
       const updated: CheckIn = await res.json();
       setCheckIns((prev) => prev.map((ci) => (ci.id === checkInId ? updated : ci)));
 
