@@ -138,6 +138,14 @@ export async function eraseNFCTag(): Promise<void> {
   }
 }
 
+export async function lockNFCTag(): Promise<void> {
+  throw new Error("NFC is not supported on web.");
+}
+
+export async function unlockNFCTag(): Promise<void> {
+  throw new Error("NFC is not supported on web.");
+}
+
 export function encryptPayloadForTag(payload: WristbandPayload): string {
   return encryptWristbandData(payload);
 }

@@ -12,7 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
-import { readNFCTag, writeNFCTag, eraseNFCTag, isNFCSupported } from "@/lib/nfc";
+import { readNFCTag, writeNFCTag, eraseNFCTag, lockNFCTag, unlockNFCTag, isNFCSupported } from "@/lib/nfc";
 import type { WristbandPayload, Camper } from "@/types";
 
 interface NFCScannerReadProps {
@@ -33,6 +33,25 @@ interface NFCScannerWriteProps {
   onCancel: () => void;
 }
 
+interface NFCScannerLockProps {
+  visible: boolean;
+  mode: "lock";
+  camperName: string;
+  onLockSuccess: () => void;
+  onError: (message: string) => void;
+  onCancel: () => void;
+}
+
+interface NFCScannerUnlockProps {
+  visible: boolean;
+  mode: "unlock";
+  camperName: string;
+  onUnlockSuccess: () => void;
+  onUnlockSkipped: () => void;
+  onError: (message: string) => void;
+  onCancel: () => void;
+}
+
 interface NFCScannerEraseProps {
   visible: boolean;
   mode: "erase";
@@ -42,20 +61,23 @@ interface NFCScannerEraseProps {
   onCancel: () => void;
 }
 
-type NFCScannerProps = NFCScannerReadProps | NFCScannerWriteProps | NFCScannerEraseProps;
+type NFCScannerProps =
+  | NFCScannerReadProps
+  | NFCScannerWriteProps
+  | NFCScannerLockProps
+  | NFCScannerUnlockProps
+  | NFCScannerEraseProps;
 
-function PulseRings({ active }: { active: boolean }) {
+function PulseRings({ active, color }: { active: boolean; color?: string }) {
   const ring1 = useRef(new Animated.Value(0)).current;
   const ring2 = useRef(new Animated.Value(0)).current;
   const ring3 = useRef(new Animated.Value(0)).current;
   const iconScale = useRef(new Animated.Value(1)).current;
+  const ringColor = color || Colors.accent;
 
   useEffect(() => {
     if (!active) {
-      ring1.setValue(0);
-      ring2.setValue(0);
-      ring3.setValue(0);
-      iconScale.setValue(1);
+      ring1.setValue(0); ring2.setValue(0); ring3.setValue(0); iconScale.setValue(1);
       return;
     }
 
@@ -78,9 +100,7 @@ function PulseRings({ active }: { active: boolean }) {
     const a1 = makeRing(ring1, 0);
     const a2 = makeRing(ring2, 600);
     const a3 = makeRing(ring3, 1200);
-
     a1.start(); a2.start(); a3.start(); iconAnim.start();
-
     return () => { a1.stop(); a2.stop(); a3.stop(); iconAnim.stop(); };
   }, [active]);
 
@@ -91,10 +111,8 @@ function PulseRings({ active }: { active: boolean }) {
       <Animated.View
         style={{
           position: "absolute",
-          width: 90,
-          height: 90,
-          borderRadius: 45,
-          backgroundColor: Colors.accent + "50",
+          width: 90, height: 90, borderRadius: 45,
+          backgroundColor: ringColor + "50",
           transform: [{ scale }],
           opacity,
         }}
@@ -107,8 +125,8 @@ function PulseRings({ active }: { active: boolean }) {
       {active && ringView(ring3)}
       {active && ringView(ring2)}
       {active && ringView(ring1)}
-      <Animated.View style={[scanStyles.iconCircle, { transform: [{ scale: iconScale }] }]}>
-        <Ionicons name="radio" size={52} color={Colors.accent} />
+      <Animated.View style={[scanStyles.iconCircle, { transform: [{ scale: iconScale }], backgroundColor: ringColor + "12", borderColor: ringColor + "35" }]}>
+        <Ionicons name="radio" size={52} color={ringColor} />
       </Animated.View>
     </View>
   );
@@ -119,19 +137,19 @@ export default function NFCScanner(props: NFCScannerProps) {
   const [status, setStatus] = useState<"scanning" | "success" | "error" | "unsupported">("scanning");
   const [errorMsg, setErrorMsg] = useState("");
   const [scanAttempt, setScanAttempt] = useState(0);
+  const [showSkipUnlock, setShowSkipUnlock] = useState(false);
 
   const retry = () => {
     setStatus("scanning");
     setErrorMsg("");
+    setShowSkipUnlock(false);
     setScanAttempt((n) => n + 1);
   };
 
-  // Extract a human-readable message from any thrown value
   const extractError = (err: any): string => {
     if (!err) return "NFC operation failed.";
     if (typeof err === "string") return err || "NFC operation failed.";
     if (err.message) return err.message;
-    // Some native errors serialize differently
     try {
       const str = JSON.stringify(err);
       if (str && str !== "{}") return str;
@@ -143,6 +161,7 @@ export default function NFCScanner(props: NFCScannerProps) {
     if (!visible) {
       setStatus("scanning");
       setErrorMsg("");
+      setShowSkipUnlock(false);
       return;
     }
 
@@ -155,6 +174,7 @@ export default function NFCScanner(props: NFCScannerProps) {
 
     const doScan = async () => {
       setStatus("scanning");
+      setShowSkipUnlock(false);
       try {
         const supported = await isNFCSupported();
         if (cancelled) return;
@@ -174,28 +194,36 @@ export default function NFCScanner(props: NFCScannerProps) {
           }
           setStatus("success");
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          setTimeout(() => {
-            if (!cancelled) {
-              (props as NFCScannerReadProps).onPayloadRead(payload);
-            }
-          }, 500);
+          setTimeout(() => { if (!cancelled) (props as NFCScannerReadProps).onPayloadRead(payload); }, 500);
+
         } else if (mode === "write") {
           const writeProps = props as NFCScannerWriteProps;
           await writeNFCTag(writeProps.writePayload);
           if (cancelled) return;
           setStatus("success");
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          setTimeout(() => {
-            if (!cancelled) writeProps.onWriteSuccess();
-          }, 800);
+          setTimeout(() => { if (!cancelled) writeProps.onWriteSuccess(); }, 800);
+
+        } else if (mode === "lock") {
+          await lockNFCTag();
+          if (cancelled) return;
+          setStatus("success");
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setTimeout(() => { if (!cancelled) (props as NFCScannerLockProps).onLockSuccess(); }, 800);
+
+        } else if (mode === "unlock") {
+          await unlockNFCTag();
+          if (cancelled) return;
+          setStatus("success");
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setTimeout(() => { if (!cancelled) (props as NFCScannerUnlockProps).onUnlockSuccess(); }, 800);
+
         } else if (mode === "erase") {
           await eraseNFCTag();
           if (cancelled) return;
           setStatus("success");
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          setTimeout(() => {
-            if (!cancelled) (props as NFCScannerEraseProps).onEraseSuccess();
-          }, 800);
+          setTimeout(() => { if (!cancelled) (props as NFCScannerEraseProps).onEraseSuccess(); }, 800);
         }
       } catch (err: any) {
         if (cancelled) return;
@@ -205,7 +233,7 @@ export default function NFCScanner(props: NFCScannerProps) {
           msg.includes("cancelled") ||
           msg.includes("cancel") ||
           msg.includes("invalidated") ||
-          msg.includes("session") && msg.includes("ended")
+          (msg.includes("session") && msg.includes("ended"))
         ) {
           onCancel();
           return;
@@ -214,55 +242,72 @@ export default function NFCScanner(props: NFCScannerProps) {
         setErrorMsg(msg);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         props.onError(msg);
+        if (mode === "unlock") {
+          setShowSkipUnlock(true);
+        }
       }
     };
 
     doScan();
-
     return () => { cancelled = true; };
   }, [visible, scanAttempt]);
 
-  const getSubtitle = () => {
-    if (mode === "write") {
-      return `Hold iPhone near ${(props as NFCScannerWriteProps).writeCamper?.firstName}'s wristband to program`;
-    }
-    if (mode === "erase") {
-      return `Hold iPhone near ${(props as NFCScannerEraseProps).camperName}'s wristband to erase`;
-    }
-    return "Hold iPhone near a CampSync wristband";
+  const stepLabel = () => {
+    if (mode === "write") return "Step 1 of 2";
+    if (mode === "lock") return "Step 2 of 2";
+    if (mode === "unlock") return "Step 1 of 2";
+    if (mode === "erase") return "Step 2 of 2";
+    return null;
   };
 
   const getTitle = () => {
     if (mode === "write") return "Program Wristband";
+    if (mode === "lock") return "Lock Wristband";
+    if (mode === "unlock") return "Unlock Wristband";
     if (mode === "erase") return "Erase Wristband";
     return "Ready to Scan";
   };
 
+  const getSubtitle = () => {
+    if (mode === "write") return `Hold iPhone near ${(props as NFCScannerWriteProps).writeCamper?.firstName}'s wristband to program it`;
+    if (mode === "lock") return `Scan ${(props as NFCScannerLockProps).camperName}'s wristband again to lock it`;
+    if (mode === "unlock") return `Scan ${(props as NFCScannerUnlockProps).camperName}'s wristband to unlock it`;
+    if (mode === "erase") return `Scan ${(props as NFCScannerEraseProps).camperName}'s wristband again to erase it`;
+    return "Hold iPhone near a CampSync wristband";
+  };
+
+  const getHint = () => {
+    if (mode === "write") return "Data will be encrypted and written to the tag";
+    if (mode === "lock") return "This prevents tampering with the wristband data";
+    if (mode === "unlock") return "Authenticates with the wristband's security key";
+    if (mode === "erase") return "Wristband will be cleared for future use";
+    return "The iOS NFC reader will activate automatically";
+  };
+
   const getSuccessTitle = () => {
-    if (mode === "write") return "Wristband Programmed!";
+    if (mode === "write") return "Data Written!";
+    if (mode === "lock") return "Wristband Locked!";
+    if (mode === "unlock") return "Wristband Unlocked!";
     if (mode === "erase") return "Wristband Erased!";
     return "Tag Read Successfully!";
   };
 
   const getSuccessSubtitle = () => {
-    if (mode === "write") return "Encrypted camper data written to wristband";
+    if (mode === "write") return "Scan again to lock the wristband";
+    if (mode === "lock") return "Wristband is now tamper-protected";
+    if (mode === "unlock") return "Security removed — ready to erase";
     if (mode === "erase") return "Wristband data has been cleared";
     return "Decrypting camper data...";
   };
 
-  const getHint = () => {
-    if (mode === "write") return "Hold near a blank NFC wristband tag";
-    if (mode === "erase") return "Hold near the wristband to clear its data";
-    return "The iOS NFC reader will activate automatically";
-  };
+  const ringColor = mode === "lock" || mode === "unlock"
+    ? Colors.warning
+    : mode === "erase"
+    ? Colors.danger
+    : Colors.accent;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onCancel}
-    >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onCancel}>
       <View style={scanStyles.overlay}>
         <View style={scanStyles.sheet}>
           <View style={scanStyles.handle} />
@@ -276,10 +321,7 @@ export default function NFCScanner(props: NFCScannerProps) {
               <Text style={scanStyles.subtitle}>
                 This device does not support NFC, or NFC is disabled. Please enable NFC in Settings.
               </Text>
-              <Pressable
-                style={({ pressed }) => [scanStyles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
-                onPress={onCancel}
-              >
+              <Pressable style={({ pressed }) => [scanStyles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={onCancel}>
                 <Text style={scanStyles.cancelBtnText}>Close</Text>
               </Pressable>
             </View>
@@ -287,10 +329,15 @@ export default function NFCScanner(props: NFCScannerProps) {
 
           {status === "scanning" && (
             <View style={scanStyles.content}>
-              <PulseRings active={true} />
+              {stepLabel() && (
+                <View style={[scanStyles.stepBadge, { backgroundColor: ringColor + "15", borderColor: ringColor + "30" }]}>
+                  <Text style={[scanStyles.stepBadgeText, { color: ringColor }]}>{stepLabel()}</Text>
+                </View>
+              )}
+              <PulseRings active={true} color={ringColor} />
               <Text style={scanStyles.title}>{getTitle()}</Text>
               <Text style={scanStyles.subtitle}>{getSubtitle()}</Text>
-              <Text style={scanStyles.hint}>{getHint()}</Text>
+              <Text style={[scanStyles.hint, { color: ringColor }]}>{getHint()}</Text>
               <Pressable
                 style={({ pressed }) => [scanStyles.cancelBtn, { opacity: pressed ? 0.8 : 1, marginTop: 8 }]}
                 onPress={onCancel}
@@ -305,12 +352,8 @@ export default function NFCScanner(props: NFCScannerProps) {
               <View style={[scanStyles.iconCircle, { backgroundColor: Colors.success + "15", borderColor: Colors.success + "40" }]}>
                 <Ionicons name="checkmark-circle" size={52} color={Colors.success} />
               </View>
-              <Text style={[scanStyles.title, { color: Colors.success }]}>
-                {getSuccessTitle()}
-              </Text>
-              <Text style={scanStyles.subtitle}>
-                {getSuccessSubtitle()}
-              </Text>
+              <Text style={[scanStyles.title, { color: Colors.success }]}>{getSuccessTitle()}</Text>
+              <Text style={scanStyles.subtitle}>{getSuccessSubtitle()}</Text>
               <ActivityIndicator color={Colors.primary} style={{ marginTop: 8 }} />
             </View>
           )}
@@ -329,6 +372,15 @@ export default function NFCScanner(props: NFCScannerProps) {
                 <Ionicons name="refresh" size={18} color="#fff" />
                 <Text style={scanStyles.retryBtnText}>Try Again</Text>
               </Pressable>
+              {showSkipUnlock && (
+                <Pressable
+                  style={({ pressed }) => [scanStyles.skipBtn, { opacity: pressed ? 0.85 : 1 }]}
+                  onPress={() => (props as NFCScannerUnlockProps).onUnlockSkipped()}
+                >
+                  <Ionicons name="arrow-forward-circle-outline" size={18} color={Colors.warning} />
+                  <Text style={scanStyles.skipBtnText}>Skip Unlock — Erase Anyway</Text>
+                </Pressable>
+              )}
               <Pressable
                 style={({ pressed }) => [scanStyles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
                 onPress={onCancel}
@@ -357,29 +409,37 @@ const scanStyles = StyleSheet.create({
     paddingBottom: Platform.OS === "web" ? 34 : 48,
   },
   handle: {
-    width: 40,
-    height: 5,
+    width: 40, height: 5,
     backgroundColor: Colors.light.border,
     borderRadius: 2.5,
     alignSelf: "center",
-    marginTop: 12,
-    marginBottom: 4,
+    marginTop: 12, marginBottom: 4,
   },
   content: {
     alignItems: "center",
     paddingVertical: 24,
     gap: 14,
   },
+  stepBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
+  stepBadgeText: {
+    fontSize: 12,
+    fontFamily: "Outfit_700Bold",
+    letterSpacing: 0.5,
+  },
   pulseWrap: {
-    width: 180,
-    height: 180,
+    width: 180, height: 180,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
   },
   iconCircle: {
-    width: 100,
-    height: 100,
+    width: 100, height: 100,
     borderRadius: 50,
     backgroundColor: Colors.accent + "12",
     borderWidth: 2,
@@ -436,5 +496,22 @@ const scanStyles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Outfit_600SemiBold",
     color: "#fff",
+  },
+  skipBtn: {
+    width: "100%",
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: Colors.warning + "15",
+    borderWidth: 1,
+    borderColor: Colors.warning + "40",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  skipBtnText: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
+    color: Colors.warning,
   },
 });

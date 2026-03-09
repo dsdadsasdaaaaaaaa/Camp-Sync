@@ -29,6 +29,8 @@ export default function NFCScreen() {
   const [screen, setScreen] = useState<Screen>("home");
   const [readScanVisible, setReadScanVisible] = useState(false);
   const [writeScanVisible, setWriteScanVisible] = useState(false);
+  const [lockScanVisible, setLockScanVisible] = useState(false);
+  const [unlockScanVisible, setUnlockScanVisible] = useState(false);
   const [eraseScanVisible, setEraseScanVisible] = useState(false);
   const [selectedCamper, setSelectedCamper] = useState<Camper | null>(null);
   const [writePayload, setWritePayload] = useState<WristbandPayload | null>(null);
@@ -106,14 +108,20 @@ export default function NFCScreen() {
     setWriteScanVisible(true);
   };
 
-  const handleWriteSuccess = async () => {
+  const handleWriteSuccess = () => {
     setWriteScanVisible(false);
+    // Step 1 done — now show the lock scanner (step 2)
+    setLockScanVisible(true);
+  };
+
+  const handleLockSuccess = async () => {
+    setLockScanVisible(false);
     if (!selectedCamper) return;
     try {
       await programWristband(selectedCamper.id);
       Alert.alert(
-        "Wristband Programmed",
-        `${selectedCamper.firstName} ${selectedCamper.lastName}'s wristband is programmed with encrypted data and they've been checked in automatically.`,
+        "Wristband Programmed & Locked",
+        `${selectedCamper.firstName} ${selectedCamper.lastName}'s wristband is programmed, locked, and they've been checked in automatically.`,
         [{ text: "Done", onPress: resetAll }]
       );
     } catch (err: any) { Alert.alert("Error", err.message); }
@@ -141,6 +149,19 @@ export default function NFCScreen() {
     if (!checkoutCamper) return;
     const activeCheckIn = checkIns.find((ci) => ci.camperId === checkoutCamper.id && !ci.checkedOutAt);
     if (!activeCheckIn) { Alert.alert("Error", "Camper is not currently checked in."); return; }
+    // Step 1: unlock the wristband first
+    setUnlockScanVisible(true);
+  };
+
+  const handleUnlockSuccess = () => {
+    setUnlockScanVisible(false);
+    // Step 2: erase the now-unlocked wristband
+    setEraseScanVisible(true);
+  };
+
+  const handleUnlockSkipped = () => {
+    setUnlockScanVisible(false);
+    // Wristband may not have been locked — proceed directly to erase
     setEraseScanVisible(true);
   };
 
@@ -220,6 +241,8 @@ export default function NFCScreen() {
     setCheckoutSearch("");
     setReadScanVisible(false);
     setWriteScanVisible(false);
+    setLockScanVisible(false);
+    setUnlockScanVisible(false);
     setEraseScanVisible(false);
   };
 
@@ -641,17 +664,6 @@ export default function NFCScreen() {
         />
       )}
 
-      {eraseScanVisible && checkoutCamper && (
-        <NFCScanner
-          visible={eraseScanVisible}
-          mode="erase"
-          camperName={checkoutCamper.firstName}
-          onEraseSuccess={handleEraseSuccess}
-          onError={(msg) => { setEraseScanVisible(false); Alert.alert("Erase Error", msg); }}
-          onCancel={() => setEraseScanVisible(false)}
-        />
-      )}
-
       {writeScanVisible && selectedCamper && writePayload && (
         <NFCScanner
           visible={writeScanVisible}
@@ -661,6 +673,40 @@ export default function NFCScreen() {
           onWriteSuccess={handleWriteSuccess}
           onError={(msg) => { setWriteScanVisible(false); Alert.alert("Write Error", msg); }}
           onCancel={() => setWriteScanVisible(false)}
+        />
+      )}
+
+      {lockScanVisible && selectedCamper && (
+        <NFCScanner
+          visible={lockScanVisible}
+          mode="lock"
+          camperName={selectedCamper.firstName}
+          onLockSuccess={handleLockSuccess}
+          onError={(msg) => { setLockScanVisible(false); Alert.alert("Lock Error", msg); }}
+          onCancel={() => setLockScanVisible(false)}
+        />
+      )}
+
+      {unlockScanVisible && checkoutCamper && (
+        <NFCScanner
+          visible={unlockScanVisible}
+          mode="unlock"
+          camperName={checkoutCamper.firstName}
+          onUnlockSuccess={handleUnlockSuccess}
+          onUnlockSkipped={handleUnlockSkipped}
+          onError={() => {}}
+          onCancel={() => setUnlockScanVisible(false)}
+        />
+      )}
+
+      {eraseScanVisible && checkoutCamper && (
+        <NFCScanner
+          visible={eraseScanVisible}
+          mode="erase"
+          camperName={checkoutCamper.firstName}
+          onEraseSuccess={handleEraseSuccess}
+          onError={(msg) => { setEraseScanVisible(false); Alert.alert("Erase Error", msg); }}
+          onCancel={() => setEraseScanVisible(false)}
         />
       )}
 

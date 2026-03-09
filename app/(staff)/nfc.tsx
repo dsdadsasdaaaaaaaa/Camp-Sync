@@ -28,6 +28,7 @@ export default function StaffNFCScreen() {
   const { campers, checkIns, checkOutCamper, updateCamper } = useData();
   const [screen, setScreen] = useState<Screen>("home");
   const [scannerVisible, setScannerVisible] = useState(false);
+  const [unlockScanVisible, setUnlockScanVisible] = useState(false);
   const [eraseScanVisible, setEraseScanVisible] = useState(false);
   const [result, setResult] = useState<WristbandPayload | null>(null);
 
@@ -83,7 +84,7 @@ export default function StaffNFCScreen() {
     }
 
     if (checkoutCamper.wristbandId) {
-      setEraseScanVisible(true);
+      setUnlockScanVisible(true);
     } else {
       Alert.alert(
         "No Wristband",
@@ -106,6 +107,16 @@ export default function StaffNFCScreen() {
       return;
     }
     setCheckoutCamper(camper);
+    setUnlockScanVisible(true);
+  };
+
+  const handleUnlockSuccess = () => {
+    setUnlockScanVisible(false);
+    setEraseScanVisible(true);
+  };
+
+  const handleUnlockSkipped = () => {
+    setUnlockScanVisible(false);
     setEraseScanVisible(true);
   };
 
@@ -144,6 +155,7 @@ export default function StaffNFCScreen() {
     setScreen("home");
     setResult(null);
     setScannerVisible(false);
+    setUnlockScanVisible(false);
     setEraseScanVisible(false);
     setCheckoutCamper(null);
     setCheckoutPickerVisible(false);
@@ -404,6 +416,18 @@ export default function StaffNFCScreen() {
             Alert.alert("Scan Error", msg);
           }}
           onCancel={() => setScannerVisible(false)}
+        />
+      )}
+
+      {unlockScanVisible && checkoutCamper && (
+        <NFCScanner
+          visible={unlockScanVisible}
+          mode="unlock"
+          camperName={checkoutCamper.firstName}
+          onUnlockSuccess={handleUnlockSuccess}
+          onUnlockSkipped={handleUnlockSkipped}
+          onError={() => {}}
+          onCancel={() => setUnlockScanVisible(false)}
         />
       )}
 
