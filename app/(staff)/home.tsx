@@ -143,7 +143,7 @@ function MedicalAIScreen({ visible, onClose }: { visible: boolean; onClose: () =
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <View style={[styles.modalHeader, { paddingTop: Platform.OS === "ios" ? 20 : insets.top + 20 }]}>
+        <View style={[styles.modalHeader, { paddingTop: Platform.OS === "web" ? 67 : Platform.OS === "ios" ? 20 : insets.top + 20 }]}>
           <View>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Medical Lookup</Text>
             <Text style={[styles.modalSub, { color: colors.textSecondary }]}>Camper medical & emergency info</Text>
@@ -666,6 +666,9 @@ const getStyles = (colors: any) =>
       justifyContent: "space-between",
       paddingHorizontal: 20,
       paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.background,
     },
     modalTitle: {
       fontSize: 24,
@@ -768,8 +771,10 @@ const getStyles = (colors: any) =>
       borderBottomRightRadius: 4,
     },
     aiBubbleContent: {
-      backgroundColor: "rgba(0,0,0,0.05)",
+      backgroundColor: colors.surface,
       borderBottomLeftRadius: 4,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     bubbleText: {
       fontSize: 15,
@@ -780,6 +785,7 @@ const getStyles = (colors: any) =>
       fontFamily: "Outfit_400Regular",
     },
     aiText: {
+      color: colors.text,
       fontFamily: "Outfit_400Regular",
     },
     typing: {

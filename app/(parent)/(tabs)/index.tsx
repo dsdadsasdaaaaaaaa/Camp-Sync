@@ -118,7 +118,7 @@ export default function ParentChildrenScreen() {
   const { user } = useAuth();
   const colors = useColors();
   const styles = getStyles(colors);
-  const { campers, checkIns, pendingUpdates, broadcasts, isLoading, refresh } = useData();
+  const { campers, checkIns, pendingUpdates, broadcasts, sessions, isLoading, refresh } = useData();
   const insets = useSafeAreaInsets();
   const activeEmergency = broadcasts.find((b) => b.emergencyActive);
   useSiren(!!activeEmergency);

@@ -1688,8 +1688,12 @@ RULES:
 - Only answer questions about camper medical info, allergies, medications, conditions, emergency contacts, blood type, and doctor info.
 - Do NOT answer questions about auth codes, financial data, staff management, or administrative functions.
 - If asked something outside medical/safety scope, say: "I can only help with medical and safety lookups."
-- Be concise and direct — staff may be in urgent situations.
-- Always name the specific camper when providing medical information.`;
+- Be extremely concise — staff may be in emergency situations. Short direct answers only.
+- Answer ONLY what was directly asked. Never volunteer information about campers not relevant to the query.
+- If no camper matches the query (e.g., nobody in a cabin has a specific allergy), say so in one sentence and stop.
+- Do NOT mention campers who do NOT have the thing being asked about, unless asked specifically.
+- Example: "Who in Cabin A has peanut allergies?" → If none: "Nobody in Cabin A has a peanut allergy." → If one: "Jane Smith (Cabin A) has a peanut allergy." Do not list others.
+- Never explain your reasoning or add caveats unless critical for safety.`;
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache, no-transform");
