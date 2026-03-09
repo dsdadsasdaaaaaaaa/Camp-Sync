@@ -171,6 +171,8 @@ export default function CamperDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [nfcScanVisible, setNfcScanVisible] = useState(false);
   const [nfcWritePayload, setNfcWritePayload] = useState<WristbandPayload | null>(null);
+  const [nfcLockVisible, setNfcLockVisible] = useState(false);
+  const [wristbandProgramStep, setWristbandProgramStep] = useState<"idle" | "step1_done">("idle");
 
   const camper = campers.find((c) => c.id === id);
   const activeCheckIn = camper ? getActiveCheckIn(camper.id) : undefined;
@@ -299,15 +301,22 @@ export default function CamperDetailScreen() {
     setNfcScanVisible(false);
     setNfcWritePayload(null);
     try {
-      const wbId = await programWristband(camper.id);
+      await programWristband(camper.id);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        "Wristband Programmed",
-        `${camper.firstName} ${camper.lastName}'s wristband is now programmed.\n\nID: ${wbId}\n\nAll data is encrypted and accessible offline.`
-      );
+      setWristbandProgramStep("step1_done");
     } catch (err: any) {
       Alert.alert("Error", err.message || "Failed to save wristband record.");
     }
+  };
+
+  const handleNFCLockSuccess = async () => {
+    setNfcLockVisible(false);
+    setWristbandProgramStep("idle");
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert(
+      "Wristband Complete",
+      `${camper.firstName}'s wristband is programmed and locked.`
+    );
   };
 
   const handleCreateParentCode = async () => {
@@ -430,33 +439,79 @@ export default function CamperDetailScreen() {
             {canEdit && (
               <>
                 <View style={styles.divider} />
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.actionRow,
-                    { opacity: pressed ? 0.85 : 1 },
-                  ]}
-                  onPress={handleProgramWristband}
-                  disabled={isLoading}
-                >
-                  <View style={[styles.actionIcon, { backgroundColor: Colors.primary + "20" }]}>
-                    {isLoading ? (
-                      <ActivityIndicator size="small" color={Colors.primary} />
-                    ) : (
-                      <Ionicons name="radio" size={20} color={Colors.primary} />
-                    )}
+
+                {wristbandProgramStep === "step1_done" ? (
+                  <View style={styles.wristbandStepCard}>
+                    <View style={styles.wristbandStepHeader}>
+                      <View style={[styles.actionIcon, { backgroundColor: Colors.success + "20" }]}>
+                        <Ionicons name="checkmark-circle" size={22} color={Colors.success} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.actionTitle, { color: Colors.success }]}>Step 1 Complete</Text>
+                        <Text style={styles.actionSub}>Data written — one more scan to lock</Text>
+                      </View>
+                    </View>
+                    <View style={styles.stepProgressRow}>
+                      <View style={styles.stepItem}>
+                        <View style={[styles.stepDot, { backgroundColor: Colors.success }]}>
+                          <Ionicons name="checkmark" size={12} color="#fff" />
+                        </View>
+                        <Text style={[styles.stepLabel, { color: Colors.success }]}>Write Data</Text>
+                      </View>
+                      <View style={[styles.stepLine, { backgroundColor: Colors.success }]} />
+                      <View style={styles.stepItem}>
+                        <View style={[styles.stepDot, { backgroundColor: Colors.primary, borderWidth: 2, borderColor: Colors.primary }]}>
+                          <Ionicons name="lock-closed" size={10} color="#fff" />
+                        </View>
+                        <Text style={[styles.stepLabel, { color: Colors.primary }]}>Lock Wristband</Text>
+                      </View>
+                    </View>
+                    <Pressable
+                      style={({ pressed }) => [styles.finishBtn, { opacity: pressed ? 0.85 : 1 }]}
+                      onPress={() => setNfcLockVisible(true)}
+                    >
+                      <Ionicons name="lock-closed" size={18} color="#fff" />
+                      <Text style={styles.finishBtnText}>Finish Programming</Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [styles.skipLockBtn, { opacity: pressed ? 0.7 : 1 }]}
+                      onPress={() => {
+                        setWristbandProgramStep("idle");
+                        Alert.alert("Skipped Lock", "The wristband was programmed but not locked. Anyone can rewrite the data.");
+                      }}
+                    >
+                      <Text style={styles.skipLockBtnText}>Skip — don't lock</Text>
+                    </Pressable>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.actionTitle}>
-                      {camper.wristbandId ? "Re-program Wristband" : "Program Wristband"}
-                    </Text>
-                    <Text style={styles.actionSub}>
-                      {camper.wristbandId
-                        ? `ID: ${camper.wristbandId}`
-                        : "No wristband assigned yet"}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                </Pressable>
+                ) : (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.actionRow,
+                      { opacity: pressed ? 0.85 : 1 },
+                    ]}
+                    onPress={handleProgramWristband}
+                    disabled={isLoading}
+                  >
+                    <View style={[styles.actionIcon, { backgroundColor: Colors.primary + "20" }]}>
+                      {isLoading ? (
+                        <ActivityIndicator size="small" color={Colors.primary} />
+                      ) : (
+                        <Ionicons name="radio" size={20} color={Colors.primary} />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.actionTitle}>
+                        {camper.wristbandId ? "Re-program Wristband" : "Program Wristband"}
+                      </Text>
+                      <Text style={styles.actionSub}>
+                        {camper.wristbandId
+                          ? `ID: ${camper.wristbandId}`
+                          : "No wristband assigned yet"}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  </Pressable>
+                )}
                 <Pressable
                   style={({ pressed }) => [
                     styles.actionRow,
@@ -931,6 +986,20 @@ export default function CamperDetailScreen() {
           }}
         />
       )}
+
+      {nfcLockVisible && camper && (
+        <NFCScanner
+          visible={nfcLockVisible}
+          mode="lock"
+          camperName={`${camper.firstName} ${camper.lastName}`}
+          onLockSuccess={handleNFCLockSuccess}
+          onError={(msg) => {
+            setNfcLockVisible(false);
+            Alert.alert("Lock Failed", msg + "\n\nThe wristband is programmed but unlocked.");
+          }}
+          onCancel={() => setNfcLockVisible(false)}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -1185,6 +1254,65 @@ const getStyles = (colors: any) => StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  wristbandStepCard: {
+    gap: 14,
+  },
+  wristbandStepHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  stepProgressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  stepItem: {
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
+  stepDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepLabel: {
+    fontSize: 11,
+    fontFamily: "Outfit_600SemiBold",
+    textAlign: "center",
+  },
+  stepLine: {
+    height: 2,
+    flex: 1,
+    marginBottom: 18,
+    marginHorizontal: 4,
+  },
+  finishBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    height: 50,
+  },
+  finishBtnText: {
+    fontSize: 15,
+    fontFamily: "Outfit_700Bold",
+    color: "#fff",
+  },
+  skipLockBtn: {
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  skipLockBtnText: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    color: colors.textMuted,
   },
   actionIcon: {
     width: 44,

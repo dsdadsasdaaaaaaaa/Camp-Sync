@@ -139,11 +139,30 @@ export async function eraseNFCTag(): Promise<void> {
 }
 
 export async function lockNFCTag(): Promise<void> {
-  throw new Error("NFC is not supported on web.");
+  if (Platform.OS === 'web') throw new Error("NFC is not supported on web.");
+
+  await ensureStarted();
+
+  try {
+    await NfcManager.requestTechnology([NfcTech.Ndef]);
+  } catch (e: any) {
+    const msg = typeof e === 'string' ? e : e?.message ?? 'unknown';
+    console.warn('NFC requestTechnology failed:', msg);
+    throw new Error(`Could not start NFC session: ${msg}`);
+  }
+
+  try {
+    await NfcManager.ndefHandler.makeReadOnly();
+  } catch (e) {
+    throw e;
+  } finally {
+    NfcManager.cancelTechnologyRequest().catch(() => {});
+  }
 }
 
 export async function unlockNFCTag(): Promise<void> {
-  throw new Error("NFC is not supported on web.");
+  if (Platform.OS === 'web') throw new Error("NFC is not supported on web.");
+  throw new Error("NFC tags cannot be unlocked once made read-only.");
 }
 
 export function encryptPayloadForTag(payload: WristbandPayload): string {
