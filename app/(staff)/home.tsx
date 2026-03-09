@@ -29,14 +29,16 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  isStreaming?: boolean;
 }
 
 const SUGGESTIONS = [
-  "Who has peanut allergies?",
-  "Medications for Alice?",
-  "Emergency contact for Bob?",
-  "Any campers with diabetes?",
-  "Who has an EpiPen?",
+  { icon: "nutrition-outline", text: "Who has peanut allergies?" },
+  { icon: "medkit-outline", text: "Medications for any camper?" },
+  { icon: "call-outline", text: "Emergency contact for a camper?" },
+  { icon: "fitness-outline", text: "Any campers with diabetes?" },
+  { icon: "bandage-outline", text: "Who has an EpiPen?" },
+  { icon: "water-outline", text: "Campers with asthma?" },
 ];
 
 function MessageBubble({ message }: { message: Message }) {
@@ -45,10 +47,30 @@ function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === "user";
   return (
     <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
+      {!isUser && (
+        <View style={styles.aiAvatar}>
+          <Ionicons name="sparkles" size={13} color={Colors.accent} />
+        </View>
+      )}
       <View style={[styles.bubbleContent, isUser ? styles.userBubbleContent : styles.aiBubbleContent]}>
         <Text style={[styles.bubbleText, isUser ? styles.userText : styles.aiText]}>
           {message.content}
+          {message.isStreaming && <Text style={{ color: Colors.accent }}>▋</Text>}
         </Text>
+      </View>
+    </View>
+  );
+}
+
+function TypingIndicator() {
+  const colors = useColors();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 16, marginBottom: 8 }}>
+      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.accent + "20", alignItems: "center", justifyContent: "center" }}>
+        <Ionicons name="sparkles" size={13} color={Colors.accent} />
+      </View>
+      <View style={{ backgroundColor: colors.surfaceSecondary, borderRadius: 18, borderBottomLeftRadius: 4, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: colors.border }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 22, letterSpacing: 2, lineHeight: 22 }}>···</Text>
       </View>
     </View>
   );
@@ -65,15 +87,26 @@ function MedicalAIScreen({ visible, onClose }: { visible: boolean; onClose: () =
 
   const generateId = () => `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+  const clearChat = () => {
+    setMessages([]);
+    setInput("");
+    setIsLoading(false);
+    setShowTyping(false);
+  };
+
   const handleSend = async (text: string) => {
     if (!text.trim() || isLoading) return;
     const trimmed = text.trim();
     setInput("");
-    
+
     const userMsg: Message = { id: generateId(), role: "user", content: trimmed };
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
     setShowTyping(true);
+
+    const assistantId = generateId();
+    let assistantAdded = false;
+    let fullContent = "";
 
     try {
       const url = new URL("/api/ai/staff-query", getApiUrl()).toString();
@@ -95,9 +128,7 @@ function MedicalAIScreen({ visible, onClose }: { visible: boolean; onClose: () =
       if (!reader) throw new Error("No response body");
 
       const decoder = new TextDecoder();
-      let fullContent = "";
       let buffer = "";
-      let assistantAdded = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -118,22 +149,24 @@ function MedicalAIScreen({ visible, onClose }: { visible: boolean; onClose: () =
               fullContent += parsed.content;
               if (!assistantAdded) {
                 setShowTyping(false);
-                setMessages(prev => [...prev, { id: generateId(), role: "assistant", content: fullContent }]);
+                setMessages(prev => [...prev, { id: assistantId, role: "assistant", content: fullContent, isStreaming: true }]);
                 assistantAdded = true;
               } else {
-                setMessages(prev => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = { ...updated[updated.length - 1], content: fullContent };
-                  return updated;
-                });
+                setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: fullContent } : m));
               }
+            }
+            if (parsed.done || parsed.error) {
+              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, isStreaming: false } : m));
             }
           } catch {}
         }
       }
+      setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, isStreaming: false } : m));
     } catch (err: any) {
       setShowTyping(false);
-      setMessages(prev => [...prev, { id: generateId(), role: "assistant", content: `Error: ${err.message || "Request failed"}` }]);
+      if (!assistantAdded) {
+        setMessages(prev => [...prev, { id: assistantId, role: "assistant", content: "Something went wrong. Please try again." }]);
+      }
     } finally {
       setIsLoading(false);
       setShowTyping(false);
@@ -144,40 +177,70 @@ function MedicalAIScreen({ visible, onClose }: { visible: boolean; onClose: () =
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={[styles.modalHeader, { paddingTop: Platform.OS === "web" ? 67 : Platform.OS === "ios" ? 20 : insets.top + 20 }]}>
-          <View>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Medical Lookup</Text>
-            <Text style={[styles.modalSub, { color: colors.textSecondary }]}>Camper medical & emergency info</Text>
+          <View style={styles.modalTitleRow}>
+            <View style={styles.modalTitleIcon}>
+              <Ionicons name="sparkles" size={18} color={Colors.accent} />
+            </View>
+            <View>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Medical Lookup</Text>
+              <Text style={[styles.modalSub, { color: colors.textSecondary }]}>AI-powered camper health info</Text>
+            </View>
           </View>
-          <Pressable onPress={onClose} style={styles.closeBtn}>
-            <Ionicons name="close" size={24} color={colors.textSecondary} />
-          </Pressable>
+          <View style={styles.modalActions}>
+            {messages.length > 0 && (
+              <Pressable onPress={clearChat} style={[styles.headerIconBtn, { marginRight: 8 }]}>
+                <Ionicons name="trash-outline" size={20} color={Colors.danger} />
+              </Pressable>
+            )}
+            <Pressable onPress={onClose} style={styles.headerIconBtn}>
+              <Ionicons name="close" size={22} color={colors.textSecondary} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.securityBadge}>
-          <Ionicons name="lock-closed" size={12} color={Colors.success} />
-          <Text style={styles.securityText}>Limited to medical and safety lookups only</Text>
+          <Ionicons name="lock-closed" size={11} color={Colors.success} />
+          <Text style={styles.securityText}>Read-only · Medical & safety info only</Text>
         </View>
 
-        <KeyboardAvoidingView 
-          style={{ flex: 1 }} 
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+          keyboardVerticalOffset={0}
         >
           {messages.length === 0 ? (
-            <ScrollView contentContainerStyle={styles.emptyContainer}>
-              <View style={styles.emptyIcon}>
-                <Ionicons name="medical" size={40} color={Colors.danger} />
+            <ScrollView
+              contentContainerStyle={styles.emptyContainer}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.emptyHero}>
+                <View style={styles.emptyIconRing}>
+                  <Ionicons name="sparkles" size={36} color={Colors.accent} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>How can I help?</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  Ask about allergies, medications, or emergency contacts.
+                </Text>
               </View>
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>How can I help?</Text>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Ask about allergies, medications, or emergency contacts for any camper.</Text>
-              
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestions}>
+              <View style={styles.suggestionsGrid}>
                 {SUGGESTIONS.map((s, i) => (
-                  <Pressable key={i} style={[styles.suggestion, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => handleSend(s)}>
-                    <Text style={[styles.suggestionText, { color: colors.text }]}>{s}</Text>
+                  <Pressable
+                    key={i}
+                    style={({ pressed }) => [
+                      styles.suggestionCard,
+                      { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.8 : 1 }
+                    ]}
+                    onPress={() => handleSend(s.text)}
+                  >
+                    <View style={styles.suggestionIconWrap}>
+                      <Ionicons name={s.icon as any} size={18} color={Colors.primary} />
+                    </View>
+                    <Text style={[styles.suggestionText, { color: colors.text }]}>{s.text}</Text>
+                    <Ionicons name="arrow-forward" size={14} color={colors.textMuted} />
                   </Pressable>
                 ))}
-              </ScrollView>
+              </View>
             </ScrollView>
           ) : (
             <FlatList
@@ -185,32 +248,35 @@ function MedicalAIScreen({ visible, onClose }: { visible: boolean; onClose: () =
               keyExtractor={item => item.id}
               inverted
               contentContainerStyle={styles.listContent}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
               renderItem={({ item }) => <MessageBubble message={item} />}
-              ListHeaderComponent={showTyping ? (
-                <View style={styles.typing}>
-                  <ActivityIndicator size="small" color={Colors.primary} />
-                </View>
-              ) : null}
+              ListHeaderComponent={showTyping ? <TypingIndicator /> : null}
             />
           )}
 
-          <View style={[styles.inputArea, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={[styles.inputArea, { paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : 20 }]}>
             <View style={[styles.inputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <TextInput
                 style={[styles.input, { color: colors.text }]}
-                placeholder="Type your question..."
+                placeholder="Ask a medical question..."
                 placeholderTextColor={colors.textMuted}
                 value={input}
                 onChangeText={setInput}
                 multiline
+                returnKeyType="send"
+                blurOnSubmit
                 onSubmitEditing={() => handleSend(input)}
               />
-              <Pressable 
-                style={[styles.sendBtn, (!input.trim() || isLoading) && styles.sendDisabled]} 
+              <Pressable
+                style={[styles.sendBtn, { backgroundColor: input.trim() && !isLoading ? Colors.primary : colors.surfaceSecondary }]}
                 onPress={() => handleSend(input)}
                 disabled={!input.trim() || isLoading}
               >
-                {isLoading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="arrow-up" size={20} color="#fff" />}
+                {isLoading
+                  ? <ActivityIndicator size="small" color={Colors.primary} />
+                  : <Ionicons name="arrow-up" size={18} color={input.trim() ? "#fff" : colors.textMuted} />
+                }
               </Pressable>
             </View>
           </View>
@@ -665,24 +731,42 @@ const getStyles = (colors: any) =>
       alignItems: "center",
       justifyContent: "space-between",
       paddingHorizontal: 20,
-      paddingBottom: 16,
+      paddingBottom: 14,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       backgroundColor: colors.background,
     },
+    modalTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    modalTitleIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: Colors.accent + "18",
+      alignItems: "center",
+      justifyContent: "center",
+    },
     modalTitle: {
-      fontSize: 24,
+      fontSize: 18,
       fontFamily: "Outfit_700Bold",
     },
     modalSub: {
-      fontSize: 14,
+      fontSize: 12,
       fontFamily: "Outfit_400Regular",
+      marginTop: 1,
     },
-    closeBtn: {
+    modalActions: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    headerIconBtn: {
       width: 36,
       height: 36,
       borderRadius: 18,
-      backgroundColor: "rgba(0,0,0,0.05)",
+      backgroundColor: colors.surfaceSecondary,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -690,35 +774,41 @@ const getStyles = (colors: any) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      marginHorizontal: 20,
-      marginBottom: 8,
-      backgroundColor: "rgba(56, 161, 105, 0.1)",
-      borderRadius: 10,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
+      marginHorizontal: 16,
+      marginTop: 10,
+      marginBottom: 2,
+      backgroundColor: Colors.success + "12",
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      alignSelf: "flex-start" as const,
       borderWidth: 1,
-      borderColor: "rgba(56, 161, 105, 0.2)",
+      borderColor: Colors.success + "25",
     },
     securityText: {
       fontSize: 11,
-      fontFamily: "Outfit_400Regular",
+      fontFamily: "Outfit_500Medium",
       color: Colors.success,
     },
     emptyContainer: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      padding: 40,
-      gap: 12,
+      paddingTop: 32,
+      paddingHorizontal: 20,
+      paddingBottom: 24,
+      gap: 0,
     },
-    emptyIcon: {
+    emptyHero: {
+      alignItems: "center",
+      paddingVertical: 24,
+      gap: 10,
+    },
+    emptyIconRing: {
       width: 80,
       height: 80,
       borderRadius: 40,
-      backgroundColor: "rgba(229, 62, 62, 0.1)",
+      backgroundColor: Colors.accent + "15",
       alignItems: "center",
       justifyContent: "center",
-      marginBottom: 8,
+      marginBottom: 4,
     },
     emptyTitle: {
       fontSize: 22,
@@ -726,33 +816,45 @@ const getStyles = (colors: any) =>
       textAlign: "center",
     },
     emptyText: {
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: "Outfit_400Regular",
       textAlign: "center",
-      lineHeight: 22,
+      lineHeight: 20,
     },
-    suggestions: {
-      marginTop: 24,
-      gap: 10,
-      paddingHorizontal: 20,
+    suggestionsGrid: {
+      gap: 8,
+      marginTop: 8,
     },
-    suggestion: {
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 20,
+    suggestionCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      padding: 14,
+      borderRadius: 14,
       borderWidth: 1,
     },
+    suggestionIconWrap: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      backgroundColor: Colors.primary + "12",
+      alignItems: "center",
+      justifyContent: "center",
+    },
     suggestionText: {
+      flex: 1,
       fontSize: 14,
       fontFamily: "Outfit_500Medium",
     },
     listContent: {
       padding: 16,
-      gap: 12,
+      gap: 10,
     },
     bubble: {
       flexDirection: "row",
-      marginBottom: 4,
+      alignItems: "flex-end",
+      gap: 8,
+      marginBottom: 2,
     },
     userBubble: {
       justifyContent: "flex-end",
@@ -760,25 +862,35 @@ const getStyles = (colors: any) =>
     aiBubble: {
       justifyContent: "flex-start",
     },
+    aiAvatar: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: Colors.accent + "20",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+      marginBottom: 2,
+    },
     bubbleContent: {
-      maxWidth: "85%",
-      paddingHorizontal: 16,
+      maxWidth: "78%",
+      paddingHorizontal: 14,
       paddingVertical: 10,
-      borderRadius: 20,
+      borderRadius: 18,
     },
     userBubbleContent: {
       backgroundColor: Colors.primary,
       borderBottomRightRadius: 4,
     },
     aiBubbleContent: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surfaceSecondary,
       borderBottomLeftRadius: 4,
       borderWidth: 1,
       borderColor: colors.border,
     },
     bubbleText: {
       fontSize: 15,
-      lineHeight: 20,
+      lineHeight: 22,
     },
     userText: {
       color: "#fff",
@@ -788,38 +900,35 @@ const getStyles = (colors: any) =>
       color: colors.text,
       fontFamily: "Outfit_400Regular",
     },
-    typing: {
-      padding: 12,
-      alignItems: "flex-start",
-    },
     inputArea: {
-      paddingTop: 12,
+      paddingTop: 10,
       paddingHorizontal: 16,
       borderTopWidth: 1,
-      borderTopColor: "rgba(0,0,0,0.05)",
+      borderTopColor: colors.border,
     },
     inputRow: {
       flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      paddingHorizontal: 16,
+      alignItems: "flex-end",
+      gap: 10,
+      paddingHorizontal: 14,
       paddingVertical: 8,
       borderRadius: 24,
       borderWidth: 1,
     },
     input: {
       flex: 1,
-      fontSize: 16,
+      fontSize: 15,
       fontFamily: "Outfit_400Regular",
       maxHeight: 100,
+      paddingVertical: 4,
     },
     sendBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: Colors.primary,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       alignItems: "center",
       justifyContent: "center",
+      marginBottom: 2,
     },
     sendDisabled: {
       opacity: 0.5,
