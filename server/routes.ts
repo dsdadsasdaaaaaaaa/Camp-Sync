@@ -906,6 +906,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const [row] = await db.select().from(csCampers).where(eq(csCampers.id, id));
+
+      const contacts: Array<{ name?: string; email?: string }> = medData.emergencyContacts || [];
+      const contactEmails = contacts.filter((c) => c.email?.trim());
+      const camperFullName = `${firstName.trim()} ${lastName.trim()}`;
+      for (const contact of contactEmails) {
+        const parentAuthCode = row!.parentAuthCode || "";
+        await sendEmail(
+          contact.email!.trim(),
+          `Welcome to CampSync — ${camperFullName} is enrolled!`,
+          `
+          <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #1a1a1a;">
+            <h2 style="color: #1A6B3A;">Welcome to CampSync!</h2>
+            <p>Hi ${contact.name || "there"},</p>
+            <p><strong>${camperFullName}</strong> has been enrolled in camp and you are listed as an emergency contact.</p>
+            <p>With CampSync, you can:</p>
+            <ul>
+              <li>Receive real-time check-in and check-out notifications</li>
+              <li>View camp broadcasts and announcements</li>
+              <li>Stay updated on your camper's activities</li>
+            </ul>
+            ${parentAuthCode ? `<p>Your parent access code is: <strong style="font-size: 18px; color: #1A6B3A;">${parentAuthCode}</strong></p><p>Use this code when registering your parent account in the CampSync app.</p>` : ""}
+            <p style="color: #888; font-size: 13px;">If you have questions, please contact the camp directly.</p>
+            <p>— The CampSync Team</p>
+          </div>
+          `
+        );
+      }
+
       return res.status(201).json(formatCamper(row!, medData));
     } catch (err) {
       console.error("Create camper error:", err);

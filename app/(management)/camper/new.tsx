@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -10,19 +10,137 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useData } from "@/contexts/DataContext";
-import { isValidPhone, formatPhone } from "@/lib/validation";
+import { isValidPhone } from "@/lib/validation";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import DatePicker from "@/components/DatePicker";
 import type { MedicalInfo, EmergencyContact } from "@/types";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"];
+
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function formatDateDisplay(dateStr: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return dateStr;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
+  return `${MONTHS_SHORT[month]} ${day}, ${year}`;
+}
+
+function toDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function BirthdayPicker({ value, onChange }: { value: string; onChange: (d: string) => void }) {
+  const colors = useColors();
+  const styles = getStyles(colors);
+  const [showNative, setShowNative] = useState(false);
+
+  const parsedDate = value
+    ? (() => {
+        const [y, m, d] = value.split("-").map(Number);
+        const date = new Date(y, m - 1, d);
+        return isNaN(date.getTime()) ? new Date(2010, 0, 1) : date;
+      })()
+    : new Date(2010, 0, 1);
+
+  if (Platform.OS === "web") {
+    return (
+      <DatePicker
+        mode="single"
+        label="Date of Birth"
+        value={value}
+        onChange={onChange}
+        placeholder="Select date of birth"
+        maxDate={new Date().toISOString().split("T")[0]}
+      />
+    );
+  }
+
+  if (Platform.OS === "android") {
+    return (
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Date of Birth</Text>
+        <Pressable
+          style={[styles.fieldInput, styles.datePickerBtn]}
+          onPress={() => setShowNative(true)}
+        >
+          <Text style={[{ fontFamily: "Outfit_400Regular", fontSize: 15 }, value ? { color: colors.text } : { color: colors.textMuted }]}>
+            {value ? formatDateDisplay(value) : "Select date of birth"}
+          </Text>
+          <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
+        </Pressable>
+        {showNative && (
+          <DateTimePicker
+            value={parsedDate}
+            mode="date"
+            maximumDate={new Date()}
+            onChange={(_, selected) => {
+              setShowNative(false);
+              if (selected) onChange(toDateString(selected));
+            }}
+          />
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel}>Date of Birth</Text>
+      <Pressable
+        style={[styles.fieldInput, styles.datePickerBtn]}
+        onPress={() => setShowNative(true)}
+      >
+        <Text style={[{ fontFamily: "Outfit_400Regular", fontSize: 15 }, value ? { color: colors.text } : { color: colors.textMuted }]}>
+          {value ? formatDateDisplay(value) : "Select date of birth"}
+        </Text>
+        <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
+      </Pressable>
+      <Modal visible={showNative} transparent animationType="slide">
+        <View style={styles.dateModalOverlay}>
+          <View style={[styles.dateModalSheet, { backgroundColor: colors.surface }]}>
+            <View style={styles.dateModalHeader}>
+              <Pressable onPress={() => setShowNative(false)}>
+                <Text style={[styles.dateModalBtn, { color: colors.textSecondary }]}>Cancel</Text>
+              </Pressable>
+              <Text style={[styles.dateModalTitle, { color: colors.text }]}>Date of Birth</Text>
+              <Pressable onPress={() => setShowNative(false)}>
+                <Text style={[styles.dateModalBtn, { color: Colors.primary }]}>Done</Text>
+              </Pressable>
+            </View>
+            <DateTimePicker
+              value={parsedDate}
+              mode="date"
+              display="spinner"
+              maximumDate={new Date()}
+              textColor={colors.text}
+              onChange={(_, selected) => {
+                if (selected) onChange(toDateString(selected));
+              }}
+              style={{ height: 200 }}
+            />
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
 
 function InputField({
   label,
@@ -67,6 +185,64 @@ function InputField({
   );
 }
 
+function TagInput({ label, values, onChange, placeholder }: {
+  label: string;
+  values: string[];
+  onChange: (v: string[]) => void;
+  placeholder?: string;
+}) {
+  const colors = useColors();
+  const styles = getStyles(colors);
+  const [inputVal, setInputVal] = useState("");
+  const inputRef = useRef<TextInput>(null);
+
+  const addTag = () => {
+    const trimmed = inputVal.trim();
+    if (trimmed && !values.includes(trimmed)) {
+      onChange([...values, trimmed]);
+    }
+    setInputVal("");
+  };
+
+  const removeTag = (index: number) => {
+    onChange(values.filter((_, i) => i !== index));
+  };
+
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.tagContainer}>
+        {values.map((tag, i) => (
+          <View key={i} style={styles.tagChip}>
+            <Text style={styles.tagChipText}>{tag}</Text>
+            <Pressable onPress={() => removeTag(i)} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color={Colors.primary} />
+            </Pressable>
+          </View>
+        ))}
+        <View style={styles.tagInputRow}>
+          <TextInput
+            ref={inputRef}
+            style={styles.tagInput}
+            value={inputVal}
+            onChangeText={setInputVal}
+            placeholder={placeholder || `Add ${label.toLowerCase()}`}
+            placeholderTextColor={colors.textMuted}
+            onSubmitEditing={addTag}
+            returnKeyType="done"
+            blurOnSubmit={false}
+          />
+          {inputVal.trim().length > 0 && (
+            <Pressable onPress={addTag} style={styles.tagAddBtn}>
+              <Ionicons name="add-circle" size={22} color={Colors.primary} />
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const emptyContact = (): EmergencyContact => ({ name: "", relationship: "", phone: "", email: "" });
 
 export default function NewCamperScreen() {
@@ -82,9 +258,9 @@ export default function NewCamperScreen() {
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [cabinGroup, setCabinGroup] = useState("");
   const [medical, setMedical] = useState<MedicalInfo>({
-    allergies: "",
-    medications: "",
-    conditions: "",
+    allergies: [],
+    medications: [],
+    conditions: [],
     emergencyContacts: [emptyContact()],
     doctorName: "",
     doctorPhone: "",
@@ -236,14 +412,7 @@ export default function NewCamperScreen() {
           <View style={styles.card}>
             <InputField label="First Name" value={firstName} onChange={setFirstName} placeholder="Jane" required />
             <InputField label="Last Name" value={lastName} onChange={setLastName} placeholder="Smith" required />
-            <DatePicker
-              mode="single"
-              label="Date of Birth"
-              value={dateOfBirth}
-              onChange={setDateOfBirth}
-              placeholder="Select date of birth"
-              maxDate={new Date().toISOString().split("T")[0]}
-            />
+            <BirthdayPicker value={dateOfBirth} onChange={setDateOfBirth} />
             <InputField label="Cabin / Group" value={cabinGroup} onChange={setCabinGroup} placeholder="e.g. Cabin 4 - Blue Jay" />
           </View>
         ) : (
@@ -329,9 +498,24 @@ export default function NewCamperScreen() {
               </View>
             </View>
 
-            <InputField label="Allergies" value={medical.allergies} onChange={(v) => updateMedical("allergies", v)} placeholder="e.g. Peanuts, Penicillin (or None)" multiline />
-            <InputField label="Medications" value={medical.medications} onChange={(v) => updateMedical("medications", v)} placeholder="e.g. EpiPen, Inhaler (or None)" multiline />
-            <InputField label="Medical Conditions" value={medical.conditions} onChange={(v) => updateMedical("conditions", v)} placeholder="e.g. Asthma, Diabetes (or None)" multiline />
+            <TagInput
+              label="Allergies"
+              values={medical.allergies as string[]}
+              onChange={(v) => updateMedical("allergies", v)}
+              placeholder="Type and press return to add"
+            />
+            <TagInput
+              label="Medications"
+              values={medical.medications as string[]}
+              onChange={(v) => updateMedical("medications", v)}
+              placeholder="Type and press return to add"
+            />
+            <TagInput
+              label="Medical Conditions"
+              values={medical.conditions as string[]}
+              onChange={(v) => updateMedical("conditions", v)}
+              placeholder="Type and press return to add"
+            />
 
             <View style={[styles.sectionHeader, { marginTop: 8 }]}>
               <Ionicons name="business-outline" size={16} color={Colors.primary} />
@@ -502,5 +686,79 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   bloodTypeSelectedText: {
     color: "#fff",
+  },
+  tagContainer: {
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    minHeight: 48,
+  },
+  tagChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.primary + "18",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  tagChipText: {
+    fontSize: 13,
+    fontFamily: "Outfit_500Medium",
+    color: Colors.primary,
+  },
+  tagInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    minWidth: 120,
+  },
+  tagInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Outfit_400Regular",
+    color: colors.text,
+    paddingVertical: 2,
+    minHeight: 28,
+  },
+  tagAddBtn: {
+    paddingLeft: 6,
+  },
+  datePickerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dateModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  dateModalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+  },
+  dateModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.08)",
+  },
+  dateModalTitle: {
+    fontSize: 16,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  dateModalBtn: {
+    fontSize: 15,
+    fontFamily: "Outfit_600SemiBold",
   },
 });
