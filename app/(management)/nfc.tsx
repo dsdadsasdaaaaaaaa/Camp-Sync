@@ -18,7 +18,7 @@ import { useColors } from "@/hooks/useColors";
 import NFCScanner from "@/components/NFCScanner";
 import type { Camper, WristbandPayload } from "@/types";
 
-type Screen = "home" | "selectCamper" | "selectCheckout" | "readResult" | "confirmCheckout";
+type Screen = "home" | "selectCamper" | "selectCheckout" | "readResult" | "confirmCheckout" | "step2Checkin" | "step2Checkout";
 
 export default function NFCScreen() {
   const { campers, checkIns, programWristband, checkOutCamper, updateCamper, checkInCamper, getTodaySessions } = useData();
@@ -110,7 +110,10 @@ export default function NFCScreen() {
 
   const handleWriteSuccess = () => {
     setWriteScanVisible(false);
-    // Step 1 done — now show the lock scanner (step 2)
+    setScreen("step2Checkin");
+  };
+
+  const handleStartLock = () => {
     setLockScanVisible(true);
   };
 
@@ -155,7 +158,10 @@ export default function NFCScreen() {
 
   const handleUnlockSuccess = () => {
     setUnlockScanVisible(false);
-    // Step 2: erase the now-unlocked wristband
+    setScreen("step2Checkout");
+  };
+
+  const handleStartErase2 = () => {
     setEraseScanVisible(true);
   };
 
@@ -529,6 +535,114 @@ export default function NFCScreen() {
         </View>
       )}
 
+      {/* ── STEP 2: LOCK (Check-In) ── */}
+      {screen === "step2Checkin" && selectedCamper && (
+        <View style={[styles.card, { alignItems: "center" }]}>
+          <Text style={[styles.cardTitle, { textAlign: "center", marginBottom: -6 }]}>Almost Done!</Text>
+
+          <View style={styles.stepRow}>
+            <View style={[styles.stepCircle, { backgroundColor: Colors.success + "15", borderColor: Colors.success }]}>
+              <Ionicons name="checkmark" size={22} color={Colors.success} />
+            </View>
+            <View style={[styles.stepLine, { backgroundColor: Colors.warning }]} />
+            <View style={[styles.stepCircle, { backgroundColor: Colors.warning + "15", borderColor: Colors.warning }]}>
+              <Text style={[styles.stepNumber, { color: Colors.warning }]}>2</Text>
+            </View>
+          </View>
+
+          <View style={styles.stepLabels}>
+            <Text style={[styles.stepLabelText, { color: Colors.success }]}>Data Written</Text>
+            <Text style={[styles.stepLabelText, { color: Colors.warning }]}>Lock Wristband</Text>
+          </View>
+
+          <View style={[styles.stepInfoBox, { borderColor: Colors.warning + "40", backgroundColor: Colors.warning + "08" }]}>
+            <Ionicons name="lock-closed-outline" size={20} color={Colors.warning} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.stepInfoTitle, { color: Colors.warning }]}>Scan Again to Lock</Text>
+              <Text style={[styles.stepInfoText, { color: colors.textSecondary }]}>
+                Hold {selectedCamper.firstName}'s wristband near your iPhone to lock it and complete check-in.
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.camperBanner, { alignSelf: "stretch" }]}>
+            <Text style={styles.camperBannerName}>{selectedCamper.firstName} {selectedCamper.lastName}</Text>
+            {selectedCamper.cabinGroup ? (
+              <Text style={styles.camperBannerDob}>{selectedCamper.cabinGroup}</Text>
+            ) : null}
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.lockBtn, { opacity: pressed ? 0.85 : 1 }]}
+            onPress={handleStartLock}
+          >
+            <Ionicons name="lock-closed" size={20} color="#fff" />
+            <Text style={styles.lockBtnText}>Lock Wristband — Step 2 of 2</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1, alignSelf: "stretch" }]}
+            onPress={resetAll}
+          >
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* ── STEP 2: ERASE (Check-Out) ── */}
+      {screen === "step2Checkout" && checkoutCamper && (
+        <View style={[styles.card, { alignItems: "center" }]}>
+          <Text style={[styles.cardTitle, { textAlign: "center", marginBottom: -6 }]}>Almost Done!</Text>
+
+          <View style={styles.stepRow}>
+            <View style={[styles.stepCircle, { backgroundColor: Colors.success + "15", borderColor: Colors.success }]}>
+              <Ionicons name="checkmark" size={22} color={Colors.success} />
+            </View>
+            <View style={[styles.stepLine, { backgroundColor: Colors.danger }]} />
+            <View style={[styles.stepCircle, { backgroundColor: Colors.danger + "15", borderColor: Colors.danger }]}>
+              <Text style={[styles.stepNumber, { color: Colors.danger }]}>2</Text>
+            </View>
+          </View>
+
+          <View style={styles.stepLabels}>
+            <Text style={[styles.stepLabelText, { color: Colors.success }]}>Unlocked</Text>
+            <Text style={[styles.stepLabelText, { color: Colors.danger }]}>Erase Wristband</Text>
+          </View>
+
+          <View style={[styles.stepInfoBox, { borderColor: Colors.danger + "40", backgroundColor: Colors.danger + "08" }]}>
+            <Ionicons name="trash-outline" size={20} color={Colors.danger} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.stepInfoTitle, { color: Colors.danger }]}>Scan Again to Erase</Text>
+              <Text style={[styles.stepInfoText, { color: colors.textSecondary }]}>
+                Hold {checkoutCamper.firstName}'s wristband near your iPhone to erase it and complete check-out.
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.camperBanner, { alignSelf: "stretch" }]}>
+            <Text style={[styles.camperBannerName, { color: Colors.danger }]}>{checkoutCamper.firstName} {checkoutCamper.lastName}</Text>
+            {checkoutCamper.cabinGroup ? (
+              <Text style={styles.camperBannerDob}>{checkoutCamper.cabinGroup}</Text>
+            ) : null}
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.checkOutBtn, { opacity: pressed ? 0.85 : 1, alignSelf: "stretch" }]}
+            onPress={handleStartErase2}
+          >
+            <Ionicons name="trash" size={20} color="#fff" />
+            <Text style={styles.checkOutBtnText}>Erase Wristband — Step 2 of 2</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1, alignSelf: "stretch" }]}
+            onPress={resetAll}
+          >
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* ── SCAN ONLY RESULT ── */}
       {screen === "readResult" && readResult && (
         <View style={styles.card}>
@@ -775,6 +889,18 @@ const getStyles = (colors: any) => StyleSheet.create({
   programmedAt: { fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textMuted, textAlign: "center" },
   serverNote: { flexDirection: "row" as const, alignItems: "center" as const, gap: 6 },
   serverNoteText: { flex: 1, fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.textMuted, fontStyle: "italic" as const },
+  // Step 2 screens
+  stepRow: { flexDirection: "row", alignItems: "center", gap: 0, marginVertical: 8 },
+  stepCircle: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  stepNumber: { fontSize: 20, fontFamily: "Outfit_700Bold" },
+  stepLine: { flex: 1, height: 3, borderRadius: 2, marginHorizontal: 8 },
+  stepLabels: { flexDirection: "row", justifyContent: "space-between", alignSelf: "stretch", paddingHorizontal: 0 },
+  stepLabelText: { fontSize: 12, fontFamily: "Outfit_600SemiBold", textAlign: "center", flex: 1 },
+  stepInfoBox: { flexDirection: "row", gap: 12, borderWidth: 1, borderRadius: 14, padding: 14, alignSelf: "stretch", alignItems: "flex-start" },
+  stepInfoTitle: { fontSize: 15, fontFamily: "Outfit_700Bold", marginBottom: 4 },
+  stepInfoText: { fontSize: 13, fontFamily: "Outfit_400Regular", lineHeight: 18 },
+  lockBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.warning, borderRadius: 14, height: 52, alignSelf: "stretch" },
+  lockBtnText: { color: "#fff", fontSize: 16, fontFamily: "Outfit_600SemiBold" },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   modalSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingTop: 12, maxHeight: "85%" },

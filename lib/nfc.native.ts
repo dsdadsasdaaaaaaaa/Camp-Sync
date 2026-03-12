@@ -62,16 +62,25 @@ const WRISTBAND_PACK = [0xca, 0x0f, 0x00, 0x00];
 
 let nfcInitialized = false;
 
+async function ensureStarted(manager: NfcManagerType): Promise<void> {
+  if (nfcInitialized) return;
+  try {
+    await manager.start();
+    nfcInitialized = true;
+  } catch {
+    // start() may throw if already running; treat as OK
+    nfcInitialized = true;
+  }
+}
+
 export async function initNFC(): Promise<boolean> {
   if (Platform.OS === "web") return false;
   const nfc = loadNfc();
   if (!nfc) return false;
   try {
-    await nfc.manager.start();
-    nfcInitialized = true;
+    await ensureStarted(nfc.manager);
     return true;
   } catch {
-    nfcInitialized = false;
     return false;
   }
 }
@@ -81,6 +90,7 @@ export async function isNFCSupported(): Promise<boolean> {
   const nfc = loadNfc();
   if (!nfc) return false;
   try {
+    await ensureStarted(nfc.manager);
     return await nfc.manager.isSupported();
   } catch {
     return false;
@@ -138,6 +148,7 @@ export async function readNFCTag(): Promise<WristbandPayload | null> {
   if (Platform.OS === "web") return null;
   const nfc = loadNfc();
   if (!nfc) return null;
+  await ensureStarted(nfc.manager);
 
   try {
     await nfc.manager.requestTechnology(nfc.NfcTech.NfcA, {
@@ -174,6 +185,7 @@ export async function writeNFCTag(payload: WristbandPayload): Promise<void> {
   if (Platform.OS === "web") throw new Error("NFC not supported on web");
   const nfc = loadNfc();
   if (!nfc) throw new Error("NFC module not available on this build");
+  await ensureStarted(nfc.manager);
 
   try {
     await nfc.manager.requestTechnology(nfc.NfcTech.NfcA, {
@@ -206,6 +218,7 @@ export async function lockNFCTag(): Promise<void> {
   if (Platform.OS === "web") throw new Error("NFC not supported on web");
   const nfc = loadNfc();
   if (!nfc) throw new Error("NFC module not available on this build");
+  await ensureStarted(nfc.manager);
 
   try {
     await nfc.manager.requestTechnology(nfc.NfcTech.NfcA, {
@@ -230,6 +243,7 @@ export async function unlockNFCTag(): Promise<void> {
   if (Platform.OS === "web") throw new Error("NFC not supported on web");
   const nfc = loadNfc();
   if (!nfc) throw new Error("NFC module not available on this build");
+  await ensureStarted(nfc.manager);
 
   try {
     await nfc.manager.requestTechnology(nfc.NfcTech.NfcA, {
@@ -253,6 +267,7 @@ export async function eraseNFCTag(): Promise<void> {
   if (Platform.OS === "web") throw new Error("NFC not supported on web");
   const nfc = loadNfc();
   if (!nfc) throw new Error("NFC module not available on this build");
+  await ensureStarted(nfc.manager);
 
   try {
     await nfc.manager.requestTechnology(nfc.NfcTech.NfcA, {

@@ -19,7 +19,7 @@ import NFCScanner from "@/components/NFCScanner";
 import { useData } from "@/contexts/DataContext";
 import type { Camper, WristbandPayload } from "@/types";
 
-type Screen = "home" | "readResult" | "confirmCheckout";
+type Screen = "home" | "readResult" | "confirmCheckout" | "step2Checkout";
 
 export default function StaffNFCScreen() {
   const insets = useSafeAreaInsets();
@@ -112,6 +112,10 @@ export default function StaffNFCScreen() {
 
   const handleUnlockSuccess = () => {
     setUnlockScanVisible(false);
+    setScreen("step2Checkout");
+  };
+
+  const handleStartErase2 = () => {
     setEraseScanVisible(true);
   };
 
@@ -398,6 +402,63 @@ export default function StaffNFCScreen() {
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
           </View>
+        </View>
+      )}
+
+      {/* ── STEP 2: ERASE (Check-Out) ── */}
+      {screen === "step2Checkout" && checkoutCamper && (
+        <View style={[styles.card, { alignItems: "center" }]}>
+          <Text style={[styles.modeTitle, { fontSize: 20, textAlign: "center", marginBottom: -4 }]}>Almost Done!</Text>
+
+          <View style={styles.stepRow}>
+            <View style={[styles.stepCircle, { backgroundColor: Colors.success + "15", borderColor: Colors.success }]}>
+              <Ionicons name="checkmark" size={22} color={Colors.success} />
+            </View>
+            <View style={[styles.stepLine, { backgroundColor: Colors.danger }]} />
+            <View style={[styles.stepCircle, { backgroundColor: Colors.danger + "15", borderColor: Colors.danger }]}>
+              <Text style={[styles.stepNumber, { color: Colors.danger }]}>2</Text>
+            </View>
+          </View>
+
+          <View style={styles.stepLabels}>
+            <Text style={[styles.stepLabelText, { color: Colors.success }]}>Unlocked</Text>
+            <Text style={[styles.stepLabelText, { color: Colors.danger }]}>Erase Wristband</Text>
+          </View>
+
+          <View style={[styles.stepInfoBox, { borderColor: Colors.danger + "40", backgroundColor: Colors.danger + "08" }]}>
+            <Ionicons name="trash-outline" size={20} color={Colors.danger} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.stepInfoTitle, { color: Colors.danger }]}>Scan Again to Erase</Text>
+              <Text style={[styles.stepInfoText, { color: colors.textSecondary }]}>
+                Hold {checkoutCamper.firstName}'s wristband near your iPhone to erase it and complete check-out.
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.camperBanner, { alignSelf: "stretch", backgroundColor: colors.surfaceSecondary }]}>
+            <Text style={[styles.camperBannerName, { color: Colors.danger }]}>{checkoutCamper.firstName} {checkoutCamper.lastName}</Text>
+            {checkoutCamper.cabinGroup ? (
+              <Text style={[styles.camperBannerDob, { color: colors.textSecondary }]}>{checkoutCamper.cabinGroup}</Text>
+            ) : null}
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.checkOutBtn, { opacity: pressed ? 0.85 : 1, alignSelf: "stretch" }]}
+            onPress={handleStartErase2}
+          >
+            <Ionicons name="trash" size={20} color="#fff" />
+            <Text style={styles.checkOutText}>Erase Wristband — Step 2 of 2</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.scanAgainBtn,
+              { opacity: pressed ? 0.85 : 1, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border, alignSelf: "stretch" },
+            ]}
+            onPress={resetAll}
+          >
+            <Text style={[styles.scanAgainText, { color: colors.textSecondary }]}>Cancel</Text>
+          </Pressable>
         </View>
       )}
 
@@ -873,4 +934,13 @@ const getStyles = (colors: any) => StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
   },
+  stepRow: { flexDirection: "row" as const, alignItems: "center" as const, gap: 0, marginVertical: 8, alignSelf: "stretch" as const },
+  stepCircle: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, alignItems: "center" as const, justifyContent: "center" as const },
+  stepNumber: { fontSize: 20, fontFamily: "Outfit_700Bold" },
+  stepLine: { flex: 1, height: 3, borderRadius: 2, marginHorizontal: 8 },
+  stepLabels: { flexDirection: "row" as const, justifyContent: "space-between" as const, alignSelf: "stretch" as const },
+  stepLabelText: { fontSize: 12, fontFamily: "Outfit_600SemiBold", textAlign: "center" as const, flex: 1 },
+  stepInfoBox: { flexDirection: "row" as const, gap: 12, borderWidth: 1, borderRadius: 14, padding: 14, alignSelf: "stretch" as const, alignItems: "flex-start" as const },
+  stepInfoTitle: { fontSize: 15, fontFamily: "Outfit_700Bold", marginBottom: 4 },
+  stepInfoText: { fontSize: 13, fontFamily: "Outfit_400Regular", lineHeight: 18 },
 });
