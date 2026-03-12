@@ -7,6 +7,7 @@ export default function ManagementLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="account" />
       <Stack.Screen name="camper" />
+      <Stack.Screen name="cabin" />
       <Stack.Screen name="index" />
       <Stack.Screen name="campers" />
       <Stack.Screen name="nfc" />

@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useRef, useMemo, useContext } from "react";
+import React, { useCallback, useState, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,9 +12,9 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  Modal,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { BottomTabBarHeightContext } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -199,7 +199,6 @@ function BroadcastSheet({
   const colors = useColors();
   const styles = getStyles(colors);
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useContext(BottomTabBarHeightContext) ?? 0;
   const isEditMode = !!editingBroadcast;
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
@@ -247,13 +246,12 @@ function BroadcastSheet({
     }
   };
 
-  if (!visible) return null;
-
   return (
-    <View style={[StyleSheet.absoluteFillObject, { zIndex: 1000, justifyContent: "flex-end" }]}>
-      <Pressable style={{ ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)" } as any} onPress={onClose} />
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        <View style={[styles.sheetContainer, { backgroundColor: colors.background, paddingBottom: insets.bottom + tabBarHeight + 16, paddingTop: 20 }]}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={onClose}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} onStartShouldSetResponder={() => true}>
+          <Pressable onPress={() => {}}>
+            <View style={[styles.sheetContainer, { backgroundColor: colors.background, paddingBottom: insets.bottom + 16, paddingTop: 20 }]}>
           <View style={styles.sheetHandle} />
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>{isEditMode ? "Edit Broadcast" : "Send Broadcast"}</Text>
@@ -349,9 +347,11 @@ function BroadcastSheet({
               </>
             )}
           </Pressable>
-        </View>
-      </KeyboardAvoidingView>
-    </View>
+            </View>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Pressable>
+    </Modal>
   );
 }
 
