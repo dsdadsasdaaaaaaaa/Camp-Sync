@@ -1046,150 +1046,159 @@ export default function MoreScreen() {
       {/* New Session */}
       <Modal visible={showNewSession} animationType="slide" transparent onRequestClose={() => setShowNewSession(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setShowNewSession(false)}>
-          <Pressable style={[styles.modalSheet, { backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.modalTitle, { color: colors.text }]}>New Camp Session</Text>
-            <Text style={[styles.modalSub, { color: colors.textSecondary }]}>Set the dates when staff are authorized to check in campers</Text>
-            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Session Name</Text>
-            <TextInput style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]} value={sessionName} onChangeText={setSessionName} placeholder="e.g. Week 1 - Summer 2025" placeholderTextColor={colors.textMuted} />
-            <DatePicker mode="single" value={sessionStart} onChange={setSessionStart} label="Start Date" placeholder="Select start date" maxDate={sessionEnd || undefined} />
-            <DatePicker mode="single" value={sessionEnd} onChange={setSessionEnd} label="End Date" placeholder="Select end date" minDate={sessionStart || undefined} />
-            <DatePicker mode="multi" value={authorizedDates} onChange={setAuthorizedDates} label="Authorized Check-in Dates" placeholder="Select check-in dates" minDate={sessionStart || undefined} maxDate={sessionEnd || undefined} />
-            <View style={styles.modalButtons}>
-              <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={() => setShowNewSession(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={handleAddSession}>
-                <Text style={styles.confirmBtnText}>Create Session</Text>
-              </Pressable>
-            </View>
-          </Pressable>
+          <KeyboardAvoidingView behavior="padding">
+            <Pressable style={[styles.modalSheet, { backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
+              <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+              <Text style={[styles.modalTitle, { color: colors.text }]}>New Camp Session</Text>
+              <Text style={[styles.modalSub, { color: colors.textSecondary }]}>Set the dates when staff are authorized to check in campers</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Session Name</Text>
+              <TextInput style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]} value={sessionName} onChangeText={setSessionName} placeholder="e.g. Week 1 - Summer 2025" placeholderTextColor={colors.textMuted} />
+              <DatePicker mode="single" value={sessionStart} onChange={setSessionStart} label="Start Date" placeholder="Select start date" maxDate={sessionEnd || undefined} />
+              <DatePicker mode="single" value={sessionEnd} onChange={setSessionEnd} label="End Date" placeholder="Select end date" minDate={sessionStart || undefined} />
+              <DatePicker mode="multi" value={authorizedDates} onChange={setAuthorizedDates} label="Authorized Check-in Dates" placeholder="Select check-in dates" minDate={sessionStart || undefined} maxDate={sessionEnd || undefined} />
+              <View style={styles.modalButtons}>
+                <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={() => setShowNewSession(false)}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={handleAddSession}>
+                  <Text style={styles.confirmBtnText}>Create Session</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
 
       {/* Edit Session Modal */}
       <Modal visible={!!editingSession} animationType="slide" transparent onRequestClose={() => setEditingSession(null)}>
         <Pressable style={styles.modalOverlay} onPress={() => setEditingSession(null)}>
-          <Pressable style={[styles.modalSheet, { backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Session</Text>
-            <Text style={[styles.modalSub, { color: colors.textSecondary }]}>Update the session name, dates, and authorized check-in days</Text>
-            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Session Name</Text>
-            <TextInput style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]} value={editSessionName} onChangeText={setEditSessionName} placeholder="e.g. Week 1 - Summer 2025" placeholderTextColor={colors.textMuted} />
-            <DatePicker mode="single" value={editSessionStart} onChange={setEditSessionStart} label="Start Date" placeholder="Select start date" maxDate={editSessionEnd || undefined} />
-            <DatePicker mode="single" value={editSessionEnd} onChange={setEditSessionEnd} label="End Date" placeholder="Select end date" minDate={editSessionStart || undefined} />
-            <DatePicker mode="multi" value={editSessionDates} onChange={setEditSessionDates} label="Authorized Check-in Dates" placeholder="Select check-in dates" minDate={editSessionStart || undefined} maxDate={editSessionEnd || undefined} />
-            <View style={styles.modalButtons}>
-              <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={() => setEditingSession(null)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={handleEditSession}>
-                <Text style={styles.confirmBtnText}>Save Changes</Text>
-              </Pressable>
-            </View>
-          </Pressable>
+          <KeyboardAvoidingView behavior="padding">
+            <Pressable style={[styles.modalSheet, { backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
+              <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Session</Text>
+              <Text style={[styles.modalSub, { color: colors.textSecondary }]}>Update the session name, dates, and authorized check-in days</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Session Name</Text>
+              <TextInput style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]} value={editSessionName} onChangeText={setEditSessionName} placeholder="e.g. Week 1 - Summer 2025" placeholderTextColor={colors.textMuted} />
+              <DatePicker mode="single" value={editSessionStart} onChange={setEditSessionStart} label="Start Date" placeholder="Select start date" maxDate={editSessionEnd || undefined} />
+              <DatePicker mode="single" value={editSessionEnd} onChange={setEditSessionEnd} label="End Date" placeholder="Select end date" minDate={editSessionStart || undefined} />
+              <DatePicker mode="multi" value={editSessionDates} onChange={setEditSessionDates} label="Authorized Check-in Dates" placeholder="Select check-in dates" minDate={editSessionStart || undefined} maxDate={editSessionEnd || undefined} />
+              <View style={styles.modalButtons}>
+                <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={() => setEditingSession(null)}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={handleEditSession}>
+                  <Text style={styles.confirmBtnText}>Save Changes</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
 
       {/* Auth Code Modal */}
       <Modal visible={showCodeModal} animationType="slide" transparent onRequestClose={() => { setShowCodeModal(false); setEditingCode(null); }}>
         <Pressable style={styles.modalOverlay} onPress={() => { setShowCodeModal(false); setEditingCode(null); }}>
-          <Pressable style={[styles.modalSheet, { backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.modalTitle, { color: colors.text }]}>{editingCode ? "Edit Auth Code" : "Generate Auth Code"}</Text>
-            <Text style={[styles.modalSub, { color: colors.textSecondary }]}>{editingCode ? `Editing code: ${editingCode.code}` : "Select the role and usage limits"}</Text>
-            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Role</Text>
-            {(["staff", "management", "parent"] as UserRole[]).map((role) => (
-              <Pressable key={role} style={[styles.roleOption, { backgroundColor: colors.surface }, selectedRole === role && styles.roleOptionSelected]} onPress={() => setSelectedRole(role)}>
-                <Ionicons name={role === "management" ? "shield-checkmark" : role === "staff" ? "people" : "person"} size={20} color={selectedRole === role ? Colors.primary : colors.textMuted} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.roleName, { color: colors.text }, selectedRole === role && { color: Colors.primary }]}>{role.charAt(0).toUpperCase() + role.slice(1)}</Text>
-                  <Text style={styles.roleDesc}>{role === "management" ? "Full access to all features" : role === "staff" ? "Check-in/out on authorized dates" : "View & update their child's info"}</Text>
-                </View>
-                {selectedRole === role && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
-              </Pressable>
-            ))}
-            <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Maximum Uses</Text>
-            <Text style={styles.fieldHint}>Enter 0 for infinite uses</Text>
-            <TextInput style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]} value={maxUses} onChangeText={setMaxUses} keyboardType="number-pad" placeholder="1" placeholderTextColor={colors.textMuted} />
-            {selectedRole === "parent" && (
-              <>
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Link to Camper (optional)</Text>
-                <ScrollView style={{ maxHeight: 120 }} nestedScrollEnabled>
-                  {campers.map((c) => (
-                    <Pressable key={c.id} style={[styles.camperSelectRow, selectedCamperId === c.id && styles.camperSelectRowActive]} onPress={() => setSelectedCamperId(selectedCamperId === c.id ? undefined : c.id)}>
-                      <Text style={styles.camperSelectName}>{c.firstName} {c.lastName}</Text>
-                      {selectedCamperId === c.id && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </>
-            )}
-            <View style={styles.modalButtons}>
-              <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={() => { setShowCodeModal(false); setEditingCode(null); }}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={handleSaveCode}>
-                <Text style={styles.confirmBtnText}>{editingCode ? "Save Changes" : "Generate"}</Text>
-              </Pressable>
-            </View>
-          </Pressable>
+          <KeyboardAvoidingView behavior="padding">
+            <Pressable style={[styles.modalSheet, { backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
+              <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{editingCode ? "Edit Auth Code" : "Generate Auth Code"}</Text>
+              <Text style={[styles.modalSub, { color: colors.textSecondary }]}>{editingCode ? `Editing code: ${editingCode.code}` : "Select the role and usage limits"}</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Role</Text>
+              {(["staff", "management", "parent"] as UserRole[]).map((role) => (
+                <Pressable key={role} style={[styles.roleOption, { backgroundColor: colors.surface }, selectedRole === role && styles.roleOptionSelected]} onPress={() => setSelectedRole(role)}>
+                  <Ionicons name={role === "management" ? "shield-checkmark" : role === "staff" ? "people" : "person"} size={20} color={selectedRole === role ? Colors.primary : colors.textMuted} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.roleName, { color: colors.text }, selectedRole === role && { color: Colors.primary }]}>{role.charAt(0).toUpperCase() + role.slice(1)}</Text>
+                    <Text style={styles.roleDesc}>{role === "management" ? "Full access to all features" : role === "staff" ? "Check-in/out on authorized dates" : "View & update their child's info"}</Text>
+                  </View>
+                  {selectedRole === role && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
+                </Pressable>
+              ))}
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Maximum Uses</Text>
+              <Text style={styles.fieldHint}>Enter 0 for infinite uses</Text>
+              <TextInput style={[styles.fieldInput, { color: colors.text, backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]} value={maxUses} onChangeText={setMaxUses} keyboardType="number-pad" placeholder="1" placeholderTextColor={colors.textMuted} />
+              {selectedRole === "parent" && (
+                <>
+                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Link to Camper (optional)</Text>
+                  <ScrollView style={{ maxHeight: 120 }} nestedScrollEnabled>
+                    {campers.map((c) => (
+                      <Pressable key={c.id} style={[styles.camperSelectRow, selectedCamperId === c.id && styles.camperSelectRowActive]} onPress={() => setSelectedCamperId(selectedCamperId === c.id ? undefined : c.id)}>
+                        <Text style={styles.camperSelectName}>{c.firstName} {c.lastName}</Text>
+                        {selectedCamperId === c.id && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+              <View style={styles.modalButtons}>
+                <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={() => { setShowCodeModal(false); setEditingCode(null); }}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={({ pressed }) => [styles.confirmBtn, { opacity: pressed ? 0.85 : 1 }]} onPress={handleSaveCode}>
+                  <Text style={styles.confirmBtnText}>{editingCode ? "Save Changes" : "Generate"}</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
 
       {/* Add Camper to Roster Modal (T005) */}
       <Modal visible={showAddCamperModal} animationType="slide" transparent onRequestClose={() => setShowAddCamperModal(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setShowAddCamperModal(false)}>
-          <Pressable style={[styles.modalSheet, { backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Add to Expected Roster</Text>
-            <Text style={[styles.modalSub, { color: colors.textSecondary }]}>Select a camper to add to this session's expected roster.</Text>
-            
-            <View style={styles.searchContainer}>
-              <Ionicons name="search" size={18} color={colors.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search campers..."
-                placeholderTextColor={colors.textMuted}
-                value={camperSearchQuery}
-                onChangeText={setCamperSearchQuery}
-                autoCorrect={false}
-              />
-            </View>
+          <KeyboardAvoidingView behavior="padding">
+            <Pressable style={[styles.modalSheet, { backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
+              <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Add to Expected Roster</Text>
+              <Text style={[styles.modalSub, { color: colors.textSecondary }]}>Select a camper to add to this session's expected roster.</Text>
 
-            <ScrollView style={styles.camperList} nestedScrollEnabled>
-              {campers
-                .filter(c => {
-                  const fullName = `${c.firstName} ${c.lastName}`.toLowerCase();
-                  return fullName.includes(camperSearchQuery.toLowerCase());
-                })
-                .map((c) => (
-                  <Pressable 
-                    key={c.id} 
-                    style={({ pressed }) => [styles.camperSelectRow, { opacity: pressed ? 0.7 : 1 }]} 
-                    onPress={() => handleAddCamperToRoster(c.id)}
-                  >
-                    <View>
-                      <Text style={styles.camperSelectName}>{c.firstName} {c.lastName}</Text>
-                      {c.cabinGroup && <Text style={[styles.fieldHint, { marginTop: 2, marginBottom: 0 }]}>{c.cabinGroup}</Text>}
-                    </View>
-                    <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
-                  </Pressable>
-                ))}
-            </ScrollView>
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={18} color={colors.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search campers..."
+                  placeholderTextColor={colors.textMuted}
+                  value={camperSearchQuery}
+                  onChangeText={setCamperSearchQuery}
+                  autoCorrect={false}
+                />
+              </View>
 
-            <View style={styles.modalButtons}>
-              <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1, flex: 1 }]} onPress={() => setShowAddCamperModal(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </Pressable>
-            </View>
-          </Pressable>
+              <ScrollView style={styles.camperList} nestedScrollEnabled>
+                {campers
+                  .filter(c => {
+                    const fullName = `${c.firstName} ${c.lastName}`.toLowerCase();
+                    return fullName.includes(camperSearchQuery.toLowerCase());
+                  })
+                  .map((c) => (
+                    <Pressable
+                      key={c.id}
+                      style={({ pressed }) => [styles.camperSelectRow, { opacity: pressed ? 0.7 : 1 }]}
+                      onPress={() => handleAddCamperToRoster(c.id)}
+                    >
+                      <View>
+                        <Text style={styles.camperSelectName}>{c.firstName} {c.lastName}</Text>
+                        {c.cabinGroup && <Text style={[styles.fieldHint, { marginTop: 2, marginBottom: 0 }]}>{c.cabinGroup}</Text>}
+                      </View>
+                      <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+                    </Pressable>
+                  ))}
+              </ScrollView>
+
+              <View style={styles.modalButtons}>
+                <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1, flex: 1 }]} onPress={() => setShowAddCamperModal(false)}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
 
       {/* User Edit Modal */}
       <Modal visible={!!editingUser} animationType="slide" transparent onRequestClose={closeUserEdit}>
         <Pressable style={styles.modalOverlay} onPress={closeUserEdit}>
+          <KeyboardAvoidingView behavior="padding">
           <Pressable style={[styles.modalSheet, { maxHeight: "90%", backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
             <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
@@ -1299,6 +1308,7 @@ export default function MoreScreen() {
               )}
             </ScrollView>
           </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
 
