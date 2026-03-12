@@ -8,6 +8,7 @@ export interface User {
   role: UserRole;
   linkedCamperIds: string[];
   authCode: string;
+  notificationPreferences: string;
   createdAt: string;
 }
 

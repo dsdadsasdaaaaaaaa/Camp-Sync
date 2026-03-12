@@ -212,7 +212,7 @@ function SessionCard({
 function AuthCodeCard({ code, onEdit, onDelete }: { code: AuthCode; onEdit: () => void; onDelete: () => void }) {
   const colors = useColors();
   const styles = getStyles(colors);
-  const roleColors: Record<UserRole, string> = { management: colors.danger, staff: colors.primary, parent: "#8B5CF6" };
+  const roleColors: Record<UserRole, string> = { management: Colors.danger, staff: Colors.primary, parent: "#8B5CF6" };
   const isFull = code.maxUses > 0 && code.usedCount >= code.maxUses;
   return (
     <View style={[styles.codeCard, { backgroundColor: colors.surface }]}>

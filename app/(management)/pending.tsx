@@ -105,6 +105,8 @@ function PendingCard({
 }
 
 function ResolvedCard({ update }: { update: PendingWristbandUpdate }) {
+  const colors = useColors();
+  const styles = getStyles(colors);
   return (
     <View style={[styles.card, styles.resolvedCard]}>
       <View style={styles.cardHeader}>

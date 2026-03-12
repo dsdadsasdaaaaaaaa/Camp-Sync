@@ -525,7 +525,7 @@ export default function StaffHomeScreen() {
           {staffBroadcasts.length === 0 ? (
             <View style={[styles.emptyCard, { backgroundColor: colors.surface }]}>
               <Ionicons name="checkmark-circle-outline" size={32} color={colors.textMuted} />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              <Text style={[styles.emptyCardText, { color: colors.textSecondary }]}>
                 No broadcasts yet
               </Text>
               <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
@@ -679,7 +679,7 @@ const getStyles = (colors: any) =>
       alignItems: "center",
       gap: 8,
     },
-    emptyText: {
+    emptyCardText: {
       fontSize: 15,
       fontFamily: "Outfit_600SemiBold",
     },

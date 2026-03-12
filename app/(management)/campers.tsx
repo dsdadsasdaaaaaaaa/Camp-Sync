@@ -212,7 +212,7 @@ function CreateCabinModal({
       }
       for (const id of selectedIds) {
         const camper = campers.find((c) => c.id === id);
-        if (camper) await updateCamper({ ...camper, cabinGroup: cabinName.trim() });
+        if (camper) await updateCamper(camper.id, { cabinGroup: cabinName.trim() });
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCabinName("");

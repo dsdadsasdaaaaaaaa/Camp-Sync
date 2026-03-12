@@ -277,13 +277,15 @@ export default function StaffNFCScreen() {
               style={[
                 styles.dataValue,
                 { color: colors.text },
-                result.medical?.allergies &&
-                result.medical.allergies.toLowerCase() !== "none"
+                result.medical?.allergies?.length &&
+                result.medical.allergies.some(a => a.toLowerCase() !== "none")
                   ? { color: Colors.danger, fontFamily: "Outfit_700Bold" }
                   : {},
               ]}
             >
-              {result.medical?.allergies || "None reported"}
+              {result.medical?.allergies?.length
+                ? result.medical.allergies.join(", ")
+                : "None reported"}
             </Text>
           </View>
 

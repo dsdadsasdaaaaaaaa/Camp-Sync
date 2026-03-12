@@ -66,7 +66,7 @@ export default function CabinDetailScreen() {
           { text: "Cancel", style: "cancel" },
           {
             text: "Rename",
-            onPress: (newName) => {
+            onPress: (newName: string | undefined) => {
               if (newName && newName.trim() && newName !== name) {
                 performRename(newName.trim());
               }
@@ -167,9 +167,9 @@ export default function CabinDetailScreen() {
                 </View>
               )}
             </View>
-            <View style={[styles.statusPill, { backgroundColor: isActive ? colors.success + "20" : colors.surfaceSecondary }]}>
-              <View style={[styles.statusDot, { backgroundColor: isActive ? colors.success : colors.textMuted }]} />
-              <Text style={[styles.statusText, { color: isActive ? colors.success : colors.textSecondary }]}>
+            <View style={[styles.statusPill, { backgroundColor: isActive ? Colors.success + "20" : colors.surfaceSecondary }]}>
+              <View style={[styles.statusDot, { backgroundColor: isActive ? Colors.success : colors.textMuted }]} />
+              <Text style={[styles.statusText, { color: isActive ? Colors.success : colors.textSecondary }]}>
                 {isActive ? "Present" : "Away"}
               </Text>
             </View>
@@ -201,7 +201,7 @@ export default function CabinDetailScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.statsGrid}>
           <StatCard label="Total Campers" value={total.toString()} icon="people" color={Colors.primary} colors={colors} styles={styles} />
-          <StatCard label="Checked In" value={present.toString()} icon="checkmark-circle" color={colors.success} colors={colors} styles={styles} />
+          <StatCard label="Checked In" value={present.toString()} icon="checkmark-circle" color={Colors.success} colors={colors} styles={styles} />
           <StatCard label="Attendance" value={`${percent}%`} icon="analytics" color={Colors.accent} colors={colors} styles={styles} />
         </View>
 
@@ -211,11 +211,11 @@ export default function CabinDetailScreen() {
           if (!camper) return null;
           return (
             <View key={ci.id} style={styles.activityRow}>
-              <View style={[styles.activityIcon, { backgroundColor: ci.checkedOutAt ? colors.textMuted + "20" : colors.success + "20" }]}>
+              <View style={[styles.activityIcon, { backgroundColor: ci.checkedOutAt ? colors.textMuted + "20" : Colors.success + "20" }]}>
                 <Ionicons 
                   name={ci.checkedOutAt ? "exit-outline" : "enter-outline"} 
                   size={16} 
-                  color={ci.checkedOutAt ? colors.textMuted : colors.success} 
+                  color={ci.checkedOutAt ? colors.textMuted : Colors.success} 
                 />
               </View>
               <View style={{ flex: 1 }}>
