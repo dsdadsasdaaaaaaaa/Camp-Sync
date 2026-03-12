@@ -55,7 +55,7 @@ const MAGIC_1 = 0xca;
 const MAGIC_2 = 0x0f;
 const HEADER_PAGE = 4;
 const DATA_START_PAGE = 5;
-const MAX_PAYLOAD_BYTES = 480;
+const MAX_PAYLOAD_BYTES = 540;
 
 const WRISTBAND_PWD = [0xca, 0x0f, 0x1a, 0x2b];
 const WRISTBAND_PACK = [0xca, 0x0f, 0x00, 0x00];

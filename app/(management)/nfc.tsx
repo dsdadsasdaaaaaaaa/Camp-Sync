@@ -668,14 +668,31 @@ export default function NFCScreen() {
           </View>
 
           <View style={styles.dataSection}>
-            <Text style={styles.dataSectionTitle}>Emergency Contact</Text>
+            <Text style={styles.dataSectionTitle}>Emergency Contacts</Text>
             {readResult.medical?.emergencyContacts?.length > 0 ? (
               readResult.medical.emergencyContacts.map((ec: any, i: number) => (
-                <View key={i} style={i > 0 ? { marginTop: 8 } : undefined}>
-                  <Text style={styles.dataValue}>{ec.name || "—"}</Text>
-                  {ec.relationship ? <Text style={styles.dataValueSec}>{ec.relationship}</Text> : null}
-                  <Text style={styles.dataValueSec}>{ec.phone || "—"}</Text>
-                  {ec.email ? <Text style={styles.dataValueSec}>{ec.email}</Text> : null}
+                <View key={i} style={[styles.contactCard, i > 0 && { marginTop: 10 }]}>
+                  <View style={styles.contactHeader}>
+                    <View style={styles.contactAvatar}>
+                      <Text style={styles.contactInitial}>{(ec.name || "?").charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.dataValue}>{ec.name || "—"}</Text>
+                      {ec.relationship ? <Text style={styles.dataValueSec}>{ec.relationship}</Text> : null}
+                    </View>
+                  </View>
+                  {ec.phone ? (
+                    <View style={styles.contactDetail}>
+                      <Ionicons name="call-outline" size={14} color={Colors.primary} />
+                      <Text style={styles.contactDetailText}>{ec.phone}</Text>
+                    </View>
+                  ) : null}
+                  {ec.email ? (
+                    <View style={styles.contactDetail}>
+                      <Ionicons name="mail-outline" size={14} color={colors.textMuted} />
+                      <Text style={styles.contactDetailText}>{ec.email}</Text>
+                    </View>
+                  ) : null}
                 </View>
               ))
             ) : <Text style={styles.dataValue}>—</Text>}
@@ -683,47 +700,59 @@ export default function NFCScreen() {
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Allergies</Text>
-            {Array.isArray(readResult.medical?.allergies) && readResult.medical.allergies.length > 0 ? (
-              <View style={styles.chipRow}>
-                {readResult.medical.allergies.map((a, i) => (
-                  <View key={i} style={[styles.chip, { backgroundColor: Colors.danger + "20" }]}>
-                    <Text style={[styles.chipText, { color: Colors.danger }]}>{a}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.dataValue}>None reported</Text>
-            )}
+            {(() => {
+              const raw = readResult.medical?.allergies;
+              const items: string[] = Array.isArray(raw)
+                ? raw
+                : (raw as string || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+              return items.length > 0 ? (
+                <View style={styles.chipRow}>
+                  {items.map((a, i) => (
+                    <View key={i} style={[styles.chip, { backgroundColor: Colors.danger + "20" }]}>
+                      <Text style={[styles.chipText, { color: Colors.danger }]}>{a}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : <Text style={styles.dataValue}>None reported</Text>;
+            })()}
           </View>
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Medications</Text>
-            {Array.isArray(readResult.medical?.medications) && readResult.medical.medications.length > 0 ? (
-              <View style={styles.chipRow}>
-                {readResult.medical.medications.map((m, i) => (
-                  <View key={i} style={styles.chip}>
-                    <Text style={styles.chipText}>{m}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.dataValue}>None reported</Text>
-            )}
+            {(() => {
+              const raw = readResult.medical?.medications;
+              const items: string[] = Array.isArray(raw)
+                ? raw
+                : (raw as string || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+              return items.length > 0 ? (
+                <View style={styles.chipRow}>
+                  {items.map((m, i) => (
+                    <View key={i} style={styles.chip}>
+                      <Text style={styles.chipText}>{m}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : <Text style={styles.dataValue}>None reported</Text>;
+            })()}
           </View>
 
           <View style={styles.dataSection}>
             <Text style={styles.dataSectionTitle}>Medical Conditions</Text>
-            {Array.isArray(readResult.medical?.conditions) && readResult.medical.conditions.length > 0 ? (
-              <View style={styles.chipRow}>
-                {readResult.medical.conditions.map((c, i) => (
-                  <View key={i} style={styles.chip}>
-                    <Text style={styles.chipText}>{c}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.dataValue}>None reported</Text>
-            )}
+            {(() => {
+              const raw = readResult.medical?.conditions;
+              const items: string[] = Array.isArray(raw)
+                ? raw
+                : (raw as string || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+              return items.length > 0 ? (
+                <View style={styles.chipRow}>
+                  {items.map((c, i) => (
+                    <View key={i} style={styles.chip}>
+                      <Text style={styles.chipText}>{c}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : <Text style={styles.dataValue}>None reported</Text>;
+            })()}
           </View>
 
           <View style={[styles.dataSection, { borderBottomWidth: 0 }]}>
@@ -883,6 +912,12 @@ const getStyles = (colors: any) => StyleSheet.create({
   dataSectionTitle: { fontSize: 11, fontFamily: "Outfit_700Bold", color: colors.textMuted, textTransform: "uppercase", letterSpacing: 0.8 },
   dataValue: { fontSize: 15, fontFamily: "Outfit_500Medium", color: colors.text },
   dataValueSec: { fontSize: 14, fontFamily: "Outfit_400Regular", color: colors.textSecondary },
+  contactCard: { backgroundColor: colors.surfaceSecondary, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border },
+  contactHeader: { flexDirection: "row" as const, alignItems: "center" as const, gap: 10, marginBottom: 6 },
+  contactAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary + "20", alignItems: "center" as const, justifyContent: "center" as const },
+  contactInitial: { fontSize: 16, fontFamily: "Outfit_700Bold", color: Colors.primary },
+  contactDetail: { flexDirection: "row" as const, alignItems: "center" as const, gap: 6, marginTop: 4 },
+  contactDetailText: { fontSize: 14, fontFamily: "Outfit_400Regular", color: colors.text },
   chipRow: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 6 },
   chip: { backgroundColor: Colors.primary + "20", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 },
   chipText: { fontSize: 13, fontFamily: "Outfit_500Medium", color: Colors.primary },
