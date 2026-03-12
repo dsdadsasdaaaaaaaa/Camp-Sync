@@ -699,7 +699,7 @@ const getStyles = (colors: any) =>
     emptyTitle: { fontSize: 18, fontFamily: "Outfit_600SemiBold" },
     emptyText: { fontSize: 14, fontFamily: "Outfit_400Regular", textAlign: "center" },
     modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-    modalSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "85%", flex: 0 },
+    modalSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "85%", flex: 1 },
     modalHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
