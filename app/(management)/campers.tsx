@@ -13,6 +13,7 @@ import {
   ScrollView,
   Image,
   Modal,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -235,7 +236,10 @@ function CreateCabinModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>New Cabin</Text>
@@ -257,7 +261,6 @@ function CreateCabinModal({
                 onChangeText={setCabinName}
                 placeholder="e.g. Cabin A, Blue Jay, Pines..."
                 placeholderTextColor={colors.textMuted}
-                autoFocus
               />
             </View>
 
@@ -324,7 +327,7 @@ function CreateCabinModal({
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
