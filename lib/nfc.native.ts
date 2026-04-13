@@ -213,7 +213,13 @@ export async function writeNFCTag(payload: WristbandPayload): Promise<void> {
 }
 
 // Scan 2 of check-in: lock the tag with a password (tag is unprotected, no auth needed).
-// AUTH0 = 0x04 means all user-data pages (4+) require PWD_AUTH.
+//
+// NTAG21x config page byte layout: [MIRROR_BYTE, RFUI, AUTH0, ACCESS]
+//   AUTH0 (byte 2): first page number that requires password authentication (0x04 = page 4+)
+//   ACCESS (byte 3): PROT (bit 7), CFGLCK (bit 6, ONE-TIME WRITE — never set!), AUTHLIM (bits 0-2)
+//
+// We set AUTH0 = 0x04 with PROT = 0, meaning writes to pages 4+ need PWD_AUTH but reads are free.
+// This lets "Scan Only" read locked wristbands without needing a password.
 export async function lockNFCTag(): Promise<void> {
   if (Platform.OS === "web") throw new Error("NFC not supported on web");
   const nfc = loadNfc();
@@ -229,16 +235,16 @@ export async function lockNFCTag(): Promise<void> {
     await writePage(nfc.manager, addrs.pwdPage, WRISTBAND_PWD);
     await writePage(nfc.manager, addrs.packPage, WRISTBAND_PACK);
     const cfg = await readPages(nfc.manager, addrs.cfgPage);
-    await writePage(nfc.manager, addrs.cfgPage, [cfg[0], cfg[1], cfg[2], 0x04]);
+    // Byte 2 = AUTH0 (set to 0x04 to protect pages 4+)
+    // Byte 3 = ACCESS (keep unchanged — NEVER set CFGLCK bit 6, it permanently bricks the chip)
+    await writePage(nfc.manager, addrs.cfgPage, [cfg[0], cfg[1], 0x04, cfg[3]]);
   } finally {
     try { await nfc.manager.cancelTechnologyRequest(); } catch {}
   }
 }
 
 // Scan 1 of check-out: authenticate and remove password protection.
-// The tag IS locked so auth should succeed (tag has WRISTBAND_PWD set).
-// Throws if authentication fails — caller should handle with a "Skip Unlock" option
-// in case the wristband was programmed before locking was introduced.
+// After this, AUTH0 = 0xFF so pages are freely accessible for the erase step.
 export async function unlockNFCTag(): Promise<void> {
   if (Platform.OS === "web") throw new Error("NFC not supported on web");
   const nfc = loadNfc();
@@ -251,18 +257,27 @@ export async function unlockNFCTag(): Promise<void> {
     } as any);
 
     // Tag is locked — authenticate first so we can write to config pages.
+    // (PWD_AUTH succeeds even if AUTH0 is misconfigured, as long as pwd matches.)
     await (nfc.manager as any).nfcAHandler.transceive([PWD_AUTH, ...WRISTBAND_PWD]);
 
-    // Disable AUTH0: set AUTH0 = 0xFF so no page requires authentication.
+    // Set AUTH0 = 0xFF (byte 2) to disable password protection on all pages.
+    // Leave ACCESS (byte 3) unchanged — NEVER touch CFGLCK (bit 6), it permanently bricks the chip.
+    //
+    // Early-exit if AUTH0 is already 0xFF (tag was never actually locked, e.g. written by old
+    // firmware with the byte-position bug). Skipping the write avoids errors on chips that were
+    // previously bricked by the old unlock code which set CFGLCK=1 in the ACCESS byte.
     const addrs = await getConfigAddresses(nfc.manager);
     const cfg = await readPages(nfc.manager, addrs.cfgPage);
-    await writePage(nfc.manager, addrs.cfgPage, [cfg[0], cfg[1], cfg[2], 0xff]);
+    if (cfg[2] !== 0xff) {
+      await writePage(nfc.manager, addrs.cfgPage, [cfg[0], cfg[1], 0xff, cfg[3]]);
+    }
   } finally {
     try { await nfc.manager.cancelTechnologyRequest(); } catch {}
   }
 }
 
 // Scan 2 of check-out: erase the (now-unlocked) tag.
+// Reads the header first to know how many data pages to clear, then zeroes them all.
 export async function eraseNFCTag(): Promise<void> {
   if (Platform.OS === "web") throw new Error("NFC not supported on web");
   const nfc = loadNfc();
@@ -274,13 +289,27 @@ export async function eraseNFCTag(): Promise<void> {
       alertMessage: "Scan the wristband to erase — Step 2 of 2",
     } as any);
 
+    // Read header to figure out how many pages to erase.
+    let pagesToErase = 10; // fallback: always clear at least 10 pages
+    try {
+      const headerBytes = await readPages(nfc.manager, HEADER_PAGE);
+      if (headerBytes[0] === MAGIC_1 && headerBytes[1] === MAGIC_2) {
+        const payloadLength = (headerBytes[2] << 8) | headerBytes[3];
+        if (payloadLength > 0 && payloadLength <= MAX_PAYLOAD_BYTES) {
+          pagesToErase = Math.ceil(payloadLength / 4) + 2; // +2 for safety margin
+        }
+      }
+    } catch { /* ignore header read failure — still proceed with erase */ }
+
+    // Clear the header page first (invalidates the wristband immediately).
     await writePage(nfc.manager, HEADER_PAGE, [0x00, 0x00, 0x00, 0x00]);
 
-    for (let p = DATA_START_PAGE; p < DATA_START_PAGE + 10; p++) {
+    // Clear all data pages that had content.
+    for (let p = DATA_START_PAGE; p < DATA_START_PAGE + pagesToErase; p++) {
       try {
         await writePage(nfc.manager, p, [0x00, 0x00, 0x00, 0x00]);
       } catch {
-        break;
+        break; // reached end of chip's writable range
       }
     }
   } finally {

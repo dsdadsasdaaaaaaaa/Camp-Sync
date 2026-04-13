@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
+import { useColors } from "@/hooks/useColors";
 import { readNFCTag, writeNFCTag, eraseNFCTag, lockNFCTag, unlockNFCTag, isNFCSupported } from "@/lib/nfc";
 import type { WristbandPayload, Camper } from "@/types";
 
@@ -120,19 +121,135 @@ function PulseRings({ active, color }: { active: boolean; color?: string }) {
   };
 
   return (
-    <View style={scanStyles.pulseWrap}>
+    <View style={pulseStyles.pulseWrap}>
       {active && ringView(ring3)}
       {active && ringView(ring2)}
       {active && ringView(ring1)}
-      <Animated.View style={[scanStyles.iconCircle, { transform: [{ scale: iconScale }], backgroundColor: ringColor + "12", borderColor: ringColor + "35" }]}>
+      <Animated.View style={[pulseStyles.iconCircle, { transform: [{ scale: iconScale }], backgroundColor: ringColor + "12", borderColor: ringColor + "35" }]}>
         <Ionicons name="radio" size={52} color={ringColor} />
       </Animated.View>
     </View>
   );
 }
 
+const pulseStyles = StyleSheet.create({
+  pulseWrap: {
+    width: 180, height: 180,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  iconCircle: {
+    width: 100, height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
+
+function getStyles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.65)",
+      justifyContent: "flex-end",
+    },
+    sheet: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: 28,
+      paddingBottom: Platform.OS === "web" ? 34 : 48,
+    },
+    handle: {
+      width: 40, height: 5,
+      backgroundColor: colors.border,
+      borderRadius: 2.5,
+      alignSelf: "center",
+      marginTop: 12, marginBottom: 4,
+    },
+    content: {
+      alignItems: "center",
+      paddingVertical: 24,
+      gap: 14,
+    },
+    stepBadge: {
+      paddingHorizontal: 14,
+      paddingVertical: 5,
+      borderRadius: 20,
+      borderWidth: 1,
+      marginBottom: 4,
+    },
+    stepBadgeText: {
+      fontSize: 12,
+      fontFamily: "Outfit_700Bold",
+      letterSpacing: 0.5,
+    },
+    iconCircle: {
+      width: 100, height: 100,
+      borderRadius: 50,
+      borderWidth: 2,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    title: {
+      fontSize: 22,
+      fontFamily: "Outfit_700Bold",
+      color: colors.text,
+      textAlign: "center",
+    },
+    subtitle: {
+      fontSize: 14,
+      fontFamily: "Outfit_400Regular",
+      color: colors.textSecondary,
+      textAlign: "center",
+      lineHeight: 20,
+      paddingHorizontal: 8,
+    },
+    hint: {
+      fontSize: 12,
+      fontFamily: "Outfit_500Medium",
+      textAlign: "center",
+    },
+    cancelBtn: {
+      width: "100%",
+      height: 52,
+      borderRadius: 14,
+      backgroundColor: colors.surfaceSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    cancelBtnText: {
+      fontSize: 16,
+      fontFamily: "Outfit_600SemiBold",
+      color: colors.textSecondary,
+    },
+    retryBtn: {
+      width: "100%",
+      height: 52,
+      borderRadius: 14,
+      backgroundColor: Colors.primary,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    retryBtnText: {
+      fontSize: 16,
+      fontFamily: "Outfit_600SemiBold",
+      color: "#fff",
+    },
+  });
+}
+
 export default function NFCScanner(props: NFCScannerProps) {
   const { visible, mode, onCancel } = props;
+  const colors = useColors();
+  const styles = getStyles(colors);
+
   const [status, setStatus] = useState<"scanning" | "success" | "error" | "unsupported">("scanning");
   const [errorMsg, setErrorMsg] = useState("");
   const [scanAttempt, setScanAttempt] = useState(0);
@@ -300,75 +417,75 @@ export default function NFCScanner(props: NFCScannerProps) {
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onCancel}>
-      <View style={scanStyles.overlay}>
-        <View style={scanStyles.sheet}>
-          <View style={scanStyles.handle} />
+      <View style={styles.overlay}>
+        <View style={styles.sheet}>
+          <View style={styles.handle} />
 
           {status === "unsupported" && (
-            <View style={scanStyles.content}>
-              <View style={[scanStyles.iconCircle, { backgroundColor: Colors.warning + "20", borderColor: Colors.warning + "40" }]}>
+            <View style={styles.content}>
+              <View style={[styles.iconCircle, { backgroundColor: Colors.warning + "20", borderColor: Colors.warning + "40" }]}>
                 <Ionicons name="warning" size={48} color={Colors.warning} />
               </View>
-              <Text style={scanStyles.title}>NFC Not Available</Text>
-              <Text style={scanStyles.subtitle}>
+              <Text style={styles.title}>NFC Not Available</Text>
+              <Text style={styles.subtitle}>
                 This device does not support NFC, or NFC is disabled. Please enable NFC in Settings.
               </Text>
-              <Pressable style={({ pressed }) => [scanStyles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={onCancel}>
-                <Text style={scanStyles.cancelBtnText}>Close</Text>
+              <Pressable style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]} onPress={onCancel}>
+                <Text style={styles.cancelBtnText}>Close</Text>
               </Pressable>
             </View>
           )}
 
           {status === "scanning" && (
-            <View style={scanStyles.content}>
+            <View style={styles.content}>
               {stepLabel() && (
-                <View style={[scanStyles.stepBadge, { backgroundColor: ringColor + "15", borderColor: ringColor + "30" }]}>
-                  <Text style={[scanStyles.stepBadgeText, { color: ringColor }]}>{stepLabel()}</Text>
+                <View style={[styles.stepBadge, { backgroundColor: ringColor + "15", borderColor: ringColor + "30" }]}>
+                  <Text style={[styles.stepBadgeText, { color: ringColor }]}>{stepLabel()}</Text>
                 </View>
               )}
               <PulseRings active={true} color={ringColor} />
-              <Text style={scanStyles.title}>{getTitle()}</Text>
-              <Text style={scanStyles.subtitle}>{getSubtitle()}</Text>
-              <Text style={[scanStyles.hint, { color: ringColor }]}>{getHint()}</Text>
+              <Text style={styles.title}>{getTitle()}</Text>
+              <Text style={styles.subtitle}>{getSubtitle()}</Text>
+              <Text style={[styles.hint, { color: ringColor }]}>{getHint()}</Text>
               <Pressable
-                style={({ pressed }) => [scanStyles.cancelBtn, { opacity: pressed ? 0.8 : 1, marginTop: 8 }]}
+                style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1, marginTop: 8 }]}
                 onPress={onCancel}
               >
-                <Text style={scanStyles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
               </Pressable>
             </View>
           )}
 
           {status === "success" && (
-            <View style={scanStyles.content}>
-              <View style={[scanStyles.iconCircle, { backgroundColor: Colors.success + "15", borderColor: Colors.success + "40" }]}>
+            <View style={styles.content}>
+              <View style={[styles.iconCircle, { backgroundColor: Colors.success + "15", borderColor: Colors.success + "40" }]}>
                 <Ionicons name="checkmark-circle" size={52} color={Colors.success} />
               </View>
-              <Text style={[scanStyles.title, { color: Colors.success }]}>{getSuccessTitle()}</Text>
-              <Text style={scanStyles.subtitle}>{getSuccessSubtitle()}</Text>
+              <Text style={[styles.title, { color: Colors.success }]}>{getSuccessTitle()}</Text>
+              <Text style={styles.subtitle}>{getSuccessSubtitle()}</Text>
               <ActivityIndicator color={Colors.primary} style={{ marginTop: 8 }} />
             </View>
           )}
 
           {status === "error" && (
-            <View style={scanStyles.content}>
-              <View style={[scanStyles.iconCircle, { backgroundColor: Colors.danger + "15", borderColor: Colors.danger + "40" }]}>
+            <View style={styles.content}>
+              <View style={[styles.iconCircle, { backgroundColor: Colors.danger + "15", borderColor: Colors.danger + "40" }]}>
                 <Ionicons name="close-circle" size={52} color={Colors.danger} />
               </View>
-              <Text style={[scanStyles.title, { color: Colors.danger }]}>Scan Failed</Text>
-              <Text style={scanStyles.subtitle}>{errorMsg}</Text>
+              <Text style={[styles.title, { color: Colors.danger }]}>Scan Failed</Text>
+              <Text style={styles.subtitle}>{errorMsg}</Text>
               <Pressable
-                style={({ pressed }) => [scanStyles.retryBtn, { opacity: pressed ? 0.85 : 1 }]}
+                style={({ pressed }) => [styles.retryBtn, { opacity: pressed ? 0.85 : 1 }]}
                 onPress={retry}
               >
                 <Ionicons name="refresh" size={18} color="#fff" />
-                <Text style={scanStyles.retryBtnText}>Try Again</Text>
+                <Text style={styles.retryBtnText}>Try Again</Text>
               </Pressable>
               <Pressable
-                style={({ pressed }) => [scanStyles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
+                style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.8 : 1 }]}
                 onPress={onCancel}
               >
-                <Text style={scanStyles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
               </Pressable>
             </View>
           )}
@@ -377,107 +494,3 @@ export default function NFCScanner(props: NFCScannerProps) {
     </Modal>
   );
 }
-
-const scanStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.65)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: Colors.light.background,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 28,
-    paddingBottom: Platform.OS === "web" ? 34 : 48,
-  },
-  handle: {
-    width: 40, height: 5,
-    backgroundColor: Colors.light.border,
-    borderRadius: 2.5,
-    alignSelf: "center",
-    marginTop: 12, marginBottom: 4,
-  },
-  content: {
-    alignItems: "center",
-    paddingVertical: 24,
-    gap: 14,
-  },
-  stepBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 4,
-  },
-  stepBadgeText: {
-    fontSize: 12,
-    fontFamily: "Outfit_700Bold",
-    letterSpacing: 0.5,
-  },
-  pulseWrap: {
-    width: 180, height: 180,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  iconCircle: {
-    width: 100, height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.accent + "12",
-    borderWidth: 2,
-    borderColor: Colors.accent + "35",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: "Outfit_700Bold",
-    color: Colors.light.text,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: Colors.light.textSecondary,
-    textAlign: "center",
-    lineHeight: 20,
-    paddingHorizontal: 8,
-  },
-  hint: {
-    fontSize: 12,
-    fontFamily: "Outfit_500Medium",
-    color: Colors.accent,
-    textAlign: "center",
-  },
-  cancelBtn: {
-    width: "100%",
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: Colors.light.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  cancelBtnText: {
-    fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
-    color: Colors.light.textSecondary,
-  },
-  retryBtn: {
-    width: "100%",
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: Colors.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  retryBtnText: {
-    fontSize: 16,
-    fontFamily: "Outfit_600SemiBold",
-    color: "#fff",
-  },
-});
