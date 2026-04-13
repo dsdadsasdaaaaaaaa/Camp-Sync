@@ -156,7 +156,17 @@ export default function StaffAccountScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={[styles.header, { paddingTop }]}>
-        <Text style={[styles.screenTitle, { color: colors.text }]}>Account</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Text style={[styles.screenTitle, { color: colors.text }]}>Account</Text>
+          <Pressable
+            style={({ pressed }) => [styles.signOutHeaderBtn, { opacity: pressed ? 0.7 : 1 }]}
+            onPress={handleLogout}
+            testID="staff-sign-out"
+          >
+            <Ionicons name="log-out-outline" size={18} color={Colors.danger} />
+            <Text style={[styles.signOutHeaderText, { color: Colors.danger }]}>Sign Out</Text>
+          </Pressable>
+        </View>
 
         <View style={[styles.tabBar, { backgroundColor: colors.surfaceSecondary }]}>
           {(["sessions", "account"] as Tab[]).map((tab) => (
@@ -625,6 +635,21 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
     lineHeight: 18,
+  },
+  signOutHeaderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: Colors.danger + "10",
+    borderWidth: 1,
+    borderColor: Colors.danger + "30",
+  },
+  signOutHeaderText: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
   },
   signOutBtn: {
     flexDirection: "row",

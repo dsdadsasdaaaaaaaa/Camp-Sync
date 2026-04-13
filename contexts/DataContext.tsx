@@ -264,8 +264,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // Auto check-in if not already checked in
       const activeCheckIn = checkIns.find((ci) => ci.camperId === camperId && !ci.checkedOutAt);
       if (!activeCheckIn) {
-        const todaySessions = getTodaySessions();
-        const sessionId = todaySessions[0]?.id || "MANAGEMENT_OVERRIDE";
+        const today = new Date().toISOString().split("T")[0];
+        const todaySession = sessions.find((s) => s.isActive && s.authorizedDates.includes(today));
+        const sessionId = todaySession?.id || "MANAGEMENT_OVERRIDE";
         try {
           await checkInCamper(camperId, sessionId);
         } catch (e) {
@@ -278,7 +279,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       for (const pu of unresolved) {
         try {
           await apiRequest("PATCH", `/api/pending-updates/${pu.id}/resolve`);
-          // Update local state for each resolved update
           setPendingUpdates((prev) =>
             prev.map((p) =>
               p.id === pu.id
@@ -293,7 +293,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       return wristbandId;
     },
-    [campers, pendingUpdates, user]
+    [campers, sessions, checkIns, pendingUpdates, user]
   );
 
   // ── Sessions ─────────────────────────────────────────────────────────────────

@@ -355,7 +355,7 @@ export default function StaffNFCScreen() {
           {campers.length === 0 && (
             <Text style={[styles.cardSub, { textAlign: "center", paddingVertical: 16 }]}>No campers registered yet.</Text>
           )}
-          {filteredCampers.slice(0, 8).map((camper) => (
+          {(camperSearch ? filteredCampers : filteredCampers.slice(0, 20)).map((camper) => (
             <Pressable
               key={camper.id}
               style={[styles.camperOption, selectedCamper?.id === camper.id && styles.camperOptionSelected]}
@@ -412,7 +412,7 @@ export default function StaffNFCScreen() {
           {checkedInCampers.length === 0 && (
             <Text style={[styles.cardSub, { textAlign: "center", paddingVertical: 16 }]}>No campers are currently checked in.</Text>
           )}
-          {filteredCheckoutCampers.slice(0, 8).map((camper) => (
+          {(checkoutSearch ? filteredCheckoutCampers : filteredCheckoutCampers.slice(0, 20)).map((camper) => (
             <Pressable
               key={camper.id}
               style={({ pressed }) => [styles.camperOption, { opacity: pressed ? 0.85 : 1 }]}
