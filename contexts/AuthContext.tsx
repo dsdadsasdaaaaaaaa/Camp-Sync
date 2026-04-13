@@ -37,6 +37,7 @@ interface AuthContextValue {
     newPassword: string
   ) => Promise<void>;
   adminResetPassword: (email: string, newPassword: string) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);

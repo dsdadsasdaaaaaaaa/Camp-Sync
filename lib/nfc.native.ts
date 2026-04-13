@@ -278,6 +278,14 @@ export async function unlockNFCTag(): Promise<void> {
 
 // Scan 2 of check-out: erase the (now-unlocked) tag.
 // Reads the header first to know how many data pages to clear, then zeroes them all.
+//
+// Note on CFGLCK-bricked wristbands: any chip whose ACCESS byte had CFGLCK (bit 6)
+// set to 1 by prior firmware has its configuration pages permanently locked at the
+// hardware level — this is a one-time-write fuse and cannot be reversed in software.
+// These chips can still have their user-data pages erased (this function handles
+// that), but they cannot be re-locked with a new password and should be physically
+// replaced. The unlockNFCTag early-exit (AUTH0 === 0xFF check) handles them
+// gracefully so checkout still completes without crashing.
 export async function eraseNFCTag(): Promise<void> {
   if (Platform.OS === "web") throw new Error("NFC not supported on web");
   const nfc = loadNfc();
@@ -317,6 +325,11 @@ export async function eraseNFCTag(): Promise<void> {
   }
 }
 
+// ASCII-only encoding helpers.
+// These work correctly because the data written to the tag is always
+// base64-encoded (output of encryptPayloadForTag), which is guaranteed ASCII.
+// Do NOT pass raw user strings (names, medical text) through these functions —
+// multi-byte UTF-8 characters would be silently mangled by the & 0xff mask.
 function encodeBytes(text: string): number[] {
   const bytes: number[] = [];
   for (let i = 0; i < text.length; i++) {

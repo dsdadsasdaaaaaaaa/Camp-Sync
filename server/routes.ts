@@ -176,6 +176,10 @@ function parseNotifPrefs(raw: string | null | undefined): Record<string, boolean
   try { return JSON.parse(raw || '{}'); } catch { return {}; }
 }
 
+// TODO (scale): Both emailParentsOfCamper and notifyParentsOfCamper do a full
+// table scan and filter in JavaScript. This is fine at camp scale (hundreds of
+// users). At thousands of users, replace with a SQL query that uses a JSON
+// contains operator to filter linked campers in the database.
 async function emailParentsOfCamper(camperId: string, subject: string, html: string, prefKey?: 'checkIn' | 'checkOut' | 'broadcasts') {
   try {
     const allUsers = await db.select().from(csUsers);
@@ -218,6 +222,21 @@ async function notifyParentsOfCamper(camperId: string, title: string, body: stri
 }
 
 // ─── Auth Middleware ───────────────────────────────────────────────────────────
+//
+// Two auth patterns coexist in this file — both are correct and do not conflict:
+//
+//   authMiddleware  — fast gate that rejects requests with no Bearer token before
+//                     they reach the handler. Stores the raw token on the request
+//                     object for the handful of endpoints (e.g. logout) that only
+//                     need the token string, not the resolved user/role.
+//
+//   resolveUser()   — performs the full DB lookup (session validity + user record)
+//                     and returns { userId, role }. Used by every endpoint that
+//                     makes role-based decisions. It reads directly from headers
+//                     so it works with or without authMiddleware in the chain.
+//
+// Future refactor: if the codebase grows, consider attaching the resolved user to
+// req in a typed middleware and removing the duplicate header read in resolveUser.
 
 function authMiddleware(req: Request, res: Response, next: Function) {
   const authHeader = req.headers["authorization"];

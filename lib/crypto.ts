@@ -188,6 +188,19 @@ function unpackPayload(compact: any): object {
   }
 }
 
+// XOR-obfuscates the payload against a static key, then base64-encodes the result.
+//
+// This is intentional obfuscation, NOT cryptographic encryption. The key is
+// embedded in the app binary, so anyone with the APK/IPA could reverse it.
+// It is considered acceptable here because:
+//   1. The NFC tag itself is password-protected (PWD_AUTH on pages 4+), providing
+//      physical access control.
+//   2. The truly sensitive medical record is stored server-side under AES-256-GCM
+//      with a secret derived from SESSION_SECRET — never on the tag.
+//   3. The tag holds only a compact emergency-info subset (name, allergies, one
+//      contact) intended for first-responder use.
+// Do not upgrade this to AES without also accounting for the 540-byte NFC payload
+// limit — AES overhead would require significantly shorter plaintext fields.
 export function encryptWristbandData(data: object): string {
   const compact = packPayload(data as any);
   const json = JSON.stringify(compact);

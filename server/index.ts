@@ -242,6 +242,19 @@ function setupErrorHandler(app: express.Application) {
 }
 
 (async () => {
+  // Guard against running in production without a real SESSION_SECRET.
+  // The fallback key in routes.ts is fine for local dev but must never be used
+  // in a deployed environment — medical records are AES-256-GCM encrypted with
+  // a key derived from this secret, so losing it means losing all stored data.
+  if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
+    console.error(
+      "[FATAL] SESSION_SECRET environment variable is not set. " +
+      "Medical record encryption requires a stable secret. " +
+      "Set SESSION_SECRET before starting the server in production."
+    );
+    process.exit(1);
+  }
+
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok" });
   });

@@ -146,30 +146,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     refresh();
 
-    const poll = setInterval(async () => {
-      if (!user || offlineMode) return;
-      try {
-        const [c, s, ci, pu, ac, br] = await Promise.all([
-          safeGet<Camper[]>("/api/campers", []),
-          safeGet<Session[]>("/api/sessions", []),
-          safeGet<CheckIn[]>("/api/check-ins", []),
-          safeGet<PendingWristbandUpdate[]>("/api/pending-updates", []),
-          safeGet<AuthCode[]>("/api/auth/codes", []),
-          safeGet<Broadcast[]>("/api/broadcasts", []),
-        ]);
-        setCampers(normalizeCampers(c));
-        setSessions(s);
-        setCheckIns(ci);
-        setPendingUpdates(pu);
-        setAuthCodes(ac);
-        setBroadcasts(br);
-        if (user.role === "management") {
-          const u = await safeGet<User[]>("/api/users", []);
-          setUsers(u);
-        }
-      } catch {
-      }
-    }, 15000);
+    const poll = setInterval(() => { refresh(); }, 15000);
 
     return () => clearInterval(poll);
   }, [authLoading, user, offlineMode]);
