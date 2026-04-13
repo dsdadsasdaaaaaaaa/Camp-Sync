@@ -1,25 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   StyleSheet,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
-  Alert,
-  ActivityIndicator,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { useData } from "@/contexts/DataContext";
-import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
-import type { MedicalInfo, EmergencyContact } from "@/types";
 
 function InfoRow({ label, value }: { label: string; value: string | string[] }) {
   const colors = useColors();
@@ -43,137 +36,17 @@ function InfoRow({ label, value }: { label: string; value: string | string[] }) 
   );
 }
 
-function EditField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  keyboardType,
-  multiline,
-}: {
-  label: string;
-  value: string;
-  onChange: (text: string) => void;
-  placeholder?: string;
-  keyboardType?: any;
-  multiline?: boolean;
-}) {
-  const colors = useColors();
-  const styles = getStyles(colors);
-  return (
-    <View style={styles.fieldGroup}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        style={[styles.fieldInput, multiline && styles.multilineInput]}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
-        keyboardType={keyboardType || "default"}
-        multiline={multiline}
-        numberOfLines={multiline ? 3 : 1}
-        autoCapitalize={keyboardType === "phone-pad" || keyboardType === "email-address" ? "none" : "words"}
-      />
-    </View>
-  );
-}
-
-function TagInput({ label, values, onChange, placeholder }: {
-  label: string;
-  values: string[];
-  onChange: (v: string[]) => void;
-  placeholder?: string;
-}) {
-  const colors = useColors();
-  const styles = getStyles(colors);
-  const [inputVal, setInputVal] = useState("");
-
-  const addTag = () => {
-    const trimmed = inputVal.trim();
-    if (trimmed && !values.includes(trimmed)) {
-      onChange([...values, trimmed]);
-    }
-    setInputVal("");
-  };
-
-  const removeTag = (index: number) => {
-    onChange(values.filter((_, i) => i !== index));
-  };
-
-  return (
-    <View style={styles.fieldGroup}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={styles.tagContainer}>
-        {values.map((tag, i) => (
-          <View key={i} style={styles.tagChip}>
-            <Text style={styles.tagChipText}>{tag}</Text>
-            <Pressable onPress={() => removeTag(i)} hitSlop={8}>
-              <Ionicons name="close-circle" size={16} color={Colors.primary} />
-            </Pressable>
-          </View>
-        ))}
-        <View style={styles.tagInputRow}>
-          <TextInput
-            style={styles.tagInput}
-            value={inputVal}
-            onChangeText={setInputVal}
-            placeholder={placeholder || `Add ${label.toLowerCase()}`}
-            placeholderTextColor={colors.textMuted}
-            onSubmitEditing={addTag}
-            returnKeyType="done"
-            blurOnSubmit={false}
-          />
-          {inputVal.trim().length > 0 && (
-            <Pressable onPress={addTag} style={{ padding: 2 }}>
-              <Ionicons name="add-circle" size={22} color={Colors.primary} />
-            </Pressable>
-          )}
-        </View>
-      </View>
-    </View>
-  );
-}
-
-const emptyContact = (): EmergencyContact => ({ name: "", relationship: "", phone: "", email: "" });
-
 export default function ParentChildDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { campers, checkIns, pendingUpdates, updateCamper, getActiveCheckIn } = useData();
-  const { user } = useAuth();
+  const { campers, checkIns, pendingUpdates, getActiveCheckIn } = useData();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = getStyles(colors);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [section, setSection] = useState<"info" | "medical" | "history">("info");
 
   const camper = campers.find((c) => c.id === id);
   const activeCheckIn = camper ? getActiveCheckIn(camper.id) : undefined;
   const hasPending = pendingUpdates.some((p) => p.camperId === id && !p.resolved);
-
-  const defaultMedical: MedicalInfo = {
-    allergies: [],
-    medications: [],
-    conditions: [],
-    emergencyContacts: [emptyContact()],
-    doctorName: "",
-    doctorPhone: "",
-    insuranceProvider: "",
-    bloodType: "Unknown",
-    notes: "",
-  };
-
-  const [medical, setMedical] = useState<MedicalInfo>(camper?.medical || defaultMedical);
-
-  useEffect(() => {
-    if (camper) {
-      const m = camper.medical;
-      setMedical({
-        ...m,
-        emergencyContacts: m.emergencyContacts?.length ? m.emergencyContacts : [emptyContact()],
-      });
-    }
-  }, [camper]);
 
   if (!camper) {
     return (
@@ -185,62 +58,14 @@ export default function ParentChildDetailScreen() {
     );
   }
 
+  const medical = camper.medical;
+
   const camperHistory = checkIns
     .filter((ci) => ci.camperId === camper.id)
     .sort((a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime());
 
-  const updateMedical = (key: keyof MedicalInfo, value: any) =>
-    setMedical((prev) => ({ ...prev, [key]: value }));
-
-  const updateContact = (i: number, field: keyof EmergencyContact, value: string) => {
-    setMedical(prev => {
-      const updated = [...(prev.emergencyContacts || [])];
-      updated[i] = { ...updated[i], [field]: value };
-      return { ...prev, emergencyContacts: updated };
-    });
-  };
-
-  const addContact = () => setMedical(prev => ({
-    ...prev,
-    emergencyContacts: [...(prev.emergencyContacts || []), emptyContact()],
-  }));
-
-  const removeContact = (i: number) => setMedical(prev => {
-    const updated = [...(prev.emergencyContacts || [])];
-    updated.splice(i, 1);
-    return { ...prev, emergencyContacts: updated };
-  });
-
-  const handleSave = async () => {
-    const contacts = medical.emergencyContacts || [];
-    if (contacts.length === 0 || !contacts[0]?.name?.trim()) {
-      Alert.alert("Required", "At least one emergency contact with a name is required.");
-      return;
-    }
-    setIsSaving(true);
-    try {
-      await updateCamper(camper.id, { medical });
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      if (activeCheckIn) {
-        Alert.alert(
-          "Info Updated",
-          `${camper.firstName}'s information has been updated. Since they are currently checked in, a wristband update request has been sent to camp management.`
-        );
-      }
-      setIsEditing(false);
-    } catch (err: any) {
-      Alert.alert("Error", err.message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View
         style={[
           styles.header,
@@ -262,29 +87,10 @@ export default function ParentChildDetailScreen() {
             </Text>
           </View>
         </View>
-        {isEditing ? (
-          <Pressable
-            style={({ pressed }) => [styles.saveBtn, { opacity: pressed ? 0.85 : 1 }]}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.saveBtnText}>Save</Text>
-            )}
-          </Pressable>
-        ) : (
-          <Pressable
-            style={[styles.saveBtn, { backgroundColor: colors.surfaceSecondary }]}
-            onPress={() => setIsEditing(true)}
-          >
-            <Text style={[styles.saveBtnText, { color: colors.text }]}>Edit</Text>
-          </Pressable>
-        )}
+        <View style={{ width: 40 }} />
       </View>
 
-      {hasPending && !isEditing && (
+      {hasPending && (
         <View style={styles.pendingBanner}>
           <Ionicons name="warning" size={16} color={Colors.warning} />
           <Text style={styles.pendingText}>
@@ -330,110 +136,59 @@ export default function ParentChildDetailScreen() {
 
         {section === "medical" && (
           <View style={styles.card}>
-            {isEditing ? (
-              <>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                  <Ionicons name="call-outline" size={16} color={Colors.danger} />
-                  <Text style={[styles.fieldLabel, { fontSize: 15 }]}>Emergency Contacts</Text>
-                </View>
+            <View style={styles.bloodHighlight}>
+              <Ionicons name="water" size={18} color={Colors.danger} />
+              <Text style={styles.bloodLabel}>Blood Type</Text>
+              <Text style={styles.bloodValue}>{medical.bloodType}</Text>
+            </View>
 
-                {(medical.emergencyContacts?.length ? medical.emergencyContacts : [emptyContact()]).map((ec, i) => (
-                  <View key={i} style={{ gap: 10 }}>
-                    {i > 0 && <View style={styles.divider} />}
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                      <Text style={[styles.fieldLabel, { color: colors.textSecondary, fontSize: 13 }]}>
-                        {i === 0 ? "Primary Contact" : `Contact ${i + 1}`}
-                      </Text>
-                      {i > 0 && (
-                        <Pressable onPress={() => removeContact(i)}>
-                          <Ionicons name="close-circle" size={20} color={Colors.danger} />
-                        </Pressable>
-                      )}
+            <View style={{ gap: 4 }}>
+              <Text style={[styles.infoLabel, { marginBottom: 4 }]}>Emergency Contacts</Text>
+              {(medical.emergencyContacts?.length ? medical.emergencyContacts : []).map((ec, i) => (
+                <View key={i} style={[styles.contactCard, i > 0 && { marginTop: 8 }]}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <View style={styles.contactIcon}>
+                      <Ionicons name="person" size={14} color={Colors.primary} />
                     </View>
-                    <EditField label="Name" value={ec.name} onChange={(v) => updateContact(i, "name", v)} placeholder="Full name" />
-                    <EditField label="Relationship" value={ec.relationship} onChange={(v) => updateContact(i, "relationship", v)} placeholder="e.g. Parent, Guardian, Uncle" />
-                    <EditField label="Phone" value={ec.phone} onChange={(v) => updateContact(i, "phone", v)} placeholder="(555) 000-0000" keyboardType="phone-pad" />
-                    <EditField label="Email" value={ec.email} onChange={(v) => updateContact(i, "email", v)} placeholder="email@example.com" keyboardType="email-address" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.contactName}>{ec.name || "—"}</Text>
+                      {ec.relationship ? (
+                        <Text style={styles.contactDetail}>{ec.relationship}</Text>
+                      ) : null}
+                    </View>
                   </View>
-                ))}
-
-                <Pressable
-                  style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}
-                  onPress={addContact}
-                >
-                  <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
-                  <Text style={{ fontSize: 14, fontFamily: "Outfit_600SemiBold", color: Colors.primary }}>
-                    Add Another Contact
-                  </Text>
-                </Pressable>
-
-                <View style={styles.divider} />
-                <TagInput label="Allergies" values={Array.isArray(medical.allergies) ? medical.allergies : []} onChange={(v) => updateMedical("allergies", v)} placeholder="Type and press return to add" />
-                <TagInput label="Medications" values={Array.isArray(medical.medications) ? medical.medications : []} onChange={(v) => updateMedical("medications", v)} placeholder="Type and press return to add" />
-                <TagInput label="Medical Conditions" values={Array.isArray(medical.conditions) ? medical.conditions : []} onChange={(v) => updateMedical("conditions", v)} placeholder="Type and press return to add" />
-                <View style={styles.divider} />
-                <EditField label="Doctor Name" value={medical.doctorName} onChange={(v) => updateMedical("doctorName", v)} placeholder="Doctor name" />
-                <EditField label="Doctor Phone" value={medical.doctorPhone} onChange={(v) => updateMedical("doctorPhone", v)} placeholder="Phone" keyboardType="phone-pad" />
-                <EditField label="Insurance Provider" value={medical.insuranceProvider} onChange={(v) => updateMedical("insuranceProvider", v)} placeholder="Provider" />
-                <EditField label="Additional Notes" value={medical.notes} onChange={(v) => updateMedical("notes", v)} placeholder="Any other notes" multiline />
-              </>
-            ) : (
-              <>
-                <View style={styles.bloodHighlight}>
-                  <Ionicons name="water" size={18} color={Colors.danger} />
-                  <Text style={styles.bloodLabel}>Blood Type</Text>
-                  <Text style={styles.bloodValue}>{medical.bloodType}</Text>
-                </View>
-
-                <View style={{ gap: 4 }}>
-                  <Text style={[styles.infoLabel, { marginBottom: 4 }]}>Emergency Contacts</Text>
-                  {(medical.emergencyContacts?.length ? medical.emergencyContacts : []).map((ec, i) => (
-                    <View key={i} style={[styles.contactCard, i > 0 && { marginTop: 8 }]}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <View style={styles.contactIcon}>
-                          <Ionicons name="person" size={14} color={Colors.primary} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.contactName}>{ec.name || "—"}</Text>
-                          {ec.relationship ? (
-                            <Text style={styles.contactDetail}>{ec.relationship}</Text>
-                          ) : null}
-                        </View>
-                      </View>
-                      {ec.phone ? (
-                        <View style={styles.contactDetailRow}>
-                          <Ionicons name="call-outline" size={14} color={colors.textMuted} />
-                          <Text style={styles.contactDetail}>{ec.phone}</Text>
-                        </View>
-                      ) : null}
-                      {ec.email ? (
-                        <View style={styles.contactDetailRow}>
-                          <Ionicons name="mail-outline" size={14} color={colors.textMuted} />
-                          <Text style={styles.contactDetail}>{ec.email}</Text>
-                        </View>
-                      ) : null}
+                  {ec.phone ? (
+                    <View style={styles.contactDetailRow}>
+                      <Ionicons name="call-outline" size={14} color={colors.textMuted} />
+                      <Text style={styles.contactDetail}>{ec.phone}</Text>
                     </View>
-                  ))}
-                  {!medical.emergencyContacts?.length && (
-                    <Text style={styles.infoValue}>—</Text>
-                  )}
+                  ) : null}
+                  {ec.email ? (
+                    <View style={styles.contactDetailRow}>
+                      <Ionicons name="mail-outline" size={14} color={colors.textMuted} />
+                      <Text style={styles.contactDetail}>{ec.email}</Text>
+                    </View>
+                  ) : null}
                 </View>
+              ))}
+              {!medical.emergencyContacts?.length && (
+                <Text style={styles.infoValue}>—</Text>
+              )}
+            </View>
 
+            <View style={styles.divider} />
+            <InfoRow label="Allergies" value={medical.allergies} />
+            <InfoRow label="Medications" value={medical.medications} />
+            <InfoRow label="Conditions" value={medical.conditions} />
+            <View style={styles.divider} />
+            <InfoRow label="Doctor" value={medical.doctorName} />
+            <InfoRow label="Doctor Phone" value={medical.doctorPhone} />
+            <InfoRow label="Insurance" value={medical.insuranceProvider} />
+            {medical.notes && (
+              <>
                 <View style={styles.divider} />
-                <InfoRow label="Allergies" value={medical.allergies} />
-                <InfoRow label="Medications" value={medical.medications} />
-                <InfoRow label="Conditions" value={medical.conditions} />
-                <View style={styles.divider} />
-                <InfoRow label="Doctor" value={medical.doctorName} />
-                <InfoRow label="Doctor Phone" value={medical.doctorPhone} />
-                <InfoRow label="Insurance" value={medical.insuranceProvider} />
-                {medical.notes && (
-                  <>
-                    <View style={styles.divider} />
-                    <Text style={styles.infoLabel}>Notes</Text>
-                    <Text style={[styles.infoValue, { textAlign: "left" }]}>{medical.notes}</Text>
-                  </>
-                )}
+                <Text style={styles.infoLabel}>Notes</Text>
+                <Text style={[styles.infoValue, { textAlign: "left" }]}>{medical.notes}</Text>
               </>
             )}
           </View>
@@ -486,7 +241,7 @@ export default function ParentChildDetailScreen() {
           </View>
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -530,19 +285,6 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 12,
     fontFamily: "Outfit_600SemiBold",
   },
-  saveBtn: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
-    minWidth: 60,
-    alignItems: "center",
-  },
-  saveBtnText: {
-    color: "#fff",
-    fontSize: 14,
-    fontFamily: "Outfit_600SemiBold",
-  },
   pendingBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -569,6 +311,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     borderRadius: 12,
     padding: 4,
     marginBottom: 12,
+    marginTop: 12,
   },
   tab: {
     flex: 1,
@@ -682,27 +425,6 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     color: colors.textSecondary,
   },
-  fieldGroup: { gap: 6 },
-  fieldLabel: {
-    fontSize: 13,
-    fontFamily: "Outfit_600SemiBold",
-    color: colors.text,
-  },
-  fieldInput: {
-    backgroundColor: colors.surfaceSecondary,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontFamily: "Outfit_400Regular",
-    fontSize: 15,
-    color: colors.text,
-  },
-  multilineInput: {
-    height: 80,
-    textAlignVertical: "top",
-  },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -721,54 +443,15 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontFamily: "Outfit_500Medium",
     color: Colors.primary,
   },
-  tagContainer: {
-    backgroundColor: colors.surfaceSecondary,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 10,
-    gap: 8,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-  },
-  tagChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: Colors.primary + "20",
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  tagChipText: {
-    fontSize: 13,
-    fontFamily: "Outfit_500Medium",
-    color: Colors.primary,
-  },
-  tagInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    minWidth: 120,
-    gap: 4,
-  },
-  tagInput: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: "Outfit_400Regular",
-    color: colors.text,
-    paddingVertical: 2,
-  },
   historyRow: {
     flexDirection: "row",
+    alignItems: "flex-start",
     gap: 12,
-    paddingVertical: 8,
   },
   historyIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
