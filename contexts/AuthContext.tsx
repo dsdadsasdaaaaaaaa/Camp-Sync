@@ -110,7 +110,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const token = await loadTokenFromStorage();
 
         if (!token) {
-          setOfflineMode(true);
+          // No token = user has never logged in (or explicitly logged out).
+          // This is NOT an offline state — route them to the login screen.
+          setOfflineMode(false);
           setIsLoading(false);
           return;
         }
@@ -138,13 +140,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setOfflineMode(false);
           import("@/lib/notifications").then(({ registerPushToken }) => registerPushToken()).catch(() => {});
         } else {
-          // If token invalid, clear it and try to use cached user if available
+          // Token is invalid/expired — try cached user first, otherwise send
+          // to login (not offline — the server is reachable, they just need to re-auth).
           const cached = await getCachedUser();
           if (cached) {
             setUser(cached);
           } else {
             await clearToken();
-            setOfflineMode(true);
+            setOfflineMode(false);
           }
         }
       } catch {

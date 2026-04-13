@@ -1146,8 +1146,8 @@ export default function MoreScreen() {
       {/* Add Camper to Roster Modal (T005) */}
       <Modal visible={showAddCamperModal} animationType="slide" transparent onRequestClose={() => setShowAddCamperModal(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setShowAddCamperModal(false)}>
-          <KeyboardAvoidingView behavior="padding">
-            <Pressable style={[styles.modalSheet, { backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
+          <KeyboardAvoidingView behavior="padding" style={{ width: "100%" }}>
+            <Pressable style={[styles.modalSheet, { backgroundColor: colors.background, maxHeight: "85%" }]} onPress={(e) => e.stopPropagation()}>
               <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
               <Text style={[styles.modalTitle, { color: colors.text }]}>Add to Expected Roster</Text>
               <Text style={[styles.modalSub, { color: colors.textSecondary }]}>Select a camper to add to this session's expected roster.</Text>
@@ -1164,7 +1164,7 @@ export default function MoreScreen() {
                 />
               </View>
 
-              <ScrollView style={styles.camperList} nestedScrollEnabled>
+              <ScrollView style={styles.camperList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
                 {campers
                   .filter(c => {
                     const fullName = `${c.firstName} ${c.lastName}`.toLowerCase();
@@ -1472,7 +1472,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   // Modal Search
   searchContainer: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.surfaceSecondary, borderRadius: 10, paddingHorizontal: 12, height: 40, marginBottom: 12 },
   searchInput: { flex: 1, fontFamily: "Outfit_400Regular", fontSize: 14, color: colors.text },
-  camperList: { maxHeight: 300 },
+  camperList: { flex: 1, minHeight: 200 },
   rosterCountBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.primary + "10", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16 },
   rosterCountText: { fontSize: 14, fontFamily: "Outfit_600SemiBold", color: Colors.primary },
   rosterAvatarLarge: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary + "20", alignItems: "center", justifyContent: "center" },
