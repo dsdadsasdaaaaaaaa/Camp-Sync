@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/query-client";
+import { alertMessage } from "@/lib/confirm";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/app/_layout";
@@ -60,14 +61,14 @@ export default function ParentProfileScreen() {
       await apiRequest("PATCH", "/api/users/me/notification-preferences", { preferences: updated });
     } catch {
       setNotifPrefs(notifPrefs);
-      Alert.alert("Error", "Failed to save preference. Please try again.");
+      alertMessage("Error", "Failed to save preference. Please try again.");
     }
   };
 
   const handleLinkChild = async () => {
     const code = linkCode.trim();
     if (!code) {
-      Alert.alert("Missing Code", "Please enter the auth code provided by camp.");
+      alertMessage("Missing Code", "Please enter the auth code provided by camp.");
       return;
     }
     setIsLinkingChild(true);
@@ -76,9 +77,9 @@ export default function ParentProfileScreen() {
       await refreshUser();
       setLinkCode("");
       setShowLinkChild(false);
-      Alert.alert("Child Linked", "Your new child has been successfully added to your account.");
+      alertMessage("Child Linked", "Your new child has been successfully added to your account.");
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to link child. Please check the code and try again.");
+      alertMessage("Error", err.message || "Failed to link child. Please check the code and try again.");
     } finally {
       setIsLinkingChild(false);
     }
@@ -105,15 +106,15 @@ export default function ParentProfileScreen() {
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert("Missing Fields", "Please fill in all password fields.");
+      alertMessage("Missing Fields", "Please fill in all password fields.");
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert("Too Short", "New password must be at least 8 characters.");
+      alertMessage("Too Short", "New password must be at least 8 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert("Mismatch", "New passwords do not match.");
+      alertMessage("Mismatch", "New passwords do not match.");
       return;
     }
 
@@ -123,13 +124,13 @@ export default function ParentProfileScreen() {
         currentPassword,
         newPassword,
       });
-      Alert.alert("Password Changed", "Your password has been updated successfully.");
+      alertMessage("Password Changed", "Your password has been updated successfully.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setShowPasswordSection(false);
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to change password.");
+      alertMessage("Error", err.message || "Failed to change password.");
     } finally {
       setIsSaving(false);
     }

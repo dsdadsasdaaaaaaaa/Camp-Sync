@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { apiRequest } from "@/lib/query-client";
+import { alertMessage } from "@/lib/confirm";
 import Colors from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/app/_layout";
@@ -123,28 +124,28 @@ export default function StaffAccountScreen() {
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert("Missing Fields", "Please fill in all password fields.");
+      alertMessage("Missing Fields", "Please fill in all password fields.");
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert("Too Short", "New password must be at least 8 characters.");
+      alertMessage("Too Short", "New password must be at least 8 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert("Mismatch", "New passwords do not match.");
+      alertMessage("Mismatch", "New passwords do not match.");
       return;
     }
     setIsSaving(true);
     try {
       await apiRequest("POST", "/api/auth/change-password", { currentPassword, newPassword });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Password Changed", "Your password has been updated successfully.");
+      alertMessage("Password Changed", "Your password has been updated successfully.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setShowPasswordSection(false);
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to change password.");
+      alertMessage("Error", err.message || "Failed to change password.");
     } finally {
       setIsSaving(false);
     }
