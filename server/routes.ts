@@ -247,7 +247,7 @@ function authMiddleware(req: Request, res: Response, next: Function) {
   next();
 }
 
-async function resolveUser(req: Request): Promise<{ userId: string; role: string } | null> {
+async function resolveUser(req: Request): Promise<{ userId: string; id: string; role: string; name: string } | null> {
   const authHeader = req.headers["authorization"];
   if (!authHeader?.startsWith("Bearer ")) return null;
   const token = authHeader.slice(7);
@@ -258,7 +258,7 @@ async function resolveUser(req: Request): Promise<{ userId: string; role: string
   if (!session) return null;
   const [user] = await db.select().from(csUsers).where(eq(csUsers.id, session.userId));
   if (!user) return null;
-  return { userId: user.id, role: user.role };
+  return { userId: user.id, id: user.id, role: user.role, name: user.name };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -740,7 +740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const auth = await resolveUser(req);
       if (!auth || auth.role !== "management") return res.status(403).json({ message: "Forbidden" });
-      const { id } = req.params;
+      const id = String(req.params.id);
       const { name, email, role, linkedCamperIds } = req.body;
       const updates: Record<string, any> = {};
       if (name !== undefined) updates.name = name.trim();
@@ -774,9 +774,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const auth = await resolveUser(req);
       if (!auth || auth.role !== "management") return res.status(403).json({ message: "Forbidden" });
-      if (auth.userId === req.params.id) return res.status(400).json({ message: "You cannot delete your own account" });
-      await db.delete(csUserSessions).where(eq(csUserSessions.userId, req.params.id));
-      await db.delete(csUsers).where(eq(csUsers.id, req.params.id));
+      const targetId = String(req.params.id);
+      if (auth.userId === targetId) return res.status(400).json({ message: "You cannot delete your own account" });
+      await db.delete(csUserSessions).where(eq(csUserSessions.userId, targetId));
+      await db.delete(csUsers).where(eq(csUsers.id, targetId));
       return res.json({ success: true });
     } catch (err) {
       console.error("Delete user error:", err);
@@ -788,7 +789,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const auth = await resolveUser(req);
       if (!auth || auth.role !== "management") return res.status(403).json({ message: "Forbidden" });
-      const [target] = await db.select().from(csUsers).where(eq(csUsers.id, req.params.id));
+      const [target] = await db.select().from(csUsers).where(eq(csUsers.id, String(req.params.id)));
       if (!target) return res.status(404).json({ message: "User not found" });
       const code = randomBytes(5).toString("hex").toUpperCase().slice(0, 8);
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
@@ -1234,7 +1235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const auth = await resolveUser(req);
       if (!auth || auth.role !== "management") return res.status(403).json({ message: "Management only" });
-      await db.delete(csCabins).where(eq(csCabins.id, req.params.id));
+      await db.delete(csCabins).where(eq(csCabins.id, String(req.params.id)));
       return res.json({ success: true });
     } catch (err) {
       console.error("Delete cabin error:", err);
@@ -1924,7 +1925,7 @@ RULES:
       const auth = await resolveUser(req);
       if (!auth || auth.role !== "management") return res.status(403).json({ message: "Only management can edit broadcasts" });
 
-      const { id } = req.params;
+      const id = String(req.params.id);
       const { title, message, audience } = req.body;
       if (!title || !message || !audience) return res.status(400).json({ message: "title, message, and audience are required" });
 
@@ -1958,7 +1959,7 @@ RULES:
       const auth = await resolveUser(req);
       if (!auth || auth.role !== "management") return res.status(403).json({ message: "Only management can delete broadcasts" });
 
-      const { id } = req.params;
+      const id = String(req.params.id);
       const [existing] = await db.select().from(csBroadcasts).where(eq(csBroadcasts.id, id));
       if (!existing) return res.status(404).json({ message: "Broadcast not found" });
 

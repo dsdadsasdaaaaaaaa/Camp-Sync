@@ -487,7 +487,7 @@ export default function MoreScreen() {
 
       const csvContent = [headers.join(","), ...rows].join("\n");
       const fileName = `attendance_export_${new Date().toISOString().split('T')[0]}.csv`;
-      const fileUri = FileSystem.cacheDirectory + fileName;
+      const fileUri = (FileSystem as any).cacheDirectory + fileName;
 
       if (Platform.OS === 'web') {
         const encodedUri = encodeURI(`data:text/csv;charset=utf-8,${csvContent}`);
@@ -498,7 +498,7 @@ export default function MoreScreen() {
         link.click();
         document.body.removeChild(link);
       } else {
-        await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+        await (FileSystem as any).writeAsStringAsync(fileUri, csvContent, { encoding: (FileSystem as any).EncodingType?.UTF8 ?? "utf8" });
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Attendance CSV', UTI: 'public.comma-separated-values-text' });
         } else {
