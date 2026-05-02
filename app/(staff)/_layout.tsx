@@ -15,6 +15,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>Home</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="index">
+        <Icon sf={{ default: "checkmark.circle", selected: "checkmark.circle.fill" }} />
+        <Label>Check-in</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="nfc">
         <Icon sf={{ default: "wave.3.right", selected: "wave.3.right" }} />
         <Label>Wristband</Label>
@@ -67,7 +71,12 @@ function ClassicTabLayout() {
       />
       <Tabs.Screen
         name="index"
-        options={{ href: null }}
+        options={{
+          title: "Check-in",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "checkmark-circle" : "checkmark-circle-outline"} size={24} color={color} />
+          ),
+        }}
       />
       <Tabs.Screen
         name="nfc"

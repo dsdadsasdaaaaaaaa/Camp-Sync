@@ -427,11 +427,69 @@ async function seedDemoUsers() {
   }
 }
 
+const DEMO_SESSION_ID = "demo-session-day-camp-001";
+
+async function seedDemoSession() {
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - 7);
+  const end = new Date(today);
+  end.setDate(end.getDate() + 358);
+
+  const dates: string[] = [];
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    dates.push(d.toISOString().slice(0, 10));
+  }
+  const startStr = start.toISOString().slice(0, 10);
+  const endStr = end.toISOString().slice(0, 10);
+  const authorizedJson = JSON.stringify(dates);
+
+  const [existing] = await db.select().from(csCampSessions).where(eq(csCampSessions.id, DEMO_SESSION_ID));
+  if (!existing) {
+    await db.insert(csCampSessions).values({
+      id: DEMO_SESSION_ID,
+      name: "Day Camp",
+      startDate: startStr,
+      endDate: endStr,
+      authorizedDates: authorizedJson,
+      isActive: true,
+      createdBy: "system",
+    }).onConflictDoNothing();
+  } else {
+    const todayStr = today.toISOString().slice(0, 10);
+    let currentDates: string[] = [];
+    try { currentDates = JSON.parse(existing.authorizedDates || "[]") as string[]; } catch { currentDates = []; }
+    if (!currentDates.includes(todayStr)) {
+      await db.update(csCampSessions)
+        .set({ startDate: startStr, endDate: endStr, authorizedDates: authorizedJson, isActive: true })
+        .where(eq(csCampSessions.id, DEMO_SESSION_ID));
+    }
+  }
+
+  // Migrate any legacy default-named "Day Camp" session that has stale dates
+  const legacy = await db.select().from(csCampSessions);
+  const todayStr = today.toISOString().slice(0, 10);
+  for (const s of legacy) {
+    if (s.id === DEMO_SESSION_ID) continue;
+    if (s.name !== "Day Camp") continue;
+    let parsed: string[] = [];
+    try { parsed = JSON.parse(s.authorizedDates || "[]") as string[]; } catch { parsed = []; }
+    if (!parsed.includes(todayStr)) {
+      await db.update(csCampSessions)
+        .set({ startDate: startStr, endDate: endStr, authorizedDates: authorizedJson, isActive: true })
+        .where(eq(csCampSessions.id, s.id));
+    }
+  }
+}
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await seedAuthCodes();
   await seedDemoUsers();
+  await seedDemoSession();
 
   // ── Auth: Register ──────────────────────────────────────────────────────────
 

@@ -544,7 +544,7 @@ export default function StaffHomeScreen() {
         <View style={[styles.infoRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Ionicons name="information-circle-outline" size={16} color={Colors.primary} />
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            {campers.length} campers registered · Tap Check-in tab to manage attendance
+            {campers.length} campers registered · Use the Check-in tab to manage attendance
           </Text>
         </View>
       </ScrollView>

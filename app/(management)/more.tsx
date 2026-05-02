@@ -26,6 +26,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
+import { confirmAction } from "@/lib/confirm";
 import type { Session, AuthCode, UserRole } from "@/types";
 import DatePicker from "@/components/DatePicker";
 import Colors from "@/constants/colors";
@@ -321,25 +322,19 @@ export default function MoreScreen() {
   };
 
   const handleRemoveCamperFromRoster = async (sessionId: string, camperId: string) => {
-    Alert.alert(
+    confirmAction(
       "Remove Camper",
       "Are you sure you want to remove this camper from the expected roster?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await apiRequest("DELETE", `/api/sessions/${sessionId}/roster/${camperId}`);
-              await fetchRoster(sessionId);
-              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } catch (err: any) {
-              Alert.alert("Error", err.message || "Failed to remove camper from roster");
-            }
-          }
+      async () => {
+        try {
+          await apiRequest("DELETE", `/api/sessions/${sessionId}/roster/${camperId}`);
+          await fetchRoster(sessionId);
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (err: any) {
+          Alert.alert("Error", err.message || "Failed to remove camper from roster");
         }
-      ]
+      },
+      { confirmLabel: "Remove", destructive: true }
     );
   };
 
@@ -620,19 +615,24 @@ export default function MoreScreen() {
 
   const handleDeleteUser = (u: typeof users[0]) => {
     if (u.id === user?.id) { Alert.alert("Not Allowed", "You cannot delete your own account."); return; }
-    Alert.alert("Delete User", `Permanently delete ${u.name}'s account?`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: async () => {
-        try { await deleteUser(u.id); closeUserEdit(); await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
-        catch (err: any) { Alert.alert("Error", err.message || "Failed to delete user."); }
-      }},
-    ]);
+    confirmAction("Delete User", `Permanently delete ${u.name}'s account?`, async () => {
+      try { await deleteUser(u.id); closeUserEdit(); await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
+      catch (err: any) { Alert.alert("Error", err.message || "Failed to delete user."); }
+    }, { confirmLabel: "Delete", destructive: true });
   };
 
   const ROLE_COLORS: Record<UserRole, string> = { management: Colors.danger, staff: Colors.primary, parent: Colors.success };
 
   const handleLogout = async () => {
-    if (Platform.OS === "web") { await logout(); router.replace("/(auth)/login"); return; }
+    if (Platform.OS === "web") {
+      const confirmed = typeof window !== "undefined" && window.confirm
+        ? window.confirm("Are you sure you want to sign out?")
+        : true;
+      if (!confirmed) return;
+      await logout();
+      router.replace("/(auth)/login");
+      return;
+    }
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       { text: "Sign Out", style: "destructive", onPress: async () => { await logout(); router.replace("/(auth)/login"); }},
@@ -849,7 +849,7 @@ export default function MoreScreen() {
                   key={session.id}
                   session={session}
                   onEdit={() => openEditSession(session)}
-                  onDelete={() => Alert.alert("Delete Session", `Remove "${session.name}"?`, [{ text: "Cancel", style: "cancel" }, { text: "Delete", style: "destructive", onPress: () => deleteSession(session.id) }])}
+                  onDelete={() => confirmAction("Delete Session", `Remove "${session.name}"?`, () => deleteSession(session.id), { confirmLabel: "Delete", destructive: true })}
                   onToggleActive={() => updateSession(session.id, { isActive: !session.isActive })}
                   onViewRoster={() => setRosterSession(session)}
                   roster={rosters[session.id]}
@@ -883,7 +883,7 @@ export default function MoreScreen() {
                   key={code.code}
                   code={code}
                   onEdit={() => openCodeModal(code)}
-                  onDelete={() => Alert.alert("Revoke Code", `Revoke "${code.code}"?`, [{ text: "Cancel", style: "cancel" }, { text: "Revoke", style: "destructive", onPress: () => deleteAuthCode(code.code) }])}
+                  onDelete={() => confirmAction("Revoke Code", `Revoke "${code.code}"?`, () => deleteAuthCode(code.code), { confirmLabel: "Revoke", destructive: true })}
                 />
               )) || []}
             </>

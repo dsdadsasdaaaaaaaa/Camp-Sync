@@ -99,6 +99,10 @@ export default function StaffAccountScreen() {
 
   const handleLogout = async () => {
     if (Platform.OS === "web") {
+      const confirmed = typeof window !== "undefined" && window.confirm
+        ? window.confirm("Are you sure you want to sign out?")
+        : true;
+      if (!confirmed) return;
       await logout();
       router.replace("/(auth)/login");
       return;

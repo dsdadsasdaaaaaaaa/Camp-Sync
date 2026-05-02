@@ -86,6 +86,10 @@ export default function ParentProfileScreen() {
 
   const handleLogout = async () => {
     if (Platform.OS === "web") {
+      const confirmed = typeof window !== "undefined" && window.confirm
+        ? window.confirm("Are you sure you want to sign out?")
+        : true;
+      if (!confirmed) return;
       await logout();
       router.replace("/(auth)/login");
       return;
@@ -141,7 +145,7 @@ export default function ParentProfileScreen() {
         styles.container,
         {
           paddingTop: Platform.OS === "web" ? 67 : insets.top + 20,
-          paddingBottom: insets.bottom + 40,
+          paddingBottom: insets.bottom + (Platform.OS === "web" ? 120 : 100),
         },
       ]}
     >
