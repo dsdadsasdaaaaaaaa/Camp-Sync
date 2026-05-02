@@ -64,14 +64,14 @@ function CamperCheckInCard({
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.camperName, { color: colors.text }]}>{camper.firstName} {camper.lastName}</Text>
-          {medStr(camper.medical.allergies) && medStr(camper.medical.allergies).toLowerCase() !== "none" && (
+          {Boolean(medStr(camper.medical.allergies)) && medStr(camper.medical.allergies).toLowerCase() !== "none" ? (
             <View style={[styles.allergyPill, { backgroundColor: Colors.danger }]}>
               <Ionicons name="warning" size={12} color="#fff" />
               <Text style={styles.allergyPillText}>
                 {medStr(camper.medical.allergies).split(",")[0].trim()}
               </Text>
             </View>
-          )}
+          ) : null}
           <Text style={[styles.camperCabin, { color: colors.textSecondary }]}>{camper.cabinGroup || "No cabin"}</Text>
         </View>
       </View>
@@ -208,11 +208,11 @@ function EmergencyLookupModal({
                     <Text style={[styles.camperName, { color: colors.text }]}>{item.firstName} {item.lastName}</Text>
                     <Text style={[styles.camperCabin, { color: colors.textSecondary }]}>{item.cabinGroup || "No cabin"}</Text>
                   </View>
-                  {medStr(item.medical.allergies) && medStr(item.medical.allergies).toLowerCase() !== "none" && (
+                  {Boolean(medStr(item.medical.allergies)) && medStr(item.medical.allergies).toLowerCase() !== "none" ? (
                     <View style={styles.emAllergyBadge}>
                       <Ionicons name="warning" size={12} color={Colors.danger} />
                     </View>
-                  )}
+                  ) : null}
                   <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </Pressable>
               )}
@@ -279,7 +279,7 @@ function EmergencyLookupModal({
               </View>
             </View>
 
-            {medStr(selectedCamper.medical.notes) && medStr(selectedCamper.medical.notes).toLowerCase() !== "none" && (
+            {Boolean(medStr(selectedCamper.medical.notes)) && medStr(selectedCamper.medical.notes).toLowerCase() !== "none" ? (
               <View style={styles.medSection}>
                 <View style={styles.medSectionHeader}>
                   <Ionicons name="document-text" size={18} color={Colors.warning} />
@@ -289,7 +289,7 @@ function EmergencyLookupModal({
                   <Text style={[styles.medNotesText, { color: colors.text }]}>{medStr(selectedCamper.medical.notes)}</Text>
                 </View>
               </View>
-            )}
+            ) : null}
 
             <View style={styles.medSection}>
               <View style={styles.medSectionHeader}>

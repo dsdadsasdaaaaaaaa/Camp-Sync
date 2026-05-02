@@ -46,6 +46,9 @@ The application utilizes **Expo Router** for file-based routing, organizing rout
 - Role-specific dashboards and interfaces are designed for clarity and ease of use.
 - Staff check-in screens visually highlight campers with allergies using prominent badges.
 
+**Metro Bundler**:
+- `metro.config.js` extends Expo defaults and blocks the `.local/` directory from file watching to prevent ENOENT crashes when workflow log files rotate.
+
 ### Backend (Express.js)
 
 The backend is an Express.js API server (`server/index.ts`) with CORS configured for development and production environments. It uses **Drizzle ORM** and `pg` for PostgreSQL database interaction.

@@ -125,12 +125,12 @@ export default function ParentChildDetailScreen() {
             <InfoRow label="Cabin / Group" value={camper.cabinGroup} />
             <View style={styles.divider} />
             <InfoRow label="Wristband ID" value={camper.wristbandId || "Not programmed"} />
-            {camper.wristbandLastProgrammed && (
+            {camper.wristbandLastProgrammed ? (
               <InfoRow
                 label="Last Programmed"
                 value={new Date(camper.wristbandLastProgrammed).toLocaleDateString()}
               />
-            )}
+            ) : null}
           </View>
         )}
 
@@ -184,13 +184,13 @@ export default function ParentChildDetailScreen() {
             <InfoRow label="Doctor" value={medical.doctorName} />
             <InfoRow label="Doctor Phone" value={medical.doctorPhone} />
             <InfoRow label="Insurance" value={medical.insuranceProvider} />
-            {medical.notes && (
+            {medical.notes ? (
               <>
                 <View style={styles.divider} />
                 <Text style={styles.infoLabel}>Notes</Text>
                 <Text style={[styles.infoValue, { textAlign: "left" }]}>{medical.notes}</Text>
               </>
-            )}
+            ) : null}
           </View>
         )}
 
